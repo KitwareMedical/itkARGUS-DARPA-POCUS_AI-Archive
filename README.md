@@ -1,4 +1,4 @@
-# DARPA POCUS AI
+# Anatomic Reconstruction - POCUS AI
 
 This repository contains all of Kitware's code and resources for the DARPA POCUS AI project.
 
