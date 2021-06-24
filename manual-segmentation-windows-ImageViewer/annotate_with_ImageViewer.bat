@@ -20,7 +20,7 @@ PAUSE
 
 for %%f in (.\images_to_be_annotated\*) do (
 	echo Now annotating %%f
-	ImageViewer -M Paint -S .\already_annotated_images_and_overlays\%%~nf_overlay.mha %%f
+	.\ImageViewer\ImageViewer.exe -M Paint -S .\already_annotated_images_and_overlays\%%~nf_overlay.mha %%f
 	echo Saving overlay as .\already_annotated_images_and_overlays\%%~nf_overlay.mha
 	move %%f .\already_annotated_images_and_overlays\%%~nf%%~xf
 	echo.
