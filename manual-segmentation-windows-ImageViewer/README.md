@@ -1,6 +1,6 @@
 ## manual-segmentation-windows-ImageViewer
 
-This is a tool for quick-and-dirty manual segmentation of a group of images.
+This is a tool for quick-and-dirty manual segmentation of a group of images. It uses [ImageViewer](https://github.com/KitwareMedical/ImageViewer) to perform annotations.
 
 ### Usage
 
