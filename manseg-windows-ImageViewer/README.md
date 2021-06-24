@@ -1,4 +1,4 @@
-## manual-segmentation-windows-ImageViewer
+## manseg-windows-ImageViewer
 
 This is a tool for quick-and-dirty manual segmentation of a group of images. It uses [ImageViewer](https://github.com/KitwareMedical/ImageViewer) to perform annotations.
 
