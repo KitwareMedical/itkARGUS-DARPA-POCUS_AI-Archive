@@ -1,2 +1,3 @@
-# LUS-preprocessing
-Lung Ultrasound preprocessing
+# US-preprocessing
+
+Ultrasound data preprocessing
