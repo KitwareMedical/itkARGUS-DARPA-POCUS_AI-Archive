@@ -4,6 +4,7 @@ This directory will hold the pytorch version of the unet we will use in our pipe
 
 ### TODO
 
+- write wieghted categorical crossentropy loss with bias regularization
 - fully reproduce Spine Segmentation Unet (Tamas Ungi) results with the PyTorch version of the network
 - write scripts for testing different training strategies
   - rectangular kernels
