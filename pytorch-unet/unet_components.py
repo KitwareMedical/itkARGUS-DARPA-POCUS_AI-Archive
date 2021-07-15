@@ -45,7 +45,7 @@ class UNet_up(nn.Module):
 	The 'up' blocks of our unet packaged into one class
 	"""
 
-	def __init__(self, input_size: int, output_size: int, shape: int, padding, activation: str, batchnorm: bool):
+	def __init__(self, input_size: int, output_size: int, shape: int, padding, activation, batchnorm: bool):
 		"""
 		"""
 		super(UNet_up, self).__init__()
@@ -57,8 +57,10 @@ class UNet_up(nn.Module):
 			self.activation = nn.ReLU()
 		elif activation == 'softmax':
 			self.activation == nn.Softmax()
+		elif activation == None:
+			self.activation == nn.Identity()
 		else:
-			sys.exit("activation must be 'relu' or 'softmax'")
+			sys.exit("activation must be 'relu', 'softmax', or None")
 
 		if batchnorm:
 			self.batchnorm = nn.BatchNorm2d(output_size)

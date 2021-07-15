@@ -64,7 +64,7 @@ class UNet(nn.Module):
 			if (layer_index == len(down_filter_numbers)-2):
 				layer = UNet_up(in_size, out_size, shape, 'same', 'relu', True)
 			else:					
-				layer = UNet_up(in_size,out_size, shape, 'same', 'softmax', False)
+				layer = UNet_up(in_size,out_size, shape, 'same', None, False)
 			
 			self.up_layers.append(layer)
 		
@@ -103,7 +103,7 @@ class UNet(nn.Module):
 		
 		return res
 
-class SagittalSpineUnetTest(unittest.TestCase):
+class UnetUnitTest(unittest.TestCase):
     def test_create_model(self):
         model = UNet(128, 2)
 
