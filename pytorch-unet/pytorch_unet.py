@@ -61,7 +61,7 @@ class UNet(nn.Module):
 			out_size = up_filter_numbers[i+1]
 			shape = up_conv_kernel_sizes[i]
 
-			if (layer_index == len(down_filter_numbers)-2):
+			if (i == self.num_layers - 1):
 				layer = UNet_up(in_size, out_size, shape, 'same', 'relu', True)
 			else:					
 				layer = UNet_up(in_size,out_size, shape, 'same', None, False)
