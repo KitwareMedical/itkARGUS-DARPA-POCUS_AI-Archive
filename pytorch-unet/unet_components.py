@@ -20,7 +20,7 @@ class UNet_down(nn.Module):
 		if activation == 'relu':
 			self.activation = nn.ReLU()
 		elif activation == 'softmax':
-			self.activation == nn.Softmax()
+			self.activation = nn.Softmax()
 		else:
 			sys.exit("activation must be 'relu' or 'softmax'")
 
@@ -56,9 +56,9 @@ class UNet_up(nn.Module):
 		if activation == 'relu':
 			self.activation = nn.ReLU()
 		elif activation == 'softmax':
-			self.activation == nn.Softmax()
+			self.activation = nn.Softmax()
 		elif activation == None:
-			self.activation == nn.Identity()
+			self.activation = nn.Identity()
 		else:
 			sys.exit("activation must be 'relu', 'softmax', or None")
 
