@@ -87,7 +87,7 @@ class UltrasoundSegmentationBatchGenerator(keras.utils.Sequence):
             np.random.shuffle(self.indexes)
 
     def __getitem__(self, index):
-        batch_indexes = self.indexes[index * self.batch_size: (index + 1) * self.batch_size]
+        batch_indexes = self.indexes[index * self.batch_size : (index + 1) * self.batch_size]
         x = np.empty((self.batch_size, *self.image_dimensions, self.n_channels))
         y = np.empty((self.batch_size, *self.image_dimensions))
 
