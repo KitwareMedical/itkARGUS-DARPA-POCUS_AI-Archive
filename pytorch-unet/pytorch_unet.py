@@ -53,7 +53,7 @@ class UNet(nn.Module):
 			out_size = down_filter_numbers[i+1]
 			shape = down_conv_kernel_sizes[i]
 
-			layer = UNet_down(in_size, out_size, shape, 1, 'relu', True)
+			layer = UNet_down(in_size, out_size, shape, 'same', 'relu', True)
 			self.down_layers.append(layer)
 
 			#up_layer

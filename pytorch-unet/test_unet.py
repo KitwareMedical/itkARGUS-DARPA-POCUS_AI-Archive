@@ -14,6 +14,8 @@ params = model.get_parameters()
 
 x = torch.randn((5,1,128,128))
 pred = model(x)
+print('shape of input:', x.size())
+print('shape of output:', pred.size())
 label = torch.rand_like(pred).round().int()
 label = torch.argmax(label, dim=1)
 class_weights = torch.tensor([0.5, 1.0])
@@ -23,3 +25,5 @@ loss.backward()
 
 optim = torch.optim.SGD(params, lr=1e-2, momentum=0.9)
 optim.step()
+
+print('testing finished sucessfully')
