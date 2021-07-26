@@ -8,6 +8,7 @@ model = UNet(128,2)
 # print(list(model.down_layers[0].conv.parameters())[1])
 
 params = model.get_parameters()
+params = model.parameters()
 
 # print(list(model.down_layers[0].parameters()))
 # print(params[2])

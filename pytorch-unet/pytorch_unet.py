@@ -28,8 +28,8 @@ class UNet(nn.Module):
 
 		self.num_layers = int(np.floor(np.log2(input_size)))
 
-		self.down_layers = []
-		self.up_layers = []
+		self.down_layers = nn.ModuleList()
+		self.up_layers = nn.ModuleList()
 
 		down_conv_kernel_sizes = np.zeros([self.num_layers], dtype=int)	
 		down_filter_numbers = np.zeros([self.num_layers + 1], dtype=int)
@@ -91,6 +91,11 @@ class UNet(nn.Module):
 		Gets a list of all the parameters in this model.
 		For some reason, model.parameters() isn't working
 		so I made this method instead.
+
+		This function is now useless. Th reason 
+		model.parameters() wasn't working was because I 
+		was keeping all my submodules of the unet in a 
+		python list rather than a nn.ModuleList()
 		"""
 		# print(list(self.down_layers[0].parameters()))
 
