@@ -1,5 +1,6 @@
 from pytorch_unet import *
 from torch import nn
+from monai.losses import DiceLoss
 
 model = UNet(128,2)
 
@@ -15,14 +16,17 @@ params = model.parameters()
 
 x = torch.randn((5,1,128,128))
 pred = model(x)
-print('shape of input:', x.size())
-print('shape of output:', pred.size())
+pred = torch.ones_like(pred).float()
 label = torch.rand_like(pred).round().int()
 label = torch.argmax(label, dim=1)
-class_weights = torch.tensor([0.5, 1.0])
+label = torch.ones_like(pred).int().argmax(dim=1)
+class_weights = torch.rand(2)
 criterion = nn.CrossEntropyLoss(weight=class_weights)
 loss = criterion(pred, label)
-loss.backward()
+# loss.backward()
+diceloss = DiceLoss(to_onehot_y=True, softmax=True)
+dice = diceloss(pred, label.view((5,1,128,128)))
+print("dice:", dice)
 
 optim = torch.optim.SGD(params, lr=1e-2, momentum=0.9)
 optim.step()

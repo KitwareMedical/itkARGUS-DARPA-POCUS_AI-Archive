@@ -4,7 +4,6 @@ import keras.utils
 import scipy.ndimage
 import numpy as np
 
-
 def scale_image(image, factor):
     if len(image.shape) == 2:
         image = image[:, :, np.newaxis]

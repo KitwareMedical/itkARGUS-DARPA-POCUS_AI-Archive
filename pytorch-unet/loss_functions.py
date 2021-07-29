@@ -1,23 +1,40 @@
 import torch
+import torch.nn.functional as F
 
 """
 This file will contain loss functions:
  - weighted multicategorical crossentropy with bias regularization
- - same with special kernel regularization
+ - another with same with special kernel regularization
+ - and a dice coefficient function
 """
-
-def dice_coef(y_true, y_pred, smooth=1):
+def dice_loss(pred, target, smooth=1.0):
+    """This definition generalize to real valued pred and target vector.
+    This should be differentiable.
+    pred: tensor with first dimension as batch
+    target: tensor with first dimension as batch
     """
-    Dice = (2*|X & Y|)/ (|X|+ |Y|)
-         =  2*sum(|A*B|)/(sum(A^2)+sum(B^2))
-    ref: https://arxiv.org/pdf/1606.04797v1.pdf
-    """
-    intersection = K.sum(K.abs(y_true * y_pred), axis=-1)
 
-    return (2. * intersection + smooth) / (K.sum(K.square(y_true), -1) + K.sum(K.square(y_pred), -1) + smooth)
+    # pred is logits, target is not one-hot
+    print(pred.size(), target.size())
+    # Need to change target to one-hot
 
+    num_classes = pred.size(1)
+    print("num classes", num_classes)
+    target[:,0,:,:] = F.one_hot(target[:,0,:,:], num_classes=num_classes)
 
-def weighted_categorical_crossentropy(weights):
+    # have to use contiguous since they may from a torch.view op
+    print(pred.size(), target.size())
+    assert False
+    pflat = pred.contiguous().view(-1)
+    tflat = target.contiguous().view(-1)
+    intersection = (pflat * tflat).sum()
+
+    A_sum = torch.sum(pflat * pflat)
+    B_sum = torch.sum(tflat * tflat)
+    
+    return 1.0 - ((2.0 * intersection + smooth) / (A_sum + B_sum + smooth) )
+
+def WCE_bias_regularization(weights):
     """
     A weighted version of keras.objectives.categorical_crossentropy
 
