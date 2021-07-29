@@ -15,12 +15,14 @@ def dice_loss(pred, target, smooth=1.0):
     """
 
     # pred is logits, target is not one-hot
+    # assume target has no channel axis
     print(pred.size(), target.size())
     # Need to change target to one-hot
 
     num_classes = pred.size(1)
     print("num classes", num_classes)
-    target[:,0,:,:] = F.one_hot(target[:,0,:,:], num_classes=num_classes)
+    target_oh = torch.zeros(pred.size())
+    target_oh = 
 
     # have to use contiguous since they may from a torch.view op
     print(pred.size(), target.size())
