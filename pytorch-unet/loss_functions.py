@@ -22,7 +22,6 @@ def dice_loss(pred, target, smooth=1.0):
     num_classes = pred.size(1)
     print("num classes", num_classes)
     target_oh = torch.zeros(pred.size())
-    target_oh = 
 
     # have to use contiguous since they may from a torch.view op
     print(pred.size(), target.size())
