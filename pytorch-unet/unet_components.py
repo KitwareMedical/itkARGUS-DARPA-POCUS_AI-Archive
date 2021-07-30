@@ -1,5 +1,4 @@
 import torch
-from torch.autograd.grad_mode import F
 import torch.nn as nn
 import unittest
 import numpy as np
@@ -39,6 +38,7 @@ class UNet_down(nn.Module):
 				arg_padding = (shape - 1) // 2
 		
 		self.conv = nn.Conv2d(input_size, output_size, shape, stride=2, padding=arg_padding)	
+		nn.init.kaiming_normal_(self.conv.weight)
 		
 		
 	def forward(self, x):
@@ -89,6 +89,7 @@ class UNet_up(nn.Module):
 		
 		self.upsample = nn.Upsample(scale_factor=2, mode='nearest')
 		self.conv = nn.Conv2d(input_size, output_size, shape, padding=arg_padding)	
+		nn.init.kaiming_normal_(self.conv.weight)
 		
 	def forward(self, x, skip):
 		"""
