@@ -2,7 +2,7 @@ from pytorch_unet import *
 from torch import nn
 from monai.losses import DiceLoss
 
-model = UNet(128,2)
+model = UNet_rect_kernels(128,2)
 
 # print(list(model.parameters()))
 # print(model.down_layers[0])

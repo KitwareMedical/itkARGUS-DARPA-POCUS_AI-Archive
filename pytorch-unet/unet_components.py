@@ -1,4 +1,5 @@
 import torch
+from typing import Union
 import torch.nn as nn
 import unittest
 import numpy as np
@@ -7,12 +8,17 @@ import sys
 class UNet_down(nn.Module):
 	"""
 	The 'down' blocks of the unet packaged into one class
+
 	"""
 
-	def __init__(self, input_size: int, output_size: int, shape: int, arg_padding, activation: str, batchnorm: bool):
+	def __init__(self, input_size: int, output_size: int, shape, arg_padding, activation: str, batchnorm: bool):
 		"""
 		"""
 		super(UNet_down, self).__init__()
+
+		assert np.shape(shape) == (2,) or np.shape(shape) == ()
+		if isinstance(shape, np.ndarray):
+			assert len(shape) == 2 and shape.dtype == 'int'
 
 		self.padding_layer = nn.Identity()
 
@@ -29,13 +35,32 @@ class UNet_down(nn.Module):
 			self.batchnorm = nn.Identity()
 
 		if arg_padding == 'same':
-			if shape % 2 == 0:
-				low = (shape - 1) // 2
-				high = (shape - 1) // 2 + 1
-				self.padding_layer = nn.ZeroPad2d((low, high, low ,high))
-				arg_padding = 0
+			if np.shape(shape) == ():
+				if shape % 2 == 0:
+					low = (shape - 1) // 2
+					high = (shape - 1) // 2 + 1
+					self.padding_layer = nn.ZeroPad2d((low, high, low ,high))
+					arg_padding = 0
+				else:
+					arg_padding = (shape - 1) // 2
 			else:
-				arg_padding = (shape - 1) // 2
+				if shape[0] == shape[1]: # shape must be an np.ndarray at this point
+					shape = shape[0]
+					if shape % 2 == 0:
+						low = (shape - 1) // 2
+						high = (shape - 1) // 2 + 1
+						self.padding_layer = nn.ZeroPad2d((low, high, low ,high))
+						arg_padding = 0
+					else:
+						arg_padding = (shape - 1) // 2
+				else: # shape[0] != shape[1]
+					# shape size is (height, width)
+					left_pad = (shape[1] - 1) // 2 
+					right_pad = (shape[1] - 1) // 2 + 1 - (shape[1] % 2)
+					top_pad = (shape[0] - 1) // 2 
+					bottom_pad = (shape[0] - 1) // 2 + 1 - (shape[0] % 2)
+					self.padding_layer = nn.ZeroPad2d((left_pad, right_pad, top_pad, bottom_pad))
+					arg_padding = 0
 		
 		self.conv = nn.Conv2d(input_size, output_size, shape, stride=2, padding=arg_padding)	
 		nn.init.kaiming_normal_(self.conv.weight)
@@ -45,8 +70,8 @@ class UNet_down(nn.Module):
 		"""
 		"""
 
-		x = self.conv(x)
 		x = self.padding_layer(x)
+		x = self.conv(x)
 		x = self.activation(x)
 		x = self.batchnorm(x)
 
@@ -61,6 +86,10 @@ class UNet_up(nn.Module):
 		"""
 		"""
 		super(UNet_up, self).__init__()
+
+		assert np.shape(shape) == (2,) or np.shape(shape) == ()
+		if isinstance(shape, np.ndarray):
+			assert len(shape) == 2 and shape.dtype == 'int'
 
 		self.padding_layer = nn.Identity()
 
@@ -79,13 +108,33 @@ class UNet_up(nn.Module):
 			self.batchnorm = nn.Identity()
 
 		if arg_padding == 'same':
-			if shape % 2 == 0:
-				low = (shape - 1) // 2
-				high = (shape - 1) // 2 + 1
-				self.padding_layer = nn.ZeroPad2d((low, high, low ,high))
-				arg_padding = 0
+			if np.shape(shape) == ():
+				if shape % 2 == 0:
+					low = (shape - 1) // 2
+					high = (shape - 1) // 2 + 1
+					self.padding_layer = nn.ZeroPad2d((low, high, low ,high))
+					arg_padding = 0
+				else:
+					arg_padding = (shape - 1) // 2
 			else:
-				arg_padding = (shape - 1) // 2
+				if shape[0] == shape[1]: # shape must be an np.ndarray at this point
+					shape = shape[0]
+					if shape % 2 == 0:
+						low = (shape - 1) // 2
+						high = (shape - 1) // 2 + 1
+						self.padding_layer = nn.ZeroPad2d((low, high, low ,high))
+						arg_padding = 0
+					else:
+						arg_padding = (shape - 1) // 2
+				else: # shape[0] != shape[1]
+					# shape size is (height, width)
+					left_pad = (shape[1] - 1) // 2 
+					right_pad = (shape[1] - 1) // 2 + 1 - (shape[1] % 2)
+					top_pad = (shape[0] - 1) // 2 
+					bottom_pad = (shape[0] - 1) // 2 + 1 - (shape[0] % 2)
+					self.padding_layer = nn.ZeroPad2d((left_pad, right_pad, top_pad, bottom_pad))
+					arg_padding = 0
+
 		
 		self.upsample = nn.Upsample(scale_factor=2, mode='nearest')
 		self.conv = nn.Conv2d(input_size, output_size, shape, padding=arg_padding)	
