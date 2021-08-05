@@ -52,7 +52,10 @@ class DataAugmentor(torch.utils.data.Dataset):
             x = self.x[index]
             y = self.y[index]
 
+        # make sure x and y get the same random transform
+        seed = torch.random.seed()
         x_out = self.transform(x)
+        torch.random.manual_seed(seed)
         y_out = self.transform(y)
 
         x_out = torch.clip(x_out, 0.0, 1.0)
