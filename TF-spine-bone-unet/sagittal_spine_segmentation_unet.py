@@ -4,13 +4,13 @@ import unittest
 
 import numpy as np
 
-import keras
-from keras.models import *
-from keras.layers import *
-from keras.optimizers import *
-from keras.regularizers import l1, l2
+import tensorflow as tf
+from tensorflow.keras.models import *
+from tensorflow.keras.layers import *
+from tensorflow.keras.optimizers import *
+from tensorflow.keras.regularizers import l1, l2
 
-from keras import backend as K
+from tensorflow.keras import backend as K
 
 
 def sagittal_spine_unet(input_size, num_classes, filter_multiplier=10, regularization_rate=0.):
@@ -36,7 +36,7 @@ def sagittal_spine_unet(input_size, num_classes, filter_multiplier=10, regulariz
                         bias_regularizer=l1(regularization_rate))(output)
 
     for shape, filters in zip(up_conv_kernel_sizes, up_filter_numbers):
-        output = keras.layers.UpSampling2D()(output)
+        output = tf.keras.layers.UpSampling2D()(output)
         skip_output = skips.pop()
         output = concatenate([output, skip_output], axis=3)
         if filters != num_classes:
@@ -64,7 +64,7 @@ def dice_coef(y_true, y_pred, smooth=1):
 
 def weighted_categorical_crossentropy(weights):
     """
-    A weighted version of keras.objectives.categorical_crossentropy
+    A weighted version of tf.keras.objectives.categorical_crossentropy
 
     Variables:
         weights: numpy array of shape (C,) where C is the number of classes

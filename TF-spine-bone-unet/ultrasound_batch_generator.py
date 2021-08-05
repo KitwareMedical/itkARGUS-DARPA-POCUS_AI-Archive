@@ -1,6 +1,6 @@
 # Create Ultrasound Segmentation Batch Generator Class
 
-import keras.utils
+import tensorflow as tf
 import scipy.ndimage
 import numpy as np
 
@@ -47,7 +47,7 @@ def scale_image(image, factor):
         return image
 
 
-class UltrasoundSegmentationBatchGenerator(keras.utils.Sequence):
+class UltrasoundSegmentationBatchGenerator(tf.keras.utils.Sequence):
 
     def __init__(self,
                  x_set,
@@ -129,5 +129,5 @@ class UltrasoundSegmentationBatchGenerator(keras.utils.Sequence):
         x_out = np.clip(x_zoom, 0.0, 1.0)
         y_out = np.clip(y_zoom, 0.0, 1.0)
 
-        y_onehot = keras.utils.to_categorical(y_out, self.n_classes)
+        y_onehot = tf.keras.utils.to_categorical(y_out, self.n_classes)
         return x_out, y_onehot

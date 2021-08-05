@@ -8,8 +8,16 @@ model = UNet_rect_kernels(128,2)
 # print(model.down_layers[0])
 # print(list(model.down_layers[0].conv.parameters())[1])
 
-params = model.get_parameters()
 params = model.parameters()
+named_params = model.named_parameters()
+num = 0
+for k, x in model.named_parameters():
+    print(k)
+    # print(x)
+    if num >= 10: break
+    num += 1
+
+quit()
 
 # print(list(model.down_layers[0].parameters()))
 # print(params[2])
