@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 import tensorflow as tf
-from tensorflow import keras
+import keras
 
 import ultrasound_batch_generator as generator
 import sagittal_spine_segmentation_unet as unet

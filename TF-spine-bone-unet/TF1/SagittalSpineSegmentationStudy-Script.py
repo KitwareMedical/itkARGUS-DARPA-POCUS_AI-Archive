@@ -50,7 +50,7 @@ import numpy as np
 
 ultrasound_size = 128
 num_classes = 2
-num_epochs = 500
+num_epochs = 300
 batch_size = 128
 max_learning_rate = 0.02
 min_learning_rate = 0.00001
@@ -304,26 +304,26 @@ for i in range(num_validation_rounds):
     # Pring training log
     
     print("\nMetrics at the end of training")
-    print("  val_acc:       {}".format(training_log.history['val_acc'][-1]))
-    print("  val loss:      {}".format(training_log.history['val_loss'][-1]))
-    # print("  val_dice:      {}".format(training_log.history['val_dice_coef'][-1]))
+    # print("  val_acc:       {}".format(training_log.history['val_acc'][-1]))
+    # print("  val loss:      {}".format(training_log.history['val_loss'][-1]))
+    # # print("  val_dice:      {}".format(training_log.history['val_dice_coef'][-1]))
     print("  Training time: {}".format(training_time_stop-training_time_start))
     
     # Plot training loss and metrics
     
-    fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(12, 4))
+    # fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(12, 4))
     
-    axes[0].plot(training_log.history['loss'], 'bo--')
-    axes[0].plot(training_log.history['val_loss'], 'ro-')
-    axes[0].set(xlabel='Epochs (n)', ylabel='Loss')
-    axes[0].legend(['Training loss', 'Validation loss'])
+    # axes[0].plot(training_log.history['loss'], 'bo--')
+    # axes[0].plot(training_log.history['val_loss'], 'ro-')
+    # axes[0].set(xlabel='Epochs (n)', ylabel='Loss')
+    # axes[0].legend(['Training loss', 'Validation loss'])
     
-    axes[1].plot(training_log.history['acc'], 'bo--')
-    axes[1].plot(training_log.history['val_acc'], 'ro-')
-    axes[1].set(xlabel='Epochs (n)', ylabel='Accuracy')
-    axes[1].legend(['Training accuracy', 'Validation accuracy'])
+    # axes[1].plot(training_log.history['acc'], 'bo--')
+    # axes[1].plot(training_log.history['val_acc'], 'ro-')
+    # axes[1].set(xlabel='Epochs (n)', ylabel='Accuracy')
+    # axes[1].legend(['Training accuracy', 'Validation accuracy'])
     
-    fig.tight_layout()
+    # fig.tight_layout()
     
     # Predict on validation data
     
@@ -369,47 +369,53 @@ print("\nTotal training time:   {}".format(time_sequence_stop - time_sequence_st
 
 # Arrange results in tables
 
-metric_labels = [
-    "AUROC",
-    "best thresh",
-    "best TP",
-    "best FP",
-    "best recall",
-    "best precis",
-    "fuzzy recall",
-    "fuzzy precis",
-    "fuzzy Fscore"
-]
+# metric_labels = [
+#     "AUROC",
+#     "best thresh",
+#     "best TP",
+#     "best FP",
+#     "best recall",
+#     "best precis",
+#     "fuzzy recall",
+#     "fuzzy precis",
+#     "fuzzy Fscore"
+# ]
 
-results_labels = []
+# results_labels = []
 
-for label in metric_labels:
-    results_labels.append("Vali " + label)
+# for label in metric_labels:
+#     results_labels.append("Vali " + label)
 
-results_df = pd.DataFrame(columns = results_labels)
+# results_df = pd.DataFrame(columns = results_labels)
 
-for i in range(num_validation_rounds):
-    results_df.loc[i] = [
-        val_aurocs[i],
-        val_best_thresholds[i],
-        val_best_metrics[i][evaluation_metrics.TRUE_POSITIVE_RATE],
-        val_best_metrics[i][evaluation_metrics.FALSE_POSITIVE_RATE],
-        val_best_metrics[i][evaluation_metrics.RECALL],
-        val_best_metrics[i][evaluation_metrics.PRECISION],
-        val_fuzzy_metrics[i][evaluation_metrics.RECALL],
-        val_fuzzy_metrics[i][evaluation_metrics.PRECISION],
-        val_fuzzy_metrics[i][evaluation_metrics.FSCORE]
-    ]
+# for i in range(num_validation_rounds):
+#     results_df.loc[i] = [
+#         val_aurocs[i],
+#         val_best_thresholds[i],
+#         val_best_metrics[i][evaluation_metrics.TRUE_POSITIVE_RATE],
+#         val_best_metrics[i][evaluation_metrics.FALSE_POSITIVE_RATE],
+#         val_best_metrics[i][evaluation_metrics.RECALL],
+#         val_best_metrics[i][evaluation_metrics.PRECISION],
+#         val_fuzzy_metrics[i][evaluation_metrics.RECALL],
+#         val_fuzzy_metrics[i][evaluation_metrics.PRECISION],
+#         val_fuzzy_metrics[i][evaluation_metrics.FSCORE]
+#     ]
 
 
-print("\nAverages")
+# print("\nAverages")
 
-results_means_df = results_df.mean()
+# results_means_df = results_df.mean()
 
-# Save results table
+# # Save results table
 
-csv_filename = this_notebook_name + "_" + save_timestamp + ".csv"
-csv_fullname = os.path.join(results_save_fullpath, csv_filename)
-results_df.to_csv(csv_fullname)
+# csv_filename = this_notebook_name + "_" + save_timestamp + ".csv"
+# csv_fullname = os.path.join(results_save_fullpath, csv_filename)
+# results_df.to_csv(csv_fullname)
 
-print("Results saved to: {}".format(csv_fullname))
+# print("Results saved to: {}".format(csv_fullname))
+
+
+# Traceback (most recent call last):
+#   File "SagittalSpineSegmentationStudy-Script.py", line 307, in <module>
+#     print("  val_acc:       {}".format(training_log.history['val_acc'][-1]))
+# KeyError: 'val_acc'
