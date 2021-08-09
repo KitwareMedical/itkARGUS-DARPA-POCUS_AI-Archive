@@ -4,7 +4,9 @@ This repository contains all of Kitware's code and resources for the DARPA POCUS
 
 ## Repo Layout
 
-This repo is organized as a mono-repo. That means every top-level directory roughly corresponds to a project.
+This repo is organized as a mono-repo. That means every top-level directory roughly corresponds to a project. A description of the repo is provided below.
+
+* [ARGUS](https://github.com/KitwareMedical/AnatomicRecon-POCUS-AI/tree/main/ARGUS): Contains all relevant projects related to the U-Net based AR/AI approach.
 
 ### Workflow
 
