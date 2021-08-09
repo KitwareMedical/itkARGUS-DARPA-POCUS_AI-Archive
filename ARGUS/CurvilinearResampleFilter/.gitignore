@@ -1,0 +1,8 @@
+*.sw*
+ITK-source
+ITK-cp*
+ITKPythonBuilds-*.zst
+ITKPythonPackage
+*.egg-info
+tools
+zstd-*
