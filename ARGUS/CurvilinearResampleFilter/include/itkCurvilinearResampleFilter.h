@@ -46,6 +46,7 @@ public:
   using OutputImageType = TOutputImage;
   using InputPixelType = typename InputImageType::PixelType;
   using OutputPixelType = typename OutputImageType::PixelType;
+  using OutputSizeType = typename OutputImageType::SizeType;
 
   /** Standard class aliases. */
   using Self = CurvilinearResampleFilter<InputImageType, OutputImageType>;
@@ -55,6 +56,27 @@ public:
 
   /** Run-time type information. */
   itkTypeMacro(CurvilinearResampleFilter, ImageToImageFilter);
+
+  /** output image size **/
+  itkSetMacro(OutputSize, OutputSizeType);
+  itkGetMacro(OutputSize, OutputSizeType);
+
+  /** source mappings
+   * vector should be row-major, but points should be in Y,X order
+   */
+  virtual void SetSourceMapping(std::vector<int> mapping) {
+    this->m_SourceMapping = mapping;
+  }
+  itkGetMacro(SourceMapping, std::vector<int>);
+
+  /** point kernels
+   * expects 3x3 kernels for every point.
+   * Kernels are column-major, and vector is row-major.
+   */
+  virtual void SetKernels(std::vector<float> kernels) {
+    this->m_Kernels = kernels;
+  }
+  itkGetMacro(Kernels, std::vector<float>);
 
   /** Standard New macro. */
   itkNewMacro(Self);
@@ -67,11 +89,19 @@ protected:
   PrintSelf(std::ostream & os, Indent indent) const override;
 
   using OutputRegionType = typename OutputImageType::RegionType;
+  /** USCurveResample specifies output size.
+   * \sa ProcessObject::GenerateOutputInformation() */
+  void
+  GenerateOutputInformation() override;
+
 
   void
   DynamicThreadedGenerateData(const OutputRegionType & outputRegion) override;
 
 private:
+  OutputSizeType m_OutputSize;
+  std::vector<int> m_SourceMapping;
+  std::vector<float> m_Kernels;
 #ifdef ITK_USE_CONCEPT_CHECKING
   // Add concept checking such as
   // itkConceptMacro( FloatingPointPixel, ( itk::Concept::IsFloatingPoint< typename InputImageType::PixelType > ) );
