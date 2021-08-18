@@ -17,8 +17,6 @@ for k, x in model.named_parameters():
     if num >= 10: break
     num += 1
 
-quit()
-
 # print(list(model.down_layers[0].parameters()))
 # print(params[2])
 
