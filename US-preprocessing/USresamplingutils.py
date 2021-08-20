@@ -146,3 +146,17 @@ def get_US_mask_from_image(image):
     num = labelled[center[0],center[1]]
     USmask = labelled == num
     return USmask
+
+def mmode_indices_from_ROI(roi):
+    """
+    expects ROI to be a 4-tuple of ints (top, left, bottom, right)
+    returns a 2-tuple:
+        the first object is a 2-tuple (top, bottom) which specifies the top and bottom bounds for the m-mode lines
+        the second object is a n-tuple which specifies the indices along the horizontal axis of the m-mode lines
+    these are the indicies of the rectilinear image (the image will not be resampled further)
+    """
+
+
+
+def mmode_from_ROI(video_path, mask, mapping, ):
+
