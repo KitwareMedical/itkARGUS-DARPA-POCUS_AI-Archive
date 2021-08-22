@@ -152,3 +152,32 @@ class UNet_up(nn.Module):
 		x = self.batchnorm(x)
 
 		return x
+
+class Head2plus1D(nn.Module):
+	"""
+	this is a 2+1D sepearated convolution
+	The goal is to go from a 3D image (with temporal depth) to a 2d feature image
+	this acts as a head for the UNet
+	"""
+	def __init__(self, in_planes, out_planes, mid_planes, depth_in):
+		super(Head2plus1D, self).__init__()
+		self.conv1 = nn.Conv3d(in_planes, mid_planes, kernel_size=(1,3,3), stride=1, padding=(0,1,1))
+		self.batchnorm1 = nn.BatchNorm3d(mid_planes)
+		self.activation = nn.ReLU(inplace=True)
+		self.conv2 = nn.Conv3d(mid_planes, out_planes, kernel_size=(depth_in, 1, 1), stride=1, bias=False)
+		self.batchnorm2 = nn.BatchNorm3d(out_planes)
+
+	def forward(self, x):
+		print("doing head")
+		print("size before:", x.size())
+		x = self.conv1(x)
+		print("size after conv1:", x.size())
+		x = self.batchnorm1(x)
+		print("size after batchnorm1:", x.size())
+		x = self.activation(x)
+		print("size after activ:", x.size())
+		x = self.conv2(x)
+		print("size after conv2:", x.size())
+		x = self.batchnorm2(x)
+		x = self.activation(x)
+		return torch.squeeze(x, dim=2)

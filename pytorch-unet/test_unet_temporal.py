@@ -2,7 +2,7 @@ from pytorch_unet import *
 from torch import nn
 from monai.losses import DiceLoss
 
-model = UNet_rect_kernels(128,2)
+model = UNet_temporal(128,2, depth_in=5, channels_after_head=10)
 
 # print(list(model.parameters()))
 # print(model.down_layers[0])
@@ -20,8 +20,11 @@ for k, x in model.named_parameters():
 # print(list(model.down_layers[0].parameters()))
 # print(params[2])
 
-x = torch.randn((5,1,128,128))
+x = torch.randn((30,1,5,128,128))
 pred = model(x)
+
+print("pred shape", pred.size())
+
 label = torch.rand_like(pred).round().int()
 label = torch.argmax(label, dim=1)
 class_weights = torch.rand(2)
@@ -29,7 +32,8 @@ criterion = nn.CrossEntropyLoss(weight=class_weights)
 loss = criterion(pred, label)
 loss.backward()
 diceloss = DiceLoss(to_onehot_y=True, softmax=True)
-dice = diceloss(pred, label.view((5,1,128,128)))
+print("label", label.size())
+dice = diceloss(pred, torch.unsqueeze(label, dim=1))
 print("dice:", dice)
 
 optim = torch.optim.SGD(params, lr=1e-2, momentum=0.9)
