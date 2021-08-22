@@ -1,5 +1,7 @@
 ## Object detection models timing
 
+This folder contains work I did to time mmdetection models on the SurfaceBook 2 with Windows (using WSL2)
+
 See google doc here for steps I took to download mmdet: https://docs.google.com/document/d/1ZFxwfB6ZYVWBj4Q2GrgLIJ97ej-IgK5ErBF4VBU9uFI/edit?usp=sharing
 
 #### Setup
