@@ -13,3 +13,4 @@ Here is python code for doing a few things:
 
 TODO
 - Generate m-mode image from ROI box
+- Create training dataset for VAE
