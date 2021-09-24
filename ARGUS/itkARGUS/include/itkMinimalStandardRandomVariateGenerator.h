@@ -21,7 +21,7 @@
 #include "itkIntTypes.h"
 #include "itkObjectFactory.h"
 #include "itkRandomVariateGeneratorBase.h"
-#include "CurvilinearResampleFilterExport.h"
+#include "itkARGUSExport.h"
 #include "itkNormalVariateGenerator.h"
 
 namespace itk
@@ -48,9 +48,9 @@ namespace Statistics
  * 2147483647\f$, the Minimial Standard configuration recommended by Park,
  * Miller and Stockmeyer in 1993.
  *
- * \ingroup CurvilinearResampleFilter
+ * \ingroup itkARGUS
  */
-class CurvilinearResampleFilter_EXPORT MinimalStandardRandomVariateGenerator : public RandomVariateGeneratorBase
+class itkARGUS_EXPORT MinimalStandardRandomVariateGenerator : public RandomVariateGeneratorBase
 {
 public:
   ITK_DISALLOW_COPY_AND_MOVE(MinimalStandardRandomVariateGenerator);

@@ -1,18 +1,18 @@
 itk_module_test()
 
-set(CurvilinearResampleFilterTests
+set(itkARGUSTests
   itkMinimalStandardRandomVariateGeneratorTest.cxx
   itkCurvilinearResampleFilterTest.cxx
   )
 
-CreateTestDriver(CurvilinearResampleFilter "${CurvilinearResampleFilter-Test_LIBRARIES}" "${CurvilinearResampleFilterTests}")
+CreateTestDriver(itkARGUS "${itkARGUS-Test_LIBRARIES}" "${itkARGUSTests}")
 
 itk_add_test(NAME itkMinimalStandardRandomVariateGeneratorTest
-  COMMAND CurvilinearResampleFilterTestDriver itkMinimalStandardRandomVariateGeneratorTest
+  COMMAND itkARGUSTestDriver itkMinimalStandardRandomVariateGeneratorTest
   )
 
 itk_add_test(NAME itkCurvilinearResampleFilterTest
-  COMMAND CurvilinearResampleFilterTestDriver
+  COMMAND itkARGUSTestDriver
     --compare
     DATA{Baseline/itkCurvilinearResampleFilterTestOutput.mha}
     ${ITK_TEST_OUTPUT_DIR}/itkCurvilinearResampleFilterTestOutput.mha
