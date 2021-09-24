@@ -15,10 +15,10 @@
  *  limitations under the License.
  *
  *=========================================================================*/
-#ifndef itkCurvilinearResampleFilter_hxx
-#define itkCurvilinearResampleFilter_hxx
+#ifndef itkResampleImageUsingMapFilter_hxx
+#define itkResampleImageUsingMapFilter_hxx
 
-#include "itkCurvilinearResampleFilter.h"
+#include "itkResampleImageUsingMapFilter.h"
 
 #include "itkImageRegionIterator.h"
 #include "itkImageRegionConstIterator.h"
@@ -28,22 +28,28 @@ namespace itk
 {
 
 template <typename TInputImage, typename TOutputImage>
-CurvilinearResampleFilter<TInputImage, TOutputImage>
-::CurvilinearResampleFilter()
-{}
+ResampleImageUsingMapFilter<TInputImage, TOutputImage>
+::ResampleImageUsingMapFilter()
+{
+}
 
 
 template <typename TInputImage, typename TOutputImage>
 void
-CurvilinearResampleFilter<TInputImage, TOutputImage>
+ResampleImageUsingMapFilter<TInputImage, TOutputImage>
 ::PrintSelf(std::ostream & os, Indent indent) const
 {
+  os << indent << "OutputSize = " << m_OutputSize << std::endl;
+  os << indent << "SourceMapping (size) = " << m_SourceMapping.size()
+    << std::endl;
+  os << indent << "Kernels (size) = " << m_Kernels.size()
+    << std::endl;
   Superclass::PrintSelf(os, indent);
 }
 
 template <typename TInputImage, typename TOutputImage>
 void
-CurvilinearResampleFilter<TInputImage, TOutputImage>::GenerateOutputInformation()
+ResampleImageUsingMapFilter<TInputImage, TOutputImage>::GenerateOutputInformation()
 {
   // do not call the superclass' implementation of this method since
   // this filter allows the input and the output to be of different dimensions
@@ -54,16 +60,18 @@ CurvilinearResampleFilter<TInputImage, TOutputImage>::GenerateOutputInformation(
 
   if (!outputPtr || !inputPtr)
   {
+    std::cerr << "ERROR: input or output image not available to filter"
+      << std::endl;
     return;
   }
 
   auto area = m_OutputSize[0] * m_OutputSize[1];
   if (m_SourceMapping.size() != 2 * area) {
-    itkExceptionMacro(<< "itk::USCurveResample::GenerateOutputInformation "
+    itkExceptionMacro(<< "itk::ResampleImageUsingMapFilter::GenerateOutputInformation "
                       << "mismatch between source mapping size and output size");
   }
   if (m_Kernels.size() != 9 * area) {
-    itkExceptionMacro(<< "itk::USCurveResample::GenerateOutputInformation "
+    itkExceptionMacro(<< "itk::ResampleImageUsingMapFilter::GenerateOutputInformation "
                       << "mismatch between kernels vector size and output size");
   }
 
@@ -82,7 +90,7 @@ CurvilinearResampleFilter<TInputImage, TOutputImage>::GenerateOutputInformation(
 
 template <typename TInputImage, typename TOutputImage>
 void
-CurvilinearResampleFilter<TInputImage, TOutputImage>
+ResampleImageUsingMapFilter<TInputImage, TOutputImage>
 ::DynamicThreadedGenerateData(const OutputRegionType & outputRegion)
 {
   OutputImageType *      output = this->GetOutput();
@@ -135,4 +143,4 @@ CurvilinearResampleFilter<TInputImage, TOutputImage>
 
 } // end namespace itk
 
-#endif // itkCurvilinearResampleFilter_hxx
+#endif // itkResampleImageUsingMapFilter_hxx
