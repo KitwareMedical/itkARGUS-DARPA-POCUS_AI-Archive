@@ -11,15 +11,15 @@ except ImportError:
     sys.exit(1)
 
 setup(
-    name='itk-curvilinear-resample',
+    name='itk-argus',
     version='0.1.0',
-    author='CurvilinearResampleFilter',
+    author='itkARGUS',
     author_email='itk+community@discourse.itk.org',
     packages=['itk'],
     package_dir={'itk': 'itk'},
     download_url=r'https://github.com/KitwareMedical/AnatomicRecon-POCUS-AI',
-    description=r'Resamples curvilinear ultrasound images',
-    long_description='Resamples curvilinear ultrasound images',
+    description=r'Anatomic Reconstruction for Generalized UltraSound (ARGUS) library',
+    long_description='Contains C++ methods that are compiled and wrapped into python for use in the ARGUS project at Kitware.',
     classifiers=[
         "License :: OSI Approved :: Apache Software License",
         "Programming Language :: Python",

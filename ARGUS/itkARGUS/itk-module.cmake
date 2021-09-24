@@ -11,7 +11,7 @@ file(READ "${MY_CURRENT_DIR}/README.rst" DOCUMENTATION)
 # ITK.
 
 # define the dependencies of the include module and the tests
-itk_module(CurvilinearResampleFilter
+itk_module(itkARGUS
   DEPENDS
     ITKCommon
     ITKStatistics

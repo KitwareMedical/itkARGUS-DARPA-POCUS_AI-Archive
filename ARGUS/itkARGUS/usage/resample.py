@@ -11,7 +11,7 @@ import itk
 from time import perf_counter
 from contextlib import contextmanager
 
-itkCurvilinearResampleFilter = itk.CurvilinearResampleFilter.CurvilinearResampleFilter
+itkCurvilinearResampleFilter = itk.itkARGUS.CurvilinearResampleFilter
 
 @contextmanager
 def timethis(name):
