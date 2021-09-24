@@ -11,7 +11,7 @@ import itk
 from time import perf_counter
 from contextlib import contextmanager
 
-itkCurvilinearResampleFilter = itk.itkARGUS.CurvilinearResampleFilter
+itkResampleImageUsingMapFilter = itk.itkARGUS.ResampleImageUsingMapFilter
 
 @contextmanager
 def timethis(name):
@@ -177,7 +177,7 @@ def resamp(image, mapping):
 
     def doit():
         itkimg = itk.GetImageFromArray(image)
-        F = itkCurvilinearResampleFilter[type(itkimg), type(itkimg)].New()
+        F = itkResampleImageUsingMapFilter[type(itkimg), type(itkimg)].New()
         F.SetOutputSize(out_size)
         F.SetSourceMapping(source_maps)
         F.SetKernels(kernels)

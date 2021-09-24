@@ -16,7 +16,7 @@
  *
  *=========================================================================*/
 
-#include "itkCurvilinearResampleFilter.h"
+#include "itkResampleImageUsingMapFilter.h"
 
 #include "itkCommand.h"
 #include "itkImageFileWriter.h"
@@ -53,7 +53,7 @@ public:
 } // namespace
 
 int
-itkCurvilinearResampleFilterTest(int argc, char * argv[])
+itkResampleImageUsingMapFilterTest(int argc, char * argv[])
 {
   if (argc < 2)
   {
@@ -69,10 +69,13 @@ itkCurvilinearResampleFilterTest(int argc, char * argv[])
   using PixelType = float;
   using ImageType = itk::Image<PixelType, Dimension>;
 
-  using FilterType = itk::CurvilinearResampleFilter<ImageType, ImageType>;
+  using FilterType = itk::ResampleImageUsingMapFilter<ImageType, ImageType>;
   FilterType::Pointer filter = FilterType::New();
 
-  ITK_EXERCISE_BASIC_OBJECT_METHODS(filter, CurvilinearResampleFilter, ImageToImageFilter);
+  std::cout << "Basic object methods test..." << std::endl;
+  ITK_EXERCISE_BASIC_OBJECT_METHODS(filter, ResampleImageUsingMapFilter,
+    ImageToImageFilter);
+  std::cout << "   ...done." << std::endl;
 
   // Create input image to avoid test dependencies.
   ImageType::SizeType size;
@@ -82,9 +85,15 @@ itkCurvilinearResampleFilterTest(int argc, char * argv[])
   image->Allocate();
   image->FillBuffer(1.1f);
 
+  std::vector<int> sourceMapping(2*size[0]*size[1],1.0);
+  std::vector<float> kernels(9*size[0]*size[1],1.0/9.0);
+
   ShowProgress::Pointer showProgress = ShowProgress::New();
   filter->AddObserver(itk::ProgressEvent(), showProgress);
   filter->SetInput(image);
+  filter->SetOutputSize(size);
+  filter->SetSourceMapping(sourceMapping);
+  filter->SetKernels(kernels);
 
   using WriterType = itk::ImageFileWriter<ImageType>;
   WriterType::Pointer writer = WriterType::New();
@@ -92,8 +101,9 @@ itkCurvilinearResampleFilterTest(int argc, char * argv[])
   writer->SetInput(filter->GetOutput());
   writer->SetUseCompression(true);
 
+  std::cout << "Starting filter test..." << std::endl;
   ITK_TRY_EXPECT_NO_EXCEPTION(writer->Update());
-
+  std::cout << "   ...done." << std::endl;
 
   std::cout << "Test finished." << std::endl;
   return EXIT_SUCCESS;

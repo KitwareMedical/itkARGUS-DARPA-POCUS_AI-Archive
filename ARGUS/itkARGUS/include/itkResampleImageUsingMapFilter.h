@@ -15,29 +15,30 @@
  *  limitations under the License.
  *
  *=========================================================================*/
-#ifndef itkCurvilinearResampleFilter_h
-#define itkCurvilinearResampleFilter_h
+#ifndef itkResampleImageUsingMapFilter_h
+#define itkResampleImageUsingMapFilter_h
 
 #include "itkImageToImageFilter.h"
 
 namespace itk
 {
 
-/** \class CurvilinearResampleFilter
+/** \class ResampleImageUsingMapFilter
  *
  * \brief Filters a image by iterating over its pixels.
  *
  * Filters a image by iterating over its pixels in a multi-threaded way
  * and {to be completed by the developer}.
  *
- * \ingroup CurvilinearResampleFilter
+ * \ingroup ResampleImageUsingMapFilter
+ * \ingroup itkARGUS
  *
  */
 template <typename TInputImage, typename TOutputImage>
-class CurvilinearResampleFilter : public ImageToImageFilter<TInputImage, TOutputImage>
+class ResampleImageUsingMapFilter : public ImageToImageFilter<TInputImage, TOutputImage>
 {
 public:
-  ITK_DISALLOW_COPY_AND_MOVE(CurvilinearResampleFilter);
+  ITK_DISALLOW_COPY_AND_MOVE(ResampleImageUsingMapFilter);
 
   static constexpr unsigned int InputImageDimension = TInputImage::ImageDimension;
   static constexpr unsigned int OutputImageDimension = TOutputImage::ImageDimension;
@@ -49,13 +50,13 @@ public:
   using OutputSizeType = typename OutputImageType::SizeType;
 
   /** Standard class aliases. */
-  using Self = CurvilinearResampleFilter<InputImageType, OutputImageType>;
+  using Self = ResampleImageUsingMapFilter<InputImageType, OutputImageType>;
   using Superclass = ImageToImageFilter<InputImageType, OutputImageType>;
   using Pointer = SmartPointer<Self>;
   using ConstPointer = SmartPointer<const Self>;
 
   /** Run-time type information. */
-  itkTypeMacro(CurvilinearResampleFilter, ImageToImageFilter);
+  itkTypeMacro(ResampleImageUsingMapFilter, ImageToImageFilter);
 
   /** output image size **/
   itkSetMacro(OutputSize, OutputSizeType);
@@ -82,14 +83,14 @@ public:
   itkNewMacro(Self);
 
 protected:
-  CurvilinearResampleFilter();
-  ~CurvilinearResampleFilter() override = default;
+  ResampleImageUsingMapFilter();
+  ~ResampleImageUsingMapFilter() override = default;
 
   void
   PrintSelf(std::ostream & os, Indent indent) const override;
 
   using OutputRegionType = typename OutputImageType::RegionType;
-  /** USCurveResample specifies output size.
+  /** ResampleImageUsingMap specifies output size.
    * \sa ProcessObject::GenerateOutputInformation() */
   void
   GenerateOutputInformation() override;
@@ -102,15 +103,11 @@ private:
   OutputSizeType m_OutputSize;
   std::vector<int> m_SourceMapping;
   std::vector<float> m_Kernels;
-#ifdef ITK_USE_CONCEPT_CHECKING
-  // Add concept checking such as
-  // itkConceptMacro( FloatingPointPixel, ( itk::Concept::IsFloatingPoint< typename InputImageType::PixelType > ) );
-#endif
 };
 } // namespace itk
 
 #ifndef ITK_MANUAL_INSTANTIATION
-#  include "itkCurvilinearResampleFilter.hxx"
+#  include "itkResampleImageUsingMapFilter.hxx"
 #endif
 
-#endif // itkCurvilinearResampleFilter
+#endif // itkResampleImageUsingMapFilter
