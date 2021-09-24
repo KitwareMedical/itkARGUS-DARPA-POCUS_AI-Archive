@@ -164,8 +164,7 @@ def get_US_mask_from_image(image):
     USmask = labelled == num
     return USmask
 
-# image is expected to be 2D
-def resamp(image, mapping):
+def resample_speed_test(video, mapping):
     out_size = np.shape(mapping)[:2]
 
     src_coords = mapping[:,:,:2].astype(int)
@@ -176,25 +175,26 @@ def resamp(image, mapping):
     kernels = mapping[:,:,2:].flatten().astype(float).tolist()
 
     def doit():
-        itkimg = itk.GetImageFromArray(image)
-        F = itkResampleImageUsingMapFilter[type(itkimg), type(itkimg)].New()
+        res = np.ndarray((out_size[1],out_size[0],video.shape[2]))
+        ImageType = itk.Image[itk.F, 2]
+        F = itkResampleImageUsingMapFilter[ImageType, ImageType].New()
         F.SetOutputSize(out_size)
         F.SetSourceMapping(source_maps)
         F.SetKernels(kernels)
-        F.SetInput(itkimg)
-        F.Update()
-        return F.GetOutput()
+        with timethis('ResampleImageUsingMapFilter(30Frames):InnerLoop'):
+            for i in range(video.shape[2]):
+                itkimg = itk.GetImageFromArray(video[:,:,i])
+                F.SetInput(itkimg)
+                F.Update()
+                res[:,:,i] = F.GetOutput()
+        return res
 
-    #import timeit
-    #print(timeit.timeit('doit()', number=100, globals={**globals(), **locals()}))
-    with timethis('resample'):
-        outimage = doit()
+    outimage = doit()
+    #itk.imwrite(outimage, "output.nrrd")
 
-    itk.imwrite(outimage, "output.nrrd")
-
-vid = imageio.get_reader('./video.mp4', 'ffmpeg')
+vid = imageio.get_reader('../../../Data/TrainingData/AR-UNet/BAMC-PTXSliding/image_10391571128899_CLEAN.mp4', 'ffmpeg')
 ims = vid.get_data(30)
-ims = ims / 255
+ims = (ims / 255).astype(np.float32)
 ocimg = np.mean(ims, axis=2)
 mask = ocimg > 0.006
 labelled = measure.label(mask)
@@ -202,7 +202,8 @@ center = np.asarray(np.shape(ocimg)) // 2
 num = labelled[center[0], center[1]]
 USmask = labelled == num
 
-with timethis('mapping'):
+with timethis('GenerateImageMap'):
     mapping = get_rectilinear_resampling_map(USmask, ray_density=2/3, blur=0.4)
 
-resamp(ocimg, mapping)
+with timethis('ResampleImageUsingMapFilter(30Frames)'):
+    result = resample_speed_test(ims, mapping)
