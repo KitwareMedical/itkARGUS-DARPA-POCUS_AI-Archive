@@ -23,7 +23,7 @@ Option 2: If oyu have a from-source build of ITK:
 1. `git clone https://github.com/KitwareMedical/AnatomicRecon-POCUS-AI`
 2. `mkdir itkARGUS-Release`
 3. `cd itkARGUS-Release`
-4. `cmake-gui ..\AnatomicRecon-POCUS-AI`
+4. `cmake-gui ../AnatomicRecon-POCUS-AI`
   - Make certain to specify CMAKE_BUILD_TYPE=Release.
   - It should automatically find your ITK build directory
 5. Compile the project.  It should then be wrapped for python and
