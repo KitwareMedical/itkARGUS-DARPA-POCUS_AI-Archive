@@ -8,20 +8,11 @@ import sys
 
 import itk
 
-from time import perf_counter
-from contextlib import contextmanager
-
 itkResampleImageUsingMapFilter = itk.itkARGUS.ResampleImageUsingMapFilter
 
 import site
 site.addsitedir('../../')
 from ARGUSUtils import *
-
-@contextmanager
-def timethis(name):
-    start = perf_counter()
-    yield
-    print('Time for', name, 'is', perf_counter() - start)
 
 def resample_speed_test(video, mapping):
     out_size = np.shape(mapping)[:2]
@@ -40,7 +31,7 @@ def resample_speed_test(video, mapping):
         F.SetOutputSize(out_size)
         F.SetSourceMapping(source_maps)
         F.SetKernels(kernels)
-        with timethis('ResampleImageUsingMapFilter(30Frames):InnerLoop'):
+        with time_this('ResampleImageUsingMapFilter(30Frames):InnerLoop'):
             for i in range(video.shape[2]):
                 itkimg = itk.GetImageFromArray(video[:,:,i])
                 F.SetInput(itkimg)
@@ -63,8 +54,8 @@ center = np.asarray(np.shape(ocimg)) // 2
 num = labelled[center[0], center[1]]
 USmask = labelled == num
 
-with timethis('GenerateImageMap'):
+with time_this('GenerateImageMap'):
     mapping = get_rectilinear_resampling_map_corners(USmask, ray_density=2/3, blur=0.4)
 
-with timethis('ResampleImageUsingMapFilter(30Frames)'):
+with time_this('ResampleImageUsingMapFilter(30Frames)'):
     result = resample_speed_test(ims, mapping)
