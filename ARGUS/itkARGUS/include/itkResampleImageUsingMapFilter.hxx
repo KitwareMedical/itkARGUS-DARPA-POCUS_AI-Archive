@@ -99,13 +99,11 @@ ResampleImageUsingMapFilter<TInputImage, TOutputImage>
   using InputSizeType = typename InputImageType::SizeType;
   using InputIndexType = typename InputImageType::IndexType;
   using InputOffsetType = typename InputImageType::OffsetType;
-  InputRegionType inputRegion = InputRegionType(outputRegion.GetSize());
 
   using BoundaryConditionType = itk::ConstantBoundaryCondition<InputImageType, OutputImageType>;
   BoundaryConditionType boundedAccessor;
   boundedAccessor.SetConstant(0);
 
-  // itk::ImageRegionConstIterator<InputImageType> in(input, inputRegion);
   itk::ImageRegionIterator<OutputImageType>     out(output, outputRegion);
 
   /* treat kernels as row-major
@@ -123,11 +121,16 @@ ResampleImageUsingMapFilter<TInputImage, TOutputImage>
   for (out.GoToBegin(); !out.IsAtEnd(); ++out)
   {
     auto index = out.GetIndex();
-    auto offset = index[0] * m_OutputSize[1] + index[1]; // row-major
+    auto offset = index[1] * m_OutputSize[0] + index[0]; // row-major
 
     auto sourceMapOffset = 2 * offset; // 2 elements per source mapping
     inputIndex[1] = m_SourceMapping[sourceMapOffset];
     inputIndex[0] = m_SourceMapping[sourceMapOffset+1];
+    if( inputIndex[0]<=1 || inputIndex[1]<=1 )
+      {
+      out.Set(0);
+      continue;
+      }
 
     OutputPixelType pixel = 0;
     auto kernelOffset = 9 * offset; // 9 elements per kernel

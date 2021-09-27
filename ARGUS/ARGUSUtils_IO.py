@@ -1,25 +1,25 @@
 import numpy as np
 
 import ffmpeg
+import av
 
-def shape_ffmpeg( filename ):
+def shape_video(filename):
     p = ffmpeg.probe(filename, select_streams='v');
     width = p['streams'][0]['width']
     height = p['streams'][0]['height']
     return height, width
 
-def load_ffmpeg( filename, height, width ):
-    p = ffmpeg.probe(filename, select_streams='v');
-    width = p['streams'][0]['width']
-    height = p['streams'][0]['height']
+def load_video(filename,height=0,width=0):
+    if(height==0 or width==0):
+        height,width = shape_video(filename)
 
-    in_bytes, _ = (
-        ffmpeg
-        .input(filename)
-        .video # Video only (no audio).
-        .output('pipe:', format='rawvideo', pix_fmt='gray')  # Set the output format to raw video in 8 bit grayscale
-        .run(capture_stdout=True)
-    )
-    n_frames = len(in_bytes) // (height*width)  # Compute the number of frames.
-    frames = np.frombuffer(in_bytes, np.uint8).reshape(n_frames, height, width) # Reshape buffer to array of n_frames frames (shape of each frame is (height, width)).
+    container = av.open(filename)
+    stream = container.streams.video[0]
+    stream.thread_type = 'AUTO'
+    
+    num_frames = stream.frames
+    
+    frames = np.empty((num_frames,height,width))
+    for i,frame in enumerate(container.decode(stream)):
+        frames[i] = frame.to_ndarray(format='gray')
     return frames
