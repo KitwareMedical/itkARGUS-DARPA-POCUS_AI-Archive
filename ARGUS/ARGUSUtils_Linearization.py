@@ -127,7 +127,7 @@ def linearize_video( vid ):
     return vid_linear
 
 
-def linearize_image(img,depth,zoom,offsetY):
+def linearize_image(img,depth,zoom,offsetY,interpolate=True):
     filename = "./linear_maps/linear_map_depth" + str(depth) + ".npy"
     mapping = np.load(filename)
 
@@ -164,6 +164,7 @@ def linearize_image(img,depth,zoom,offsetY):
     linear_filter.SetOutputSize([frame_size[1],frame_size[0]])
     linear_filter.SetSourceMapping(source_coords_list)
     linear_filter.SetKernels(kernels_list)
+    linear_filter.SetInterpolate(interpolate)
     itkimg = itk.GetImageFromArray(img.astype(np.float32))
     linear_filter.SetInput(itkimg)
     linear_filter.Update()

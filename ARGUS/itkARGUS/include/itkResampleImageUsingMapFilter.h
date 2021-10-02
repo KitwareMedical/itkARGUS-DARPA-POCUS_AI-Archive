@@ -79,6 +79,9 @@ public:
   }
   itkGetMacro(Kernels, std::vector<float>);
 
+  itkSetMacro(Interpolate, bool);
+  itkGetMacro(Interpolate, bool);
+
   /** Standard New macro. */
   itkNewMacro(Self);
 
@@ -103,6 +106,7 @@ private:
   OutputSizeType m_OutputSize;
   std::vector<int> m_SourceMapping;
   std::vector<float> m_Kernels;
+  bool m_Interpolate;
 };
 } // namespace itk
 
