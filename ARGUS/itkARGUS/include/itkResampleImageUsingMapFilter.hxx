@@ -31,6 +31,7 @@ template <typename TInputImage, typename TOutputImage>
 ResampleImageUsingMapFilter<TInputImage, TOutputImage>
 ::ResampleImageUsingMapFilter()
 {
+  m_Interpolate = true;
 }
 
 
@@ -127,17 +128,48 @@ ResampleImageUsingMapFilter<TInputImage, TOutputImage>
     inputIndex[1] = m_SourceMapping[sourceMapOffset];
     inputIndex[0] = m_SourceMapping[sourceMapOffset+1];
     if( inputIndex[0]<=1 || inputIndex[1]<=1 )
-      {
+    {
       out.Set(0);
       continue;
-      }
+    }
 
     OutputPixelType pixel = 0;
-    auto kernelOffset = 9 * offset; // 9 elements per kernel
-    for (int i = 0; i < 9; i++) {
-      auto kernel_i = m_Kernels[kernelOffset + i];
-      auto indexOffset = kernelIndexOffsets[i];
-      pixel += kernel_i * boundedAccessor.GetPixel(inputIndex + indexOffset, input);
+    if( m_Interpolate )
+    {
+      auto kernelOffset = 9 * offset; // 9 elements per kernel
+      for (int i = 0; i < 9; i++)
+      {
+        auto kernel_i = m_Kernels[kernelOffset + i];
+        auto indexOffset = kernelIndexOffsets[i];
+        pixel += kernel_i * boundedAccessor.GetPixel(inputIndex + indexOffset, input);
+      }
+    }
+    else
+    {
+      pixel =  boundedAccessor.GetPixel(inputIndex, input);
+      if (pixel != 0)
+      {
+        auto kernelOffset = 9 * offset; // 9 elements per kernel
+        double matchWeight = 0;
+        double mismatchWeight = 0;
+        for (int i = 0; i < 9; i++)
+        {
+          auto kernel_i = m_Kernels[kernelOffset + i];
+          auto indexOffset = kernelIndexOffsets[i];
+          if (pixel == boundedAccessor.GetPixel(inputIndex+indexOffset, input))
+          {
+            matchWeight += kernel_i;
+          }
+          else
+          {
+            mismatchWeight += kernel_i;
+          }
+        }
+        if (mismatchWeight > matchWeight)
+        {
+          pixel = 0;
+        }
+      }
     }
 
     out.Set(pixel);
