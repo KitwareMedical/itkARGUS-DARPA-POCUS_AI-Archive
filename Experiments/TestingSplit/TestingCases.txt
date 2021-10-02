@@ -1,0 +1,5 @@
+cd TrainingData/AR-UNet
+find . -name "image_3929217*" -exec mv {} ../../TestingData/BAMC-PTXSliding/ \;
+find . -name "image_392513*" -exec mv {} ../../TestingData/BAMC-PTXSliding/ \;
+find . -name "image_417221*" -exec mv {} ../../TestingData/BAMC-PTXNoSliding/ \;
+find . -name "image_4267945*" -exec mv {} ../../TestingData/BAMC-PTXNoSliding/ \;
