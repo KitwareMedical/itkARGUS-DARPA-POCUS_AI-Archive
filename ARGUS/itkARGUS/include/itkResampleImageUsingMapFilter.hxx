@@ -146,7 +146,7 @@ ResampleImageUsingMapFilter<TInputImage, TOutputImage>
     }
     else
     {
-      pixel =  boundedAccessor.GetPixel(inputIndex, input);
+      pixel = boundedAccessor.GetPixel(inputIndex, input);
       if (pixel != 0)
       {
         auto kernelOffset = 9 * offset; // 9 elements per kernel
