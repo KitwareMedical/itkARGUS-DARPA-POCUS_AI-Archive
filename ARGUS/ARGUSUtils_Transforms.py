@@ -12,14 +12,21 @@ from monai.transforms import (
 from typing import Any, Callable, Dict, Hashable, List, Mapping, Optional, Sequence, Tuple, Union
 
 class ARGUS_RandSpatialCropSlices(Randomizable, Transform):
+    """
+    ARGUS specific cropping class to extract adjacent slices along an axis.
+    Slice-based cropper to extract random adjacent slices from a volume.
+    It supports cropping ND spatial (channel-first) data.
+    """
     backend = SpatialCrop.backend
 
     def __init__(
         self,
         num_slices: int = 21,
+        axis: int = -1,
         center_slice: int = -1,
     ) -> None:
         self.num_slices = num_slices
+        self.axis = axis
         self.center_slice = center_slice
         self._roi_start: Optional[Sequence[int]] = None
         self._roi_end: Optional[Sequence[int]] = None
@@ -38,31 +45,23 @@ class ARGUS_RandSpatialCropSlices(Randomizable, Transform):
             buffer = 1
         
         if self.center_slice == -1:
-            self.center_slice =  self.R.randint(boundary, img.shape[-1]-boundary+buffer)
+            self.center_slice =  self.R.randint(boundary, img.shape[self.axis]-boundary+buffer)
         tlist = list(self._roi_start)
-        tlist[-1] = self.center_slice - boundary
+        tlist[self.axis] = self.center_slice - boundary
         self._roi_start = tuple(tlist)
         
         self._roi_end = orig_size
         tlist = list(self._roi_end)
-        tlist[-1] = self._roi_start[-1] + self.num_slices
+        tlist[self.axis] = self._roi_start[self.axis] + self.num_slices
         self._roi_end = tuple(tlist)
         cropper = SpatialCrop(roi_start=self._roi_start, roi_end=self._roi_end)
         return cropper(img)
 
 class ARGUS_RandSpatialCropSlicesd(MapTransform, InvertibleTransform):
     """
-    Dictionary-based wrapper of :py:class:`monai.transforms.SpatialCrop`.
-    General purpose cropper to produce sub-volume region of interest (ROI).
-    If a dimension of the expected ROI size is bigger than the input image size, will not crop that dimension.
-    So the cropped result may be smaller than the expected ROI, and the cropped results of several images may
-    not have exactly the same shape.
-    It can support to crop ND spatial (channel-first) data.
-
-    The cropped region can be parameterised in various ways:
-        - a list of slices for each spatial dimension (allows for use of -ve indexing and `None`)
-        - a spatial center and size
-        - the start and end coordinates of the ROI
+    Dictionary-based wrapper of :py:class:`ARGUS_RandSpatialCropSlices`.
+    Slice-based cropper to extract random adjacent slices from a volume.
+    It supports cropping ND spatial (channel-first) data.
     """
 
     backend = ARGUS_RandSpatialCropSlices.backend
@@ -71,6 +70,7 @@ class ARGUS_RandSpatialCropSlicesd(MapTransform, InvertibleTransform):
         self,
         keys: KeysCollection,
         num_slices: int = 21,
+        axis: int = -1,
         center_slice: int = -1,
         allow_missing_keys: bool = False,
     ) -> None:
@@ -89,6 +89,7 @@ class ARGUS_RandSpatialCropSlicesd(MapTransform, InvertibleTransform):
         """
         super().__init__(keys, allow_missing_keys)
         self.cropper = ARGUS_RandSpatialCropSlices(num_slices)
+        self.axis = axis
         self.num_slices = num_slices
         self.center_slice = center_slice
         self._roi_start: Optional[Sequence[int]] = None
@@ -118,14 +119,14 @@ class ARGUS_RandSpatialCropSlicesd(MapTransform, InvertibleTransform):
             if boundary*2 == self.num_slices:  # if even num_slices, add a buffer so last slice can be used
                 buffer = 1
             if self.center_slice == -1:
-                self.center_slice =  self.R.randint(boundary, img.shape[-1]-boundary+buffer)
+                self.center_slice =  self.R.randint(boundary, img.shape[self.axis]-boundary+buffer)
             tlist = list(self._roi_start)
-            tlist[-1] = self.center_slice - boundary
+            tlist[self.axis] = self.center_slice - boundary
             self._roi_start = tuple(tlist)
 
             self._roi_end = orig_size
             tlist = list(self._roi_end)
-            tlist[-1] = self._roi_start[-1] + self.num_slices
+            tlist[self.axis] = self._roi_start[self.axis] + self.num_slices
             self._roi_end = tuple(tlist)
         
             pad_to_start = self._roi_start
@@ -139,4 +140,3 @@ class ARGUS_RandSpatialCropSlicesd(MapTransform, InvertibleTransform):
             self.pop_transform(d, key)
             
         return d
-
