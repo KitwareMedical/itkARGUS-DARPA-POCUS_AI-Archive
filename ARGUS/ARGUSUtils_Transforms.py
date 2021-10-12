@@ -43,7 +43,6 @@ class ARGUS_RandSpatialCropSlices(RandomizableTransform, Transform):
             self._roi_center_slice = self.R.randint(boundary, data.shape[self.axis]-boundary+buffer)
         else:
             self._roi_center_slice = self.center_slice
-        print("New center =", self._roi_center_slice)
 
     def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
@@ -120,7 +119,6 @@ class ARGUS_RandSpatialCropSlicesd(RandomizableTransform, MapTransform, Invertib
             self._roi_center_slice = self.R.randint(boundary, data.shape[self.axis]-boundary+buffer)
         else:
             self._roi_center_slice = self.center_slice
-        print("New centerd =", self._roi_center_slice)
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         self.randomize(data=data[self.keys[0]][0])
