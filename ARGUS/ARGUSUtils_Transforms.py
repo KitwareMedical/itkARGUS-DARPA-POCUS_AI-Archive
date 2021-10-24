@@ -24,11 +24,13 @@ class ARGUS_RandSpatialCropSlices(RandomizableTransform, Transform):
         num_slices: int = 21,
         axis: int = -1,
         center_slice: int = -1,
+        require_labeled: bool = False,
     ) -> None:
         RandomizableTransform.__init__(self, 1.0)
         self.num_slices = num_slices
         self.axis = axis
         self.center_slice = center_slice
+        self.require_labeled = require_labeled
         self._roi_start: Optional[Sequence[int]] = None
         self._roi_center_slice: int = -1
         self._roi_end: Optional[Sequence[int]] = None
@@ -40,7 +42,24 @@ class ARGUS_RandSpatialCropSlices(RandomizableTransform, Transform):
             # if even num_slices, add a buffer so last slice can be used
             if boundary*2 == self.num_slices:
                 buffer = 1
-            self._roi_center_slice = self.R.randint(boundary, data.shape[self.axis]-boundary+buffer)
+            while True:
+                self._roi_center_slice = self.R.randint(boundary,
+                        data.shape[self.axis]-boundary+buffer)
+                if not self.require_labeled:
+                    break
+                else:
+                    slice_roi = [slice(0,data.shape[i])
+                                 for i in range(len(data.shape))]
+                    slice_roi[self.axis] = self._roi_center_slice
+                    is_labeled = (data[tuple(slice_roi)]!=0).any()
+                    if is_labeled:
+                        slice_roi[self.axis] -= boundary
+                        is_labeled = (data[tuple(slice_roi)]!=0).any()
+                        if is_labeled:
+                            slice_roi[self.axis] += self.num_slices-1
+                            is_labeled = (data[tuple(slice_roi)]!=0).any()
+                            if is_labeled:
+                                break
         else:
             self._roi_center_slice = self.center_slice
 
@@ -83,6 +102,7 @@ class ARGUS_RandSpatialCropSlicesd(RandomizableTransform, MapTransform, Invertib
         num_slices: int = 21,
         axis: int = -1,
         center_slice: int = -1,
+        require_labeled: bool = False,
         allow_missing_keys: bool = False,
     ) -> None:
         """
@@ -104,6 +124,7 @@ class ARGUS_RandSpatialCropSlicesd(RandomizableTransform, MapTransform, Invertib
         self.axis = axis
         self.num_slices = num_slices
         self.center_slice = center_slice
+        self.require_labeled = require_labeled
         self._roi_start: Optional[Sequence[int]] = None
         self._roi_center_slice: int = -1
         self._roi_end: Optional[Sequence[int]] = None
@@ -116,7 +137,24 @@ class ARGUS_RandSpatialCropSlicesd(RandomizableTransform, MapTransform, Invertib
             # if even num_slices, add a buffer so last slice can be used
             if boundary*2 == self.num_slices:
                 buffer = 1
-            self._roi_center_slice = self.R.randint(boundary, data.shape[self.axis]-boundary+buffer)
+            while True:
+                self._roi_center_slice = self.R.randint(boundary,
+                        data.shape[self.axis]-boundary+buffer)
+                if not self.require_labeled:
+                    break
+                else:
+                    slice_roi = [slice(0,data.shape[i])
+                            for i in range(len(data.shape))]
+                    slice_roi[self.axis] = self._roi_center_slice
+                    is_labeled = (data[tuple(slice_roi)]!=0).any()
+                    if is_labeled:
+                        slice_roi[self.axis] -= boundary
+                        is_labeled = (data[tuple(slice_roi)]!=0).any()
+                        if is_labeled:
+                            slice_roi[self.axis] += self.num_slices-1
+                            is_labeled = (data[tuple(slice_roi)]!=0).any()
+                            if is_labeled:
+                                break
         else:
             self._roi_center_slice = self.center_slice
 
@@ -145,9 +183,9 @@ class ARGUS_RandSpatialCropSlicesd(RandomizableTransform, MapTransform, Invertib
             transform = self.get_most_recent_transform(d, key)
 
             orig_size = transform[InverseKeys.ORIG_SIZE]
-            self.num_slices = transform[InverseKeys.NUM_SLICES]
-            self._roi_center_slice = transform[InverseKeys.CENTER_SLICE]
-            self.axis = transform[InverseKeys.AXIS]
+            self.num_slices = transform[InverseKeys.EXTRA_INFO]["num_slices"]
+            self._roi_center_slice = transform[InverseKeys.EXTRA_INFO]["center_slice"]
+            self.axis = transform[InverseKeys.EXTRA_INFO]["axis"]
 
             pad_to_start = np.empty((len(orig_size)), dtype=np.int32)
             pad_to_end = np.empty((len(orig_size)), dtype=np.int32)
