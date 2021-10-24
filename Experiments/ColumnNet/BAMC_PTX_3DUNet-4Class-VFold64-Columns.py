@@ -210,8 +210,8 @@ def vfold_train(vfold_num, train_loader, val_loader):
         dimensions=3,
         in_channels=1,
         out_channels=num_classes,
-        channels=(16, 32, 64),
-        strides=(2, 2),
+        channels=(16, 32, 64, 128),
+        strides=(2, 2, 2),
         num_res_units=2,
         norm=Norm.BATCH,
     ).to(device)
@@ -220,7 +220,7 @@ def vfold_train(vfold_num, train_loader, val_loader):
     dice_metric = DiceMetric(include_background=False, reduction="mean")
 
 
-    max_epochs = 2000
+    max_epochs = 3000
     val_interval = 2
     best_metric = -1
     best_metric_epoch = -1
