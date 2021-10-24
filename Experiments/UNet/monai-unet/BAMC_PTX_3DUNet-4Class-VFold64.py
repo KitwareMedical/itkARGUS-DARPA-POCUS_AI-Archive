@@ -141,9 +141,6 @@ train_transforms = Compose(
         ScaleIntensityRanged(keys=["image"],
             a_min=0, a_max=255,
             b_min=0.0, b_max=1.0),
-        #Resized(keys=["image", "label"],
-            #spatial_size=[320,320,60],
-            #mode=['bilinear', 'nearest']),
         ARGUS_RandSpatialCropSlicesd(num_slices=48,
             axis=2,
             keys=['image', 'label']),
@@ -169,9 +166,6 @@ val_transforms = Compose(
         ScaleIntensityRanged(keys=["image"],
             a_min=0, a_max=255,
             b_min=0.0, b_max=1.0),
-        #Resized(keys=["image", "label"],
-            #spatial_size=[320,320,60],
-            #mode=['trilinear', 'nearest']),
         ARGUS_RandSpatialCropSlicesd(num_slices=48,
             axis=2,
             center_slice=30,
@@ -214,11 +208,11 @@ def vfold_train(vfold_num, train_loader, val_loader):
         norm=Norm.BATCH,
     ).to(device)
     loss_function = DiceLoss(to_onehot_y=True, softmax=True)
-    optimizer = torch.optim.Adam(model.parameters(), 1e-4)
+    optimizer = torch.optim.Adam(model.parameters(), 5e-5)
     dice_metric = DiceMetric(include_background=False, reduction="mean")
 
 
-    max_epochs = 1000
+    max_epochs = 2000
     val_interval = 2
     best_metric = -1
     best_metric_epoch = -1
@@ -295,7 +289,7 @@ def vfold_train(vfold_num, train_loader, val_loader):
 # In[ ]:
 
 
-for i in range(2,num_folds):
+for i in range(0,num_folds):
     vfold_train(i, train_loader[i], val_loader[i])
 
 
