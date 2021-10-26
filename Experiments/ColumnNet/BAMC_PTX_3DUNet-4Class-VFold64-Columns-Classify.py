@@ -239,7 +239,7 @@ val_loader = [torch.utils.data.DataLoader(val_ds[i], batch_size=batch_size_va, s
 
 
 # standard PyTorch program style: create UNet, DiceLoss and Adam optimizer
-device = torch.device("cuda:0")
+device = torch.device("cuda:3")
 
 
 # In[24]:
@@ -252,7 +252,7 @@ def vfold_train(vfold_num, train_loader, val_loader):
     optimizer = torch.optim.Adam(model.parameters(), 1e-5)
     auc_metric = ROCAUCMetric()
 
-    max_epochs = 3000
+    max_epochs = 1000
     val_interval = 1
     best_metric = -1
     best_metric_epoch = -1
