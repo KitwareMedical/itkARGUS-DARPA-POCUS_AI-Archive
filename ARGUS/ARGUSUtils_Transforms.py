@@ -1,6 +1,13 @@
 import numpy as np
 import scipy as sp
 
+
+m scipy import ndimage as ndi
+
+from skimage import data
+from skimage.util import img_as_float
+from skimage.filters import gabor_kernel
+
 from monai.transforms import (
     SpatialCrop
 )
@@ -28,7 +35,6 @@ from monai.utils.type_conversion import (
     convert_to_dst_type
 )
 
-
 from typing import Any, Callable, Dict, Hashable, List, Mapping, Optional, Sequence, Tuple, Union
 
 class ARGUS_RandSpatialCropSlices(RandomizableTransform, Transform):
@@ -47,6 +53,7 @@ class ARGUS_RandSpatialCropSlices(RandomizableTransform, Transform):
         boundary: int = -1,
         require_labeled: bool = False,
         reduce_to_statistics: bool = False,
+        extended: bool = False,
     ) -> None:
         RandomizableTransform.__init__(self, 1.0)
         self.num_slices = num_slices
@@ -55,6 +62,7 @@ class ARGUS_RandSpatialCropSlices(RandomizableTransform, Transform):
         self.boundary = boundary
         self.require_labeled = require_labeled
         self.reduce_to_statistics = reduce_to_statistics
+        self.extended = extended
         self._roi_start: Optional[Sequence[int]] = None
         self._roi_center_slice: int = -1
         self._roi_end: Optional[Sequence[int]] = None
@@ -97,19 +105,25 @@ class ARGUS_RandSpatialCropSlices(RandomizableTransform, Transform):
         self.randomize(img)
 
         orig_size = img.shape
-        self._roi_start = np.zeros((len(orig_size)), dtype=np.int32)
         
-        tlist = list(self._roi_start)
-        tlist[self.axis] = self._roi_center_slice - self.boundary
-        self._roi_start = tuple(tlist)
+        def make_slices(smin, smax, _start, _end):
+            tlist = list(_start)
+            tlist[self.axis] = smin
+            _start = tuple(tlist)
         
-        self._roi_end = orig_size
-        tlist = list(self._roi_end)
-        tlist[self.axis] = self._roi_start[self.axis] + self.num_slices
-        self._roi_end = tuple(tlist)
+            tlist = list(self._roi_end)
+            tlist[self.axis] = smax
+            _end = tuple(tlist)
 
-        slices = [slice(int(s), int(e))
-                   for s, e in zip(self._roi_start, self._roi_end)]
+            slices = [slice(int(s), int(e))
+                       for s, e in zip(_start, _end)]
+            return _start, _end, slices
+
+        _start = np.zeros((len(orig_size)), dtype=np.int32)
+        _end = orig_size
+        self._roi_start, self._roi_end, slices = make_slices(
+                self._roi_center_slice - self.boundary, self.num_slices,
+                _start, _end)
         img = img[tuple(slices)]
 
         if self.reduce_to_statistics:
@@ -119,38 +133,35 @@ class ARGUS_RandSpatialCropSlices(RandomizableTransform, Transform):
             clip_size = img.shape[self.axis]/3
 
             arr = img
-            mean_mean = np.mean(arr, axis=self.axis)
-            mean_std = np.std(arr, axis=self.axis)
-            #mean_skew = sp.stats.skew(arr, axis=self.axis)
-            #mean_kurt = sp.stats.kurtosis(arr, axis=self.axis)
-            img = np.stack([mean_mean, mean_std]) # , mean_skew, mean_kurt])
+            outmean = np.mean(arr,axis=self.axis)
+            outstd = np.std(arr,axis=self.axis)
 
-            #clip_start = np.zeros((len(orig_size)), dtype=np.int32)
-            #clip_end = orig_size
-#
-            #for clip in [0,2,4]:
-                #tlist = list(clip_start)
-                #tlist[self.axis] = int(clip*clip_step)
-                #clip_start = tuple(tlist)
-                #
-                #clip_end = orig_size
-                #tlist = list(clip_end)
-                #tlist[self.axis] = int(clip_start[self.axis] + clip_size)
-                #tlist = np.minimum( list(orig_size), tlist)
-                #clip_end = tuple(tlist)
-        #
-                #slices = [slice(int(s), int(e))
-                          #for s, e in zip(clip_start, clip_end)]
-                #arr = img[tuple(slices)]
-#
-                #max_mean = np.maximum(max_mean, np.mean(arr, axis=self.axis))
-                #max_std = np.maximum(max_std, np.std(arr, axis=self.axis))
-#
-                #tmp_skew = sp.stats.skew(arr, axis=self.axis)
-                #max_skew = np.where(np.abs(max_skew)>np.abs(tmp_skew),
-                                    #max_skew, tmp_skew)
-                #max_kurt = np.maximum(max_kurt, sp.stats.kurtosis(arr, axis=self.axis))
-            #img = np.stack([mean_mean, mean_std, mean_skew, mean_kurt, max_mean, max_std, max_skew, max_kurt])
+            if self.extended:
+                r = self.num_slices / 2.4
+                roffset = r * 0.3
+
+                r0_min = 0
+                r0_max = r 
+                r0_min,r0_max,slices = make_slices(r0_min,r0_max,_start,_end)
+                outstd0 = np.std(arr[tuple(slices)],axis=self.axis)
+
+                r1_min = r - roffset
+                r1_max = 2 * r + roffset
+                r1_min,r1_max,slices = make_slices(r1_min,r1_max,_start,_end)
+                outstd1 = np.std(arr[tuple(slices)],axis=self.axis)
+
+                r2_min = self.num_slices - r
+                r2_max = self.num_slices
+                r2_min,r2_max,slices = make_slices(r2_min,r2_max,_start,_end)
+                outstd2 = np.std(arr[tuple(slices)],axis=self.axis)
+
+                outstdMin = np.minimum(outstd0,outstd1)
+                outstdMin = np.minimum(outstdMin, outstd2)
+                outstdMax = np.maximum(outstd0,outstd1)
+                outstdMax = np.maximum(outstdMax,outstd2)
+                img = np.stack([outmean, outstd, outstdMin, outstdMax])
+            else:
+                img = np.stack([outmean, outstd])
         return img
 
 
