@@ -2,8 +2,6 @@ import numpy as np
 import scipy as sp
 
 
-m scipy import ndimage as ndi
-
 from skimage import data
 from skimage.util import img_as_float
 from skimage.filters import gabor_kernel
@@ -104,14 +102,12 @@ class ARGUS_RandSpatialCropSlices(RandomizableTransform, Transform):
         """
         self.randomize(img)
 
-        orig_size = img.shape
-        
         def make_slices(smin, smax, _start, _end):
             tlist = list(_start)
             tlist[self.axis] = smin
             _start = tuple(tlist)
         
-            tlist = list(self._roi_end)
+            tlist = list(_end)
             tlist[self.axis] = smax
             _end = tuple(tlist)
 
@@ -119,15 +115,16 @@ class ARGUS_RandSpatialCropSlices(RandomizableTransform, Transform):
                        for s, e in zip(_start, _end)]
             return _start, _end, slices
 
-        _start = np.zeros((len(orig_size)), dtype=np.int32)
-        _end = orig_size
+        _size = img.shape
+        _start = np.zeros((len(_size)), dtype=np.int32)
+        _end = _size
         self._roi_start, self._roi_end, slices = make_slices(
-                self._roi_center_slice - self.boundary, self.num_slices,
+                self._roi_center_slice - self.boundary,
+                self._roi_center_slice - self.boundary + self.num_slices,
                 _start, _end)
         img = img[tuple(slices)]
 
         if self.reduce_to_statistics:
-            orig_size = img.shape
 
             clip_step = img.shape[self.axis]/6
             clip_size = img.shape[self.axis]/3
@@ -137,6 +134,9 @@ class ARGUS_RandSpatialCropSlices(RandomizableTransform, Transform):
             outstd = np.std(arr,axis=self.axis)
 
             if self.extended:
+                _size = img.shape
+                _start = np.zeros((len(_size)), dtype=np.int32)
+                _end = _size
                 r = self.num_slices / 2.4
                 roffset = r * 0.3
 

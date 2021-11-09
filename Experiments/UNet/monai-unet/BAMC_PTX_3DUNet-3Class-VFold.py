@@ -71,7 +71,7 @@ num_slices = 16
 size_x = 240
 size_y = 240
 
-model_filename_base = "BAMC_PTX_3DUNet-3Class.best_model.vfold"
+model_filename_base = "./results/BAMC_PTX_3DUNet-3Class.best_model.vfold"
 
 num_images = len(all_images)
 print(num_images)
