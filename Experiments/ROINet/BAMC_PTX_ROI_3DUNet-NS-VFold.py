@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[6]:
+# In[9]:
 
 
 import warnings 
@@ -58,13 +58,13 @@ site.addsitedir('../../ARGUS')
 from ARGUSUtils_Transforms import *
 
 
-# In[7]:
+# In[10]:
 
 
 img1_dir = "../../Data/VFoldData/ROIData/"
 
 all_images1 = sorted(glob(os.path.join(img1_dir, '*.roi.nii.gz')))
-all_labels = sorted(glob(os.path.join(img1_dir, '*.roi.extruded-overlay-S.nii.gz')))
+all_labels = sorted(glob(os.path.join(img1_dir, '*.roi.extruded-overlay-NS.nii.gz')))
 
 for i in range(len(all_images1)):
     img1 = itk.imread(all_images1[i])
@@ -74,13 +74,13 @@ for i in range(len(all_images1)):
         print("Error1")
 
 
-# In[8]:
+# In[11]:
 
 
 img1_dir = "../../Data/VFoldData/ROIData/"
 
 all_images = sorted(glob(os.path.join(img1_dir, '*.roi.nii.gz')))
-all_labels = sorted(glob(os.path.join(img1_dir, '*.roi.extruded-overlay-S.nii.gz')))
+all_labels = sorted(glob(os.path.join(img1_dir, '*.roi.extruded-overlay-NS.nii.gz')))
 
 gpu_device = 0
 num_gpu_devices = 1
@@ -88,23 +88,29 @@ if len(sys.argv)==3:
     gpu_device = int(sys.argv[1])
     num_gpu_devices = int(sys.argv[2])
     
-num_classes = 2
+num_classes = 3
+
+net_channels = (24, 32, 64, 128)
+net_strides = (2, 2, 2)
+
+num_folds = 15
 
 num_slices = 48
+size_x = 128
+size_y = 224
+
+roi_size = (size_x,size_y,num_slices)
 
 num_workers_tr = 1
 batch_size_tr = 24
 num_workers_vl = 1
 batch_size_vl = 4
 
-net_channels = (24, 32, 64)
-net_strides = (2, 2)
 
 model_filename_base = "./results/BAMC_PTX_ROI_3DUNet-Extruded-S.best_model.vfold"
 
 num_images = len(all_images)
 print(num_images)
-num_folds = 15
 
 ns_prefix = ['025ns','026ns','027ns','035ns','048ns','055ns','117ns',
              '135ns','193ns','210ns','215ns','218ns','219ns','221ns','247ns']
@@ -169,7 +175,7 @@ for i in range(num_folds):
     print(len(train_files[i]),len(val_files[i]),len(test_files[i]))
 
 
-# In[5]:
+# In[12]:
 
 
 train_transforms = Compose(
@@ -215,18 +221,14 @@ val_transforms = Compose(
 )
 
 
-# In[5]:
+# In[13]:
 
 
 img = itk.imread(train_files[0][0]["image"])
 arr = itk.GetArrayFromImage(img)
 
-roi_size = (arr.shape[2], arr.shape[1], num_slices)
 
-print(roi_size)
-
-
-# In[6]:
+# In[ ]:
 
 
 train_ds = [CacheDataset(data=train_files[i], transform=train_transforms,cache_rate=1.0, num_workers=None)
@@ -240,29 +242,28 @@ val_loader = [DataLoader(val_ds[i], batch_size=batch_size_vl, num_workers=num_wo
               for i in range(num_folds)]
 
 
-# In[1]:
+# In[ ]:
 
 
-if len(sys.argv)>0:
-    imgnum = 0
-    check_data = first(val_loader[0])
-    print(val_files[0][imgnum])
-    image, label = (check_data["image"][imgnum][0], check_data["label"][imgnum][0])
-    print(check_data["image"].shape)
-    print(image.shape)
-    print(f"image shape: {image.shape}, label shape: {label.shape}")
-    plt.figure("check", (12, 6))
-    plt.subplot(1, 2, 1)
-    plt.title("image")
-    plt.imshow(image[:, :, 2], cmap="gray")
-    plt.subplot(1, 2, 2)
-    plt.title("label")
-    plt.imshow(label[:, :, 2])
-    plt.show()
-    print(label.min(), label.max())
+    #imgnum = 0
+    #check_data = first(val_loader[0])
+    #print(val_files[0][imgnum])
+    #image, label = (check_data["image"][imgnum][0], check_data["label"][imgnum][0])
+    #print(check_data["image"].shape)
+    #print(image.shape)
+    #print(f"image shape: {image.shape}, label shape: {label.shape}")
+    #plt.figure("check", (12, 6))
+    #plt.subplot(1, 2, 1)
+    #plt.title("image")
+    #plt.imshow(image[:, :, 2], cmap="gray")
+    #plt.subplot(1, 2, 2)
+    #plt.title("label")
+    #plt.imshow(label[:, :, 2])
+    #plt.show()
+    #print(label.min(), label.max())
 
 
-# In[8]:
+# In[ ]:
 
 
 device = torch.device("cuda:"+str(gpu_device))
@@ -355,6 +356,12 @@ def vfold_train(vfold_num, train_loader, val_loader):
 # In[ ]:
 
 
-for i in range(3,num_folds):
+for i in range(gpu_device,num_folds,num_gpu_devices):
     vfold_train(i, train_loader[i], val_loader[i])
+
+
+# In[ ]:
+
+
+
 
