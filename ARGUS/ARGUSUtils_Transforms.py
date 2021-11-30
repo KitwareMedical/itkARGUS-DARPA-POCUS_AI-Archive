@@ -183,6 +183,7 @@ class ARGUS_RandSpatialCropSlicesd(RandomizableTransform, MapTransform, Invertib
         boundary: int = -1,
         require_labeled: bool = False,
         reduce_to_statistics: Union[Sequence[bool], bool] = False,
+        extended: bool = False,
         allow_missing_keys: bool = False,
     ) -> None:
         """
@@ -207,6 +208,7 @@ class ARGUS_RandSpatialCropSlicesd(RandomizableTransform, MapTransform, Invertib
         self.center_slice = center_slice
         self.require_labeled = require_labeled
         self.reduce_to_statistics = ensure_tuple_rep(reduce_to_statistics, len(self.keys))
+        self.extended = extended
         self._roi_start: Optional[Sequence[int]] = None
         self._roi_center_slice: int = -1
         self._roi_end: Optional[Sequence[int]] = None
@@ -246,7 +248,7 @@ class ARGUS_RandSpatialCropSlicesd(RandomizableTransform, MapTransform, Invertib
         d = dict(data)
 
         for key, num_slices, reduce_to_statistics in self.key_iterator(d, self.num_slices, self.reduce_to_statistics):
-            cropper = ARGUS_RandSpatialCropSlices(num_slices=num_slices, axis=self.axis, center_slice=self._roi_center_slice, reduce_to_statistics=reduce_to_statistics, boundary=self.boundary)
+            cropper = ARGUS_RandSpatialCropSlices(num_slices=num_slices, axis=self.axis, center_slice=self._roi_center_slice, reduce_to_statistics=reduce_to_statistics, boundary=self.boundary, extended=self.extended)
             orig_size = d[key].shape
             d[key] = cropper(d[key])
             self.push_transform(
