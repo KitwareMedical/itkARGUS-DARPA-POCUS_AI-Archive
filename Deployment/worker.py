@@ -23,4 +23,4 @@ class ArgusWorker:
             frame_msg = self.sock.recv()
             print('got frame msg', frame_msg)
         
-        self.sock.send(Message(Message.Type.RESULT, b'1').tobytes())
+        self.sock.send(Message(Message.Type.RESULT, b'1'))

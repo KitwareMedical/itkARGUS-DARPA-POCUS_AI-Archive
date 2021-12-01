@@ -1,5 +1,9 @@
 from enum import Enum
 
+PIPE_NAME = r'\\.\pipe\AnatomicRecon-POCUS-AI\inference-server'
+
+EXIT_FAILURE = 1
+EXIT_SUCCESS = 0
 class Message:
     # message type is a single byte
     class Type(Enum):
@@ -31,4 +35,3 @@ class Message:
 
 class WorkerError(Exception):
     pass
-
