@@ -74,7 +74,7 @@ class WinPipeServer:
             finally:
                 win32file.CloseHandle(pipe)
 
-    def _wait_for_events(self, pipe ,timeout = 50): # timeout in ms
+    def _wait_for_events(self, pipe ,timeout = 1): # timeout in ms
         while not self._quit:
             rc = win32event.WaitForMultipleObjects((self._hStop, self._overlapped.hEvent), 0, timeout)
             if rc == win32event.WAIT_TIMEOUT:
