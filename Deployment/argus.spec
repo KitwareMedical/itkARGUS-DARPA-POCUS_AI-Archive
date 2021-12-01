@@ -1,12 +1,44 @@
 # -*- mode: python ; coding: utf-8 -*-
 
+from glob import glob, iglob
+from os import path
+from PyInstaller import compat
+from PyInstaller.utils.hooks import collect_submodules
+
+def gather_mkl_dlls():
+    dlls = []
+    pattern = path.join(compat.base_prefix, '**', '*.dll')
+    for filename in iglob(pattern, recursive=True):
+        basename = path.basename(filename)
+        if basename.startswith('mkl_'):
+            dlls.append((filename, '.'))
+    return dlls
+
+def gather_ffmpeg_exes():
+    exes = []
+    pattern = path.join(compat.base_prefix, '**', '*.exe')
+    for filename in iglob(pattern, recursive=True):
+        basename = path.basename(filename)
+        if basename == 'ffprobe.exe':
+            exes.append((filename, '.'))
+    return exes
+
 block_cipher = None
+
+binaries = []
+# for numpy
+binaries += gather_mkl_dlls()
+# for ffmpeg-python
+binaries += gather_ffmpeg_exes()
+
+hiddenimports = []
+hiddenimports += collect_submodules('av')
 
 a = Analysis(['argus.py'],
              pathex=['C:\\Users\\Forrest\\AnatomicRecon-POCUS-AI\\Deployment'],
-             binaries=[],
+             binaries=binaries,
              datas=[],
-             hiddenimports=[],
+             hiddenimports=hiddenimports,
              hookspath=[],
              runtime_hooks=[],
              excludes=[],
