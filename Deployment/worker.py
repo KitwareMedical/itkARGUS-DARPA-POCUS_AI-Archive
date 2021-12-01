@@ -1,4 +1,5 @@
 import json
+import numpy as np
 from utils import Message, WorkerError
 
 class ArgusWorker:
@@ -18,9 +19,21 @@ class ArgusWorker:
         nframes = data['num_frames']
         width = data['width']
         height = data['height']
+        dtype = data['dtype']
+
+        evenodd = 0 # even
 
         for _ in range(nframes):
             frame_msg = self.sock.recv()
-            print('got frame msg', frame_msg)
+            if frame_msg.type != Message.Type.FRAME:
+                raise WorkerError('expected a frame')
+            frame = np.frombuffer(frame_msg.data, dtype=dtype).reshape((height, width))
+            total = np.sum(frame)
+            if total % 2 == evenodd:
+                evenodd = 0 # even
+            else:
+                evenodd = 1 # odd
         
-        self.sock.send(Message(Message.Type.RESULT, b'1'))
+        result = dict(evenodd=evenodd)
+        result_msg = Message(Message.Type.RESULT, json.dumps(result).encode('ascii'))
+        self.sock.send(result_msg)
