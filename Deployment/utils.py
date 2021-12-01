@@ -8,11 +8,12 @@ class Message:
     # message type is a single byte
     class Type(Enum):
         # messages from cli
-        START_FRAME = 0x1
-        FRAME = 0x2
+        START = 0x1
+        FRAMES_WRITTEN = 0x2
         # messages from server
         RESULT = 0x81
         ERROR = 0x82
+        SHM = 0x83
 
         def tobyte(self):
             return self.value.to_bytes(1, 'big')

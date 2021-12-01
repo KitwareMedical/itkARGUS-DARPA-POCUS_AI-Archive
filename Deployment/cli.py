@@ -1,5 +1,6 @@
 import json
 from os import path
+from multiprocessing import shared_memory
 import ffmpeg, av
 import win32file, win32pipe, pywintypes, winerror
 
@@ -27,8 +28,8 @@ def load_video(filename):
     first_frame = next(frame_generator).to_ndarray(format='gray')
 
     yield stream.frames, first_frame.dtype
+
     yield first_frame
-    
     for frame in frame_generator:
         yield frame.to_ndarray(format='gray')
 
@@ -48,14 +49,31 @@ def cli_send_video(video_file, sock):
         dtype=str(dtype),
     )
 
-    start_msg = Message(Message.Type.START_FRAME, json.dumps(start_info).encode('ascii'))
+    start_msg = Message(Message.Type.START, json.dumps(start_info).encode('ascii'))
     sock.send(start_msg)
 
-    # send frame msgs
-    for frame in frame_generator:
-        frame_msg = Message(Message.Type.FRAME, frame.tobytes())
-        sock.send(frame_msg)
-    
+    shm_msg = sock.recv()
+    if shm_msg.type != Message.Type.SHM:
+        raise Exception('Did not see shm message')
+
+    shm = None
+    try:
+        shm_name = json.loads(shm_msg.data)['shm_name']
+        shm = shared_memory.SharedMemory(name=shm_name)
+
+        # write frame msgs to shared memory
+        offset = 0
+        for frame in frame_generator:
+            data = frame.tobytes()
+            size = len(data)
+            shm.buf[offset:offset+size] = data
+            offset += size
+    finally:
+        if shm:
+            shm.close()
+        
+    sock.send(Message(Message.Type.FRAMES_WRITTEN, b''))
+
     result = sock.recv()
     if result.type == Message.Type.RESULT:
         print(f'result: {json.loads(result.data)}')
