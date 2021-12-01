@@ -4,6 +4,7 @@ from utils import Message, WorkerError, PIPE_NAME
 
 INBUF_SIZE = 512 * 1024 * 1024 # 512 MB
 OUTBUF_SIZE = 64 * 1024 # 64 KB
+MAX_SIZE = 2 * 1024 * 1024 * 1024 # 2 GB
 
 class Sock:
     def recv(self):
@@ -19,9 +20,13 @@ class WinPipeSock(Sock):
         chunk_size = 64 * 1024
         data = bytearray()
         hr = winerror.ERROR_MORE_DATA
+        size = 0
         while hr == winerror.ERROR_MORE_DATA:
             # TODO handle blocking scenario?
             hr, chunk = win32file.ReadFile(self._pipe, chunk_size)
+            size += len(chunk)
+            if size > MAX_SIZE:
+                raise Exception('Exceeded single message max size')
             data.extend(chunk)
         return Message.parse_bytes(bytes(data))
     
