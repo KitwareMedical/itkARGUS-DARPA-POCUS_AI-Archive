@@ -1,98 +1,22 @@
 import json
 from os import path
-from multiprocessing import shared_memory
-
-import ffmpeg, av
-import win32file, win32pipe, pywintypes, winerror, win32event, win32api
+import win32file, win32pipe, pywintypes, winerror
 
 from utils import EXIT_FAILURE, Message, PIPE_NAME, Stats
 from server import WinPipeSock
-
-# from ARGUSUtils_IO
-def shape_video(filename):
-    p = ffmpeg.probe(filename, select_streams='v');
-    width = p['streams'][0]['width']
-    height = p['streams'][0]['height']
-    return height, width
-
-# adapted from ARGUSUtils_IO
-def load_video(filename):
-    '''frame generator
-    first item is the number of frames.
-    '''
-    container = av.open(filename)
-    stream = container.streams.video[0]
-    stream.thread_type = 'AUTO'
-
-    frame_generator = container.decode(stream)
-    # get first frame so we can output info
-    first_frame = next(frame_generator).to_ndarray(format='gray')
-
-    yield stream.frames, first_frame.dtype
-
-    yield first_frame
-    for frame in frame_generator:
-        yield frame.to_ndarray(format='gray')
 
 def cli_send_video(video_file, sock):
     if not path.exists(video_file):
         print(f'File {video_file} does not exist')
         return EXIT_FAILURE
-    
+
     stats = Stats()
 
-    stats.time_start('prepare start info')
     # create start_frame msg
-    frame_generator = load_video(video_file)
-    height, width = shape_video(video_file)
-    nframes, dtype = next(frame_generator)
-    start_info = dict(
-        height=height,
-        width=width,
-        num_frames=nframes,
-        dtype=str(dtype),
-    )
-    stats.time_end('prepare start info')
+    start_info = dict(video_file=path.abspath(video_file))
 
-    stats.time_start('start negotiation')
     start_msg = Message(Message.Type.START, json.dumps(start_info).encode('ascii'))
     sock.send(start_msg)
-
-    shm_msg = sock.recv()
-    if shm_msg.type != Message.Type.SHM:
-        raise Exception('Did not see shm message')
-    stats.time_end('start negotiation')
-
-    shm = None
-    frame_sem = None
-    try:
-        shm_info = json.loads(shm_msg.data)
-
-        shm_name = shm_info['shm_name']
-        shm = shared_memory.SharedMemory(name=shm_name)
-
-        sem_name = shm_info['sem_name']
-        # TODO how to detect failure in CreateSemaphore
-        frame_sem = win32event.CreateSemaphore(None, 0, nframes, sem_name)
-
-        stats.time_start('write frames')
-        # write frame msgs to shared memory
-        offset = 0
-        for frame in frame_generator:
-            data = frame.tobytes()
-            size = len(data)
-            shm.buf[offset:offset+size] = data
-            offset += size
-            # notify server
-            win32event.ReleaseSemaphore(frame_sem, 1)
-        stats.time_end('write frames')
-    except win32event.error as e:
-        print('semaphore error:', e)
-    finally:
-        if frame_sem:
-            win32api.CloseHandle(frame_sem)
-        if shm:
-            shm.close()
 
     stats.time_start('waiting for results')
     result = sock.recv()
@@ -127,10 +51,6 @@ def cli_main(args):
         
         sock = WinPipeSock(handle)
         return cli_send_video(args.video_file, sock)
-        #count = 0
-        #while count < 10:
-        #    win32file.WriteFile(handle, Message(Message.Type.START_FRAME, b'1' * 1024).tobytes())
-        #    count += 1
     except pywintypes.error as e:
         code, source, message = e.args
         if code == winerror.ERROR_FILE_NOT_FOUND:

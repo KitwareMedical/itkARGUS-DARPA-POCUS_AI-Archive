@@ -15,7 +15,6 @@ class Message:
         # messages from server
         RESULT = 0x81
         ERROR = 0x82
-        SHM = 0x83
 
         def tobyte(self):
             return self.value.to_bytes(1, 'big')
