@@ -1,7 +1,15 @@
 import json
+
 import numpy as np
 from multiprocessing import shared_memory
-from utils import Message, WorkerError
+import win32event, win32api
+from utils import Message, WorkerError, randstr, Stats
+
+def InterruptableWaitForSingleObject(*args):
+    while True:
+        rc = win32event.WaitForSingleObject(*args)
+        if rc == win32event.WAIT_OBJECT_0:
+            break
 
 class ArgusWorker:
     def __init__(self, sock):
@@ -26,23 +34,28 @@ class ArgusWorker:
         totalmem = nframes * frame_byte_size
 
         shm = None
+        frame_sem = None
         try:
+            sem_name = f'Global\\ARGUS-{randstr(20)}'
+            # TODO how to detect failure in CreateSemaphore
+            frame_sem = win32event.CreateSemaphore(None, 0, nframes, sem_name)
             shm = shared_memory.SharedMemory(create=True, size=totalmem)
+
             shm_msg = Message(
                 Message.Type.SHM,
-                json.dumps(dict(shm_name=shm.name)).encode('ascii')
+                json.dumps(dict(shm_name=shm.name, sem_name=sem_name)).encode('ascii')
             )
             self.sock.send(shm_msg)
 
-            # wait for client to write all of the frames
-            written_msg = self.sock.recv()
-            if written_msg.type != Message.Type.FRAMES_WRITTEN:
-                raise WorkerError('did not see frames_written msg')
-
+            stats = Stats()
             evenodd = 0 # even
 
+            stats.time_start('get frames and inference')
             offset = 0
             for _ in range(nframes):
+                # wait for available frames
+                InterruptableWaitForSingleObject(frame_sem, 1) # wait 1ms
+
                 frame = np.ndarray((height, width), dtype=dtype, buffer=shm.buf, offset=offset)
                 offset += frame_byte_size
 
@@ -51,11 +64,14 @@ class ArgusWorker:
                     evenodd = 0 # even
                 else:
                     evenodd = 1 # odd
+            stats.time_end('get frames and inference')
             
-            result = dict(evenodd=evenodd)
+            result = dict(evenodd=evenodd, stats=stats.todict())
             result_msg = Message(Message.Type.RESULT, json.dumps(result).encode('ascii'))
             self.sock.send(result_msg)
         finally:
+            if frame_sem:
+                win32api.CloseHandle(frame_sem)
             if shm:
                 shm.close()
                 # we "own" the shm, so unlink it

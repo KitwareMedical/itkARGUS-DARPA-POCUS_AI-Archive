@@ -2,7 +2,7 @@ import json
 from os import path
 from multiprocessing import shared_memory
 import ffmpeg, av
-import win32file, win32pipe, pywintypes, winerror
+import win32file, win32pipe, pywintypes, winerror, win32event, win32api
 
 from utils import EXIT_FAILURE, Message, PIPE_NAME
 from server import WinPipeSock
@@ -57,9 +57,16 @@ def cli_send_video(video_file, sock):
         raise Exception('Did not see shm message')
 
     shm = None
+    frame_sem = None
     try:
-        shm_name = json.loads(shm_msg.data)['shm_name']
+        shm_info = json.loads(shm_msg.data)
+
+        shm_name = shm_info['shm_name']
         shm = shared_memory.SharedMemory(name=shm_name)
+
+        sem_name = shm_info['sem_name']
+        # TODO how to detect failure in CreateSemaphore
+        frame_sem = win32event.CreateSemaphore(None, 0, nframes, sem_name)
 
         # write frame msgs to shared memory
         offset = 0
@@ -68,11 +75,15 @@ def cli_send_video(video_file, sock):
             size = len(data)
             shm.buf[offset:offset+size] = data
             offset += size
+            # notify server
+            win32event.ReleaseSemaphore(frame_sem, 1)
+    except win32event.error as e:
+        print('semaphore error:', e)
     finally:
+        if frame_sem:
+            win32api.CloseHandle(frame_sem)
         if shm:
             shm.close()
-        
-    sock.send(Message(Message.Type.FRAMES_WRITTEN, b''))
 
     result = sock.recv()
     if result.type == Message.Type.RESULT:

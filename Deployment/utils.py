@@ -1,4 +1,7 @@
 from enum import Enum
+import string
+import random
+import time
 
 PIPE_NAME = r'\\.\pipe\AnatomicRecon-POCUS-AI\inference-server'
 
@@ -9,7 +12,6 @@ class Message:
     class Type(Enum):
         # messages from cli
         START = 0x1
-        FRAMES_WRITTEN = 0x2
         # messages from server
         RESULT = 0x81
         ERROR = 0x82
@@ -36,3 +38,24 @@ class Message:
 
 class WorkerError(Exception):
     pass
+
+def randstr(length):
+    size = len(string.ascii_letters)
+    return ''.join(string.ascii_letters[random.randint(0, size-1)] for _ in range(length))
+
+class Stats:
+    timers = dict()
+    _running_timers = dict()
+
+    def time_start(self, name):
+        start = time.time()
+        self._running_timers[name] = start
+
+    def time_end(self, name):
+        end = time.time()
+        if name in self._running_timers:
+            self.timers[name] = end - self._running_timers[name]
+            del self._running_timers[name]
+    
+    def todict(self):
+        return dict(timers=self.timers)
