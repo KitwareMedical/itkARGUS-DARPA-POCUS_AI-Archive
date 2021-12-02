@@ -2,7 +2,7 @@ import json
 from os import path
 import numpy as np
 import av
-from utils import Message, WorkerError, randstr, Stats
+from common import Message, WorkerError, randstr, Stats
 
 # adapted from ARGUSUtils_IO
 def load_video(filename):

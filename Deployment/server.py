@@ -1,37 +1,32 @@
+import sys
+import logging, logging.handlers
+from os import path
 import win32pipe, win32file, pywintypes, win32event, winerror
 
-from utils import Message, WorkerError, PIPE_NAME
+from common import WorkerError, PIPE_NAME, WinPipeSock, EXIT_FAILURE, EXIT_SUCCESS
+from worker import ArgusWorker
 
 INBUF_SIZE = 512 * 1024 * 1024 # 512 MB
 OUTBUF_SIZE = 64 * 1024 # 64 KB
-MAX_SIZE = 2 * 1024 * 1024 * 1024 # 2 GB
 
-class Sock:
-    def recv(self):
-        raise NotImplementedError()
-    def send(self, data):
-        raise NotImplementedError()
+def setup_logger(name):
+    logfile = f'{path.splitext(__file__)[0]}-{name}.log'
+    log = logging.getLogger()
+    log.setLevel(logging.INFO)
 
-class WinPipeSock(Sock):
-    def __init__(self, pipe):
-        self._pipe = pipe
+    formatter = logging.Formatter('%(asctime)s %(process)d:%(thread)d %(name)s %(levelname)-8s %(message)s')
 
-    def recv(self):
-        chunk_size = 64 * 1024
-        data = bytearray()
-        hr = winerror.ERROR_MORE_DATA
-        size = 0
-        while hr == winerror.ERROR_MORE_DATA:
-            # TODO handle blocking scenario?
-            hr, chunk = win32file.ReadFile(self._pipe, chunk_size)
-            size += len(chunk)
-            if size > MAX_SIZE:
-                raise Exception('Exceeded single message max size')
-            data.extend(chunk)
-        return Message.parse_bytes(bytes(data))
-    
-    def send(self, msg):
-        win32file.WriteFile(self._pipe, msg.tobytes())
+    stdouthandler = logging.StreamHandler(sys.stdout)
+    stdouthandler.setLevel(logging.INFO)
+    stdouthandler.setFormatter(formatter)
+    log.addHandler(stdouthandler)
+
+    rothandler = logging.handlers.RotatingFileHandler(logfile, maxBytes=8*1024, backupCount=3)
+    rothandler.setLevel(logging.INFO)
+    rothandler.setFormatter(formatter)
+    log.addHandler(rothandler)
+
+    return log
 
 class WinPipeServer:
     def __init__(self, WorkerClass, logger):
@@ -47,6 +42,7 @@ class WinPipeServer:
         win32event.SetEvent(self._hStop)
     
     def start(self):
+        print('Server has started')
         while not self._quit:
             pipe = win32pipe.CreateNamedPipe(
                 PIPE_NAME,
@@ -97,7 +93,15 @@ class WinPipeServer:
                     self.log.error(f'Worker error: {e}')
                 break
 
-def server_main(WorkerClass, logger):
+def main(WorkerClass, logger):
     server = WinPipeServer(WorkerClass, logger)
     server.start()
 
+if __name__ == '__main__':
+    log = setup_logger('server')
+    try:
+        main(ArgusWorker, log)
+    except Exception as e:
+        log.exception(f'Server failed with exception: {e}')
+        sys.exit(EXIT_FAILURE)
+    sys.exit(EXIT_SUCCESS)

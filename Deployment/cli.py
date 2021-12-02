@@ -1,9 +1,15 @@
+import argparse
+import sys
 import json
 from os import path
 import win32file, win32pipe, pywintypes, winerror
 
-from utils import EXIT_FAILURE, Message, PIPE_NAME, Stats
-from server import WinPipeSock
+from common import WinPipeSock, Message, Stats, EXIT_FAILURE, PIPE_NAME
+
+def prepare_argparser():
+    parser = argparse.ArgumentParser(description='ARGUS inference')
+    parser.add_argument('video_file', help='video file to analyze.')
+    return parser
 
 def cli_send_video(video_file, sock):
     if not path.exists(video_file):
@@ -32,7 +38,7 @@ def cli_send_video(video_file, sock):
     print('Self stats:')
     print(json.dumps(stats.todict(), indent=2))
 
-def cli_main(args):
+def main(args):
     handle = None
     try:
         handle = win32file.CreateFile(
@@ -63,3 +69,8 @@ def cli_main(args):
     finally:
         if handle:
             win32file.CloseHandle(handle)
+
+if __name__ == '__main__':
+    parser = prepare_argparser()
+    args = parser.parse_args()
+    sys.exit(main(args))

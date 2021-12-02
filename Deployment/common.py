@@ -2,11 +2,22 @@ from enum import Enum
 import string
 import random
 import time
+import win32file, winerror
+
+MAX_SIZE = 2 * 1024 * 1024 * 1024 # 2 GB
 
 PIPE_NAME = r'\\.\pipe\AnatomicRecon-POCUS-AI\inference-server'
 
 EXIT_FAILURE = 1
 EXIT_SUCCESS = 0
+
+def randstr(length):
+    size = len(string.ascii_letters)
+    return ''.join(string.ascii_letters[random.randint(0, size-1)] for _ in range(length))
+
+class WorkerError(Exception):
+    pass
+
 class Message:
     # message type is a single byte
     class Type(Enum):
@@ -35,13 +46,6 @@ class Message:
     def parse_bytes(cls, data):
         return cls(Message.Type.frombyte(data[:1]), data[1:])
 
-class WorkerError(Exception):
-    pass
-
-def randstr(length):
-    size = len(string.ascii_letters)
-    return ''.join(string.ascii_letters[random.randint(0, size-1)] for _ in range(length))
-
 class Stats:
     timers = dict()
     _running_timers = dict()
@@ -58,3 +62,30 @@ class Stats:
     
     def todict(self):
         return dict(timers=self.timers)
+
+class Sock:
+    def recv(self):
+        raise NotImplementedError()
+    def send(self, data):
+        raise NotImplementedError()
+
+class WinPipeSock(Sock):
+    def __init__(self, pipe):
+        self._pipe = pipe
+
+    def recv(self):
+        chunk_size = 64 * 1024
+        data = bytearray()
+        hr = winerror.ERROR_MORE_DATA
+        size = 0
+        while hr == winerror.ERROR_MORE_DATA:
+            # TODO handle blocking scenario?
+            hr, chunk = win32file.ReadFile(self._pipe, chunk_size)
+            size += len(chunk)
+            if size > MAX_SIZE:
+                raise Exception('Exceeded single message max size')
+            data.extend(chunk)
+        return Message.parse_bytes(bytes(data))
+    
+    def send(self, msg):
+        win32file.WriteFile(self._pipe, msg.tobytes())
