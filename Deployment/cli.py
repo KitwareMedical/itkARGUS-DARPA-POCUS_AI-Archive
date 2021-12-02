@@ -1,10 +1,11 @@
 import json
 from os import path
 from multiprocessing import shared_memory
+
 import ffmpeg, av
 import win32file, win32pipe, pywintypes, winerror, win32event, win32api
 
-from utils import EXIT_FAILURE, Message, PIPE_NAME
+from utils import EXIT_FAILURE, Message, PIPE_NAME, Stats
 from server import WinPipeSock
 
 # from ARGUSUtils_IO
@@ -38,6 +39,9 @@ def cli_send_video(video_file, sock):
         print(f'File {video_file} does not exist')
         return EXIT_FAILURE
     
+    stats = Stats()
+
+    stats.time_start('prepare start info')
     # create start_frame msg
     frame_generator = load_video(video_file)
     height, width = shape_video(video_file)
@@ -48,13 +52,16 @@ def cli_send_video(video_file, sock):
         num_frames=nframes,
         dtype=str(dtype),
     )
+    stats.time_end('prepare start info')
 
+    stats.time_start('start negotiation')
     start_msg = Message(Message.Type.START, json.dumps(start_info).encode('ascii'))
     sock.send(start_msg)
 
     shm_msg = sock.recv()
     if shm_msg.type != Message.Type.SHM:
         raise Exception('Did not see shm message')
+    stats.time_end('start negotiation')
 
     shm = None
     frame_sem = None
@@ -68,6 +75,7 @@ def cli_send_video(video_file, sock):
         # TODO how to detect failure in CreateSemaphore
         frame_sem = win32event.CreateSemaphore(None, 0, nframes, sem_name)
 
+        stats.time_start('write frames')
         # write frame msgs to shared memory
         offset = 0
         for frame in frame_generator:
@@ -77,6 +85,7 @@ def cli_send_video(video_file, sock):
             offset += size
             # notify server
             win32event.ReleaseSemaphore(frame_sem, 1)
+        stats.time_end('write frames')
     except win32event.error as e:
         print('semaphore error:', e)
     finally:
@@ -85,13 +94,19 @@ def cli_send_video(video_file, sock):
         if shm:
             shm.close()
 
+    stats.time_start('waiting for results')
     result = sock.recv()
+    stats.time_end('waiting for results')
+
     if result.type == Message.Type.RESULT:
         print(f'result: {json.loads(result.data)}')
     elif result.type == Message.Type.ERROR:
         print(f'error: {json.loads(result.data)}')
     else:
         raise Exception('Received message type that is not result nor error')
+    
+    print('Self stats:')
+    print(json.dumps(stats.todict(), indent=2))
 
 def cli_main(args):
     handle = None
