@@ -3,7 +3,7 @@ import sys
 import logging, logging.handlers
 from os import path
 
-from utils import EXIT_SUCCESS
+from utils import EXIT_SUCCESS, EXIT_FAILURE
 from worker import ArgusWorker
 from cli import cli_main
 from server import server_main
@@ -37,7 +37,13 @@ if __name__ == '__main__':
     parser = prepare_argparser()
     args = parser.parse_args()
     if args.server:
-        server_main(ArgusWorker, setup_logger('server'))
+        log = setup_logger('server')
+        try:
+            server_main(ArgusWorker, log)
+        except Exception as e:
+            log.exception(f'Server failed with exception: {e}')
+            sys.exit(EXIT_FAILURE)
+        sys.exit(EXIT_SUCCESS)
     elif args.video_file:
         sys.exit(cli_main(args))
     else:
