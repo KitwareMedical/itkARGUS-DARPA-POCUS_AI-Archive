@@ -11,9 +11,12 @@ conda install -c conda-forge ffmpeg ffmpeg-python av numpy
 
 ## build
 
-`pyinstaller argus.spec` from within the conda env, and verify that argus.exe works without an env.
+1. `pyinstaller argus.spec` from within the conda env, and verify that argus.exe works without an env.
+2. Download NSSM and put the 32-bit `nssm.exe` file in this same directory.
+3. Open the inno setup app and compile the final installer.
 
-```
-argus-server.exe
-argus-cli.bat path/to/video.mp4
-```
+## running
+
+For dev, you can run `server.py` or `argus-server.exe` for the server.
+
+For prod, just run `argus-cli.bat` from the command prompt.
