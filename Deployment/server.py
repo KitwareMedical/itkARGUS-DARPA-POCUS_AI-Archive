@@ -66,7 +66,14 @@ class WinPipeServer:
                     # client likely disconnected.
                     pass
                 else:
-                    self.log.warn('unknown error:', e)
+                    self.log.warn('unknown windows error:', e)
+                    self.stop()
+            except Exception as e:
+                self.log.exception(f'Caught an exception: {e}')
+                self.stop()
+            except KeyboardInterrupt:
+                print('Exiting...')
+                self.stop()
             finally:
                 win32file.CloseHandle(pipe)
 

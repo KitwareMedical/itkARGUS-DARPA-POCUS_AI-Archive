@@ -4,7 +4,7 @@ import json
 from os import path
 import win32file, win32pipe, pywintypes, winerror
 
-from common import WinPipeSock, Message, Stats, EXIT_FAILURE, PIPE_NAME
+from common import WinPipeSock, Message, Stats, EXIT_FAILURE, PIPE_NAME, EXIT_SUCCESS
 
 def prepare_argparser():
     parser = argparse.ArgumentParser(description='ARGUS inference')
@@ -65,6 +65,11 @@ def main(args):
             print('broken pipe; server disconnected?')
         elif code == winerror.ERROR_PIPE_BUSY:
             print('server is busy')
+        else:
+            print('Unknown windows error:', e.args)
+        return EXIT_FAILURE
+    except Exception as e:
+        print('cli error:', e)
         return EXIT_FAILURE
     finally:
         if handle:

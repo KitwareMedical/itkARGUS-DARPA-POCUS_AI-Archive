@@ -14,6 +14,6 @@ conda install -c conda-forge ffmpeg ffmpeg-python av numpy
 `pyinstaller argus.spec` from within the conda env, and verify that argus.exe works without an env.
 
 ```
-argus.exe --server
-argus.exe path/to/video.mp4
+argus-server.exe
+argus-cli.bat path/to/video.mp4
 ```
