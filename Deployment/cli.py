@@ -1,15 +1,23 @@
 import argparse
+import subprocess
 import sys
 import json
+import time
 from os import path
 import win32file, win32pipe, pywintypes, winerror
 
 from common import WinPipeSock, Message, Stats, EXIT_FAILURE, PIPE_NAME, EXIT_SUCCESS
 
+class Retry(Exception):
+    pass
+
 def prepare_argparser():
     parser = argparse.ArgumentParser(description='ARGUS inference')
     parser.add_argument('video_file', help='video file to analyze.')
     return parser
+
+def start_service():
+    subprocess.run(['sc.exe', 'start', 'ARGUS'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 def cli_send_video(video_file, sock):
     if not path.exists(video_file):
@@ -29,14 +37,16 @@ def cli_send_video(video_file, sock):
     stats.time_end('waiting for results')
 
     if result.type == Message.Type.RESULT:
-        print(f'result: {json.loads(result.data)}')
+        srv_res = json.loads(result.data)
+        evenodd = srv_res['evenodd']
+        print('yes' if evenodd else 'no')
     elif result.type == Message.Type.ERROR:
         print(f'error: {json.loads(result.data)}')
     else:
         raise Exception('Received message type that is not result nor error')
     
-    print('Self stats:')
-    print(json.dumps(stats.todict(), indent=2))
+    #print('Self stats:')
+    #print(json.dumps(stats.todict(), indent=2))
 
 def main(args):
     handle = None
@@ -60,7 +70,9 @@ def main(args):
     except pywintypes.error as e:
         code, source, message = e.args
         if code == winerror.ERROR_FILE_NOT_FOUND:
-            print('no pipe')
+            print('Service not detected; trying to start...')
+            start_service()
+            raise Retry()
         elif code == winerror.ERROR_BROKEN_PIPE:
             print('broken pipe; server disconnected?')
         elif code == winerror.ERROR_PIPE_BUSY:
@@ -68,6 +80,8 @@ def main(args):
         else:
             print('Unknown windows error:', e.args)
         return EXIT_FAILURE
+    except Retry:
+        raise
     except Exception as e:
         print('cli error:', e)
         return EXIT_FAILURE
@@ -78,4 +92,13 @@ def main(args):
 if __name__ == '__main__':
     parser = prepare_argparser()
     args = parser.parse_args()
-    sys.exit(main(args))
+    retries = 0
+    while retries < 3:
+        try:
+            sys.exit(main(args))
+        except Retry:
+            retries += 1
+            time.sleep(0.5)
+        except Exception as e:
+            print('Fatal error:', e)
+            sys.exit(EXIT_FAILURE)
