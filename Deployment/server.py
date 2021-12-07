@@ -1,7 +1,7 @@
 import sys
 import logging, logging.handlers
 from os import path
-import win32pipe, win32file, pywintypes, win32event, winerror
+import win32pipe, win32file, pywintypes, win32event, winerror, win32security
 
 from common import WorkerError, PIPE_NAME, WinPipeSock, EXIT_FAILURE, EXIT_SUCCESS
 from worker import ArgusWorker
@@ -44,6 +44,10 @@ class WinPipeServer:
     def start(self):
         print('Server has started')
         while not self._quit:
+            se_attrs = win32security.SECURITY_ATTRIBUTES()
+            se_attrs.SECURITY_DESCRIPTOR.Initialize() # necessary?
+            # DACL present, null DACL for world-accessible
+            se_attrs.SECURITY_DESCRIPTOR.SetSecurityDescriptorDacl(True, None, False)
             pipe = win32pipe.CreateNamedPipe(
                 PIPE_NAME,
                 win32pipe.PIPE_ACCESS_DUPLEX | win32file.FILE_FLAG_OVERLAPPED,
@@ -52,7 +56,7 @@ class WinPipeServer:
                 INBUF_SIZE,
                 OUTBUF_SIZE,
                 0,
-                None
+                se_attrs
             )
             try:
                 hr = win32pipe.ConnectNamedPipe(pipe, self._overlapped)
