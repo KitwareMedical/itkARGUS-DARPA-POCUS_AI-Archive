@@ -10,7 +10,7 @@ INBUF_SIZE = 512 * 1024 * 1024 # 512 MB
 OUTBUF_SIZE = 64 * 1024 # 64 KB
 
 def setup_logger(name):
-    logfile = f'{path.splitext(__file__)[0]}-{name}.log'
+    logfile = f'{name}-log.log'
     log = logging.getLogger()
     log.setLevel(logging.INFO)
 
