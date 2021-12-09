@@ -26,27 +26,26 @@ def cli_send_video(video_file, sock):
 
     stats = Stats()
 
+    stats.time_start('inference')
     # create start_frame msg
     start_info = dict(video_file=path.abspath(video_file))
 
     start_msg = Message(Message.Type.START, json.dumps(start_info).encode('ascii'))
     sock.send(start_msg)
 
-    stats.time_start('waiting for results')
     result = sock.recv()
-    stats.time_end('waiting for results')
+    stats.time_end('inference')
 
     if result.type == Message.Type.RESULT:
         srv_res = json.loads(result.data)
-        evenodd = srv_res['evenodd']
-        print('yes' if evenodd else 'no')
+        evenodd = 'Yes' if srv_res['evenodd'] else 'No'
+        print(f'Sample workload: is the sum of all pixels even or odd?\n\tAnswer = {evenodd}')
+        print(f'Total time to read video and produce result: {round(stats.timers["inference"], 2)} seconds')
     elif result.type == Message.Type.ERROR:
-        print(f'error: {json.loads(result.data)}')
+        print(f'Error encountered! {json.loads(result.data)}')
     else:
         raise Exception('Received message type that is not result nor error')
-    
-    #print('Self stats:')
-    #print(json.dumps(stats.todict(), indent=2))
+
 
 def main(args):
     handle = None
@@ -74,7 +73,15 @@ def main(args):
             start_service()
             raise Retry()
         elif code == winerror.ERROR_BROKEN_PIPE:
-            print('broken pipe; server disconnected?')
+            print('Server hit an error condition')
+            logfile = path.join(path.dirname(path.abspath(__file__)), 'server-log.log')
+            if path.exists(logfile):
+                print(f'Last few lines of server log file ({logfile}):')
+                # not memory efficient, but whatever for now
+                with open(logfile, 'r') as fp:
+                    lines = fp.read().strip().split('\n')
+                for line in lines[-10:]:
+                    print(f'\t{line}')
         elif code == winerror.ERROR_PIPE_BUSY:
             print('server is busy')
         else:
