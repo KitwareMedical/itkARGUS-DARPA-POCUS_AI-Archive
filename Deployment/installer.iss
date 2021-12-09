@@ -33,6 +33,9 @@ Filename: "{app}\scripts\postinstall.bat"; Flags: runhidden
 [UninstallRun]
 Filename: "{app}\scripts\preuninstall.bat"; RunOnceId: "ARGUSPreUninstall"; Flags: runhidden
 
+[UninstallDelete]
+Type: files; Name: "{app}\argus\server-log.log"
+
 [Code]
 const EnvKey = 'SYSTEM\CurrentControlSet\Control\Session Manager\Environment';
 
