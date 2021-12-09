@@ -9,15 +9,20 @@ def load_video(filename):
     '''frame generator
     first item is the number of frames.
     '''
-    container = av.open(filename)
-    stream = container.streams.video[0]
-    stream.thread_type = 'AUTO'
+    container = None
+    try:
+        container = av.open(filename)
+        stream = container.streams.video[0]
+        stream.thread_type = 'AUTO'
 
-    # number of frames
-    #yield stream.frames
+        # number of frames
+        #yield stream.frames
 
-    for i, frame in enumerate(container.decode(stream)):
-        yield frame.to_ndarray(format='gray')
+        for i, frame in enumerate(container.decode(stream)):
+            yield frame.to_ndarray(format='gray')
+    finally:
+        if container:
+            container.close()
 
 class ArgusWorker:
     def __init__(self, sock):
@@ -35,22 +40,26 @@ class ArgusWorker:
         
         video_file = data['video_file']
 
-        if not path.exists(video_file):
-            raise WorkerError(f'File {video_file} is not accessible!')
+        try:
+            if not path.exists(video_file):
+                raise Exception(f'File {video_file} is not accessible!')
 
-        stats = Stats()
-        evenodd = 0 # even
+            stats = Stats()
+            evenodd = 0 # even
 
-        stats.time_start('get frames and inference')
-        offset = 0
-        for frame in load_video(video_file):
-            total = np.sum(frame)
-            if total % 2 == evenodd:
-                evenodd = 0 # even
-            else:
-                evenodd = 1 # odd
-        stats.time_end('get frames and inference')
-        
-        result = dict(evenodd=evenodd, stats=stats.todict())
-        result_msg = Message(Message.Type.RESULT, json.dumps(result).encode('ascii'))
-        self.sock.send(result_msg)
+            stats.time_start('get frames and inference')
+            offset = 0
+            for frame in load_video(video_file):
+                total = np.sum(frame)
+                if total % 2 == evenodd:
+                    evenodd = 0 # even
+                else:
+                    evenodd = 1 # odd
+            stats.time_end('get frames and inference')
+        except Exception as e:
+            error_msg = Message(Message.Type.ERROR, json.dumps(str(e)).encode('ascii'))
+            self.sock.send(error_msg)
+        else:
+            result = dict(evenodd=evenodd, stats=stats.todict())
+            result_msg = Message(Message.Type.RESULT, json.dumps(result).encode('ascii'))
+            self.sock.send(result_msg)
