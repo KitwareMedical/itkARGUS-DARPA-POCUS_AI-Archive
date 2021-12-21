@@ -69,6 +69,9 @@ class WinPipeServer:
                 if code == winerror.ERROR_BROKEN_PIPE:
                     # client likely disconnected.
                     pass
+                elif code == winerror.ERROR_PIPE_BUSY:
+                    self.log.error('Pipe busy: is another instance of the server running?')
+                    self.stop()
                 else:
                     self.log.warn('unknown windows error:', e)
                     self.stop()
