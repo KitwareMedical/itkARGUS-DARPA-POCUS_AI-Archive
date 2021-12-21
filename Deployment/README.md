@@ -4,10 +4,14 @@
 conda create -n service
 conda activate service
 pip install pywin32
-conda install -c conda-forge pyinstaller
+# do not install from conda-forge, as we need a more recent version
+pip install pyinstaller=4.7
 # for argus
+pip install monai itk
 conda install -c conda-forge ffmpeg ffmpeg-python av numpy
 ```
+
+Edit the run function in `worker.py` to run your own code.
 
 ## build
 
@@ -17,6 +21,6 @@ conda install -c conda-forge ffmpeg ffmpeg-python av numpy
 
 ## running
 
-For dev, you can run `server.py` or `argus-server.exe` for the server.
+For dev, you can run `server.py` for the server and `cli.py` for the cli.
 
-For prod, just run `argus-cli.bat` from the command prompt.
+For a prod installation, the server will be autostarted for you. All you need to run is `argus-cli` from the command prompt.
