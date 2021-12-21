@@ -34,13 +34,15 @@ binaries += gather_ffmpeg_exes()
 hiddenimports = []
 hiddenimports += collect_submodules('av')
 
+srv_hookspath = path.join(path.abspath(SPECPATH), 'hooks')
+
 # server info
 srv_a = Analysis(['server.py'],
-             pathex=['C:\\Users\\Forrest\\AnatomicRecon-POCUS-AI\\Deployment'],
+             pathex=[SPECPATH],
              binaries=binaries,
              datas=[],
              hiddenimports=hiddenimports,
-             hookspath=[],
+             hookspath=[srv_hookspath],
              runtime_hooks=[],
              excludes=[],
              win_no_prefer_redirects=False,
@@ -62,7 +64,7 @@ srv_exe = EXE(srv_pyz,
 
 # cli info
 cli_a = Analysis(['cli.py'],
-             pathex=['C:\\Users\\Forrest\\AnatomicRecon-POCUS-AI\\Deployment'],
+             pathex=[SPECPATH],
              binaries=binaries,
              datas=[],
              hiddenimports=hiddenimports,
