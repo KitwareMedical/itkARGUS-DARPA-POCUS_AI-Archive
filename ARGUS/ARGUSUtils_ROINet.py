@@ -1,3 +1,18 @@
+import numpy as np
+
+import itk
+from itk import TubeTK as ttk
+
+import torch
+
+from monai.networks.nets import UNet
+from monai.transforms import ( ScaleIntensityRange, ToTensor )
+from monai.networks.layers import Norm
+from monai.inferers import sliding_window_inference
+
+from ARGUSUtils_Transforms import *
+
+
 def roinet_segment_roi(arnet_input_tensor, arnet_output):
     roi_size_x = 160
 
@@ -16,7 +31,7 @@ def roinet_segment_roi(arnet_input_tensor, arnet_output):
     roi_min_x = roi_max_x-roi_size_x
 
     roi_array = arnet_input_tensor[0,0,roi_min_x:roi_max_x,:,:].numpy()
-    roi_array.transpose([2,0,1])
+    roi_array = roi_array.transpose([2,0,1])
     return roi_array
 
 def roinet_load_model(filename, device):
@@ -36,13 +51,15 @@ def roinet_load_model(filename, device):
         num_res_units=2,
         norm=Norm.BATCH,
         ).to(device)    
-    model.load_state_dict(torch.load(filename))
+    model.load_state_dict(torch.load(filename, map_location=device))
     model.eval()
 
     return model
 
-def roinet_proproces_roi(roi_array):
+def roinet_preprocess_roi(roi_array):
     num_slices = 32
+
+    net_in_channels = 4
 
     roi_input_array = np.empty([1, net_in_channels,
                                 roi_array.shape[1], roi_array.shape[2]])
@@ -58,7 +75,11 @@ def roinet_proproces_roi(roi_array):
         reduce_to_statistics=True,
         extended=True)
     roi_input_array[0] = Crop(roi_array_scaled)
-    roi_input_tensor = ToTensor(roi_input_array.astype(np.float32))
+
+    ConvertToTensor = ToTensor()
+    roi_input_tensor = ConvertToTensor(roi_input_array.astype(np.float32))
+
+    return roi_input_tensor
 
 def roinet_inference(roinet_input_tensor, roinet_model, device, debug):
     num_classes = 3
@@ -76,7 +97,7 @@ def roinet_inference(roinet_input_tensor, roinet_model, device, debug):
 
     with torch.no_grad():
         test_outputs = sliding_window_inference(
-            roi_input_tensor.to(device), roi_size, 1, roinet_model)
+            roinet_input_tensor.to(device), roi_size, 1, roinet_model)
         prob_shape = test_outputs[0,:,:,:].shape
         prob = np.empty(prob_shape)
         for c in range(num_classes):
@@ -84,11 +105,10 @@ def roinet_inference(roinet_input_tensor, roinet_model, device, debug):
             imMathProb = ttk.ImageMath.New(itkProb)
             imMathProb.Blur(5)
             itkProb = imMathProb.GetOutput()
+            if debug:
+                itk.imwrite(itkProb, "prob"+str(c)+".mha")
             prob[c] = itk.GetArrayFromImage(itkProb)
 
-        if debug:
-            for c in range(num_classes):
-                itk.imwrite(itkProb, "prob"+str(c)+".mha")
 
         class_array = np.zeros(prob[0].shape)
         pmin = prob[0].min()
@@ -111,8 +131,8 @@ def roinet_inference(roinet_input_tensor, roinet_model, device, debug):
         class_array = itk.GetArrayFromImage(class_image)
 
         sliding_count = np.count_nonzero(class_array==class_sliding)
-        not_sliding_count = np.count_nonzero(class_array==not_class_sliding)
+        not_sliding_count = np.count_nonzero(class_array==class_not_sliding)
         if( not_sliding_count > sliding_count ):
-            return "Not Sliding", not_sliding_count, sliding_count
+            return "Not Sliding", not_sliding_count, sliding_count, class_array
         else:
-            return "Sliding", not_sliding_count, sliding_count
+            return "Sliding", not_sliding_count, sliding_count, class_array

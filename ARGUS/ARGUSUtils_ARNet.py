@@ -1,3 +1,18 @@
+import numpy as np
+
+import itk
+from itk import TubeTK as ttk
+
+import torch
+
+from monai.networks.nets import UNet
+from monai.transforms import ( ScaleIntensityRange, ToTensor )
+from monai.networks.layers import Norm
+from monai.inferers import sliding_window_inference
+
+from ARGUSUtils_Transforms import *
+
+
 def arnet_load_model(filename, device):
     num_classes = 3
 
@@ -15,12 +30,12 @@ def arnet_load_model(filename, device):
         num_res_units=2,
         norm=Norm.BATCH,
         ).to(device)    
-    model.load_state_dict(torch.load(filename))
+    model.load_state_dict(torch.load(filename, map_location=device))
     model.eval()
 
     return model
 
-def arnet_preprocess_data(input_array):
+def arnet_preprocess_video(input_array):
     num_slices = 48
 
     arnet_input_array = np.empty([1, 1,
@@ -38,11 +53,14 @@ def arnet_preprocess_data(input_array):
         axis=2)
     arnet_input_array[0, 0] = Crop(input_array_scaled)
 
-    arnet_input_tensor = ToTensor(arnet_input_array.astype(np.float32))
+    ConvertToTensor = ToTensor()
+    arnet_input_tensor = ConvertToTensor(arnet_input_array.astype(np.float32))
 
     return arnet_input_tensor
 
 def arnet_inference(arnet_input_tensor, arnet_model, device):
+    num_classes = 3
+
     num_slices = 48
 
     size_x = 320
@@ -59,7 +77,7 @@ def arnet_inference(arnet_input_tensor, arnet_model, device):
 
     with torch.no_grad():
         test_outputs = sliding_window_inference(
-            arnet_input_tensor.to(device), roi_size, 1, model)
+            arnet_input_tensor.to(device), roi_size, 1, arnet_model)
         prob_shape = test_outputs[0,:,:,:,:].shape
         prob = np.empty(prob_shape)
         for c in range(num_classes):
@@ -104,9 +122,7 @@ def arnet_inference(arnet_input_tensor, arnet_model, device):
         imMathClassCleanup.Dilate(5,class_pleura,0)
         class_output = imMathClassCleanup.GetOutputUChar()
         
-        itkSegmentConnectedComponents =
-            itk.itkARGUS.SegmentConnectedComponents
-        seg = itkSegmentConnectedComponents.New(Input=class_output)
+        seg = itk.itkARGUS.SegmentConnectedComponents.New(Input=class_output)
         seg.SetKeepOnlyLargestComponent(True)
         seg.Update()
 
