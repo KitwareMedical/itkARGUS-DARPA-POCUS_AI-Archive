@@ -99,16 +99,13 @@ def arnet_inference(arnet_input_tensor, arnet_model, device):
         while not done:
             done = True
             count = np.count_nonzero(class_array>0)
-            prior_factor = 1
             while count<min_size:
-                prior_factor *= 1.05
                 prob[class_pleura] = prob[class_pleura] * 1.05
                 prob[class_rib] = prob[class_rib] * 1.05
                 class_array = np.argmax(prob,axis=0)
                 count = np.count_nonzero(class_array>0)
                 done = False
             while count>max_size:
-                prior_factor *= 0.95
                 prob[class_pleura] = prob[class_pleura] * 0.95
                 prob[class_rib] = prob[class_rib] * 0.95
                 class_array = np.argmax(prob,axis=0)

@@ -71,5 +71,5 @@ with time_this("ROINet Inference Time:"):
     decision, not_sliding_count, sliding_count, class_array = roinet_inference(
         roinet_input_tensor, roinet_model, device, True)
 
-itk.imwrite( itk.GetImageFromArray(class_array), "ROINet_output.mha")
+itk.imwrite( itk.GetImageFromArray(class_array), "ARGUS_output.mha")
 print(decision, not_sliding_count, sliding_count)

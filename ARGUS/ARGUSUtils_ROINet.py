@@ -87,7 +87,7 @@ def roinet_inference(roinet_input_tensor, roinet_model, device, debug):
     class_not_sliding = 1
     class_sliding = 2
 
-    class_prior = [1.3,1.0,0.85]
+    class_prior = [1,1,1] #[1.3,1.0,0.85]
 
     num_slices = 32
 
@@ -95,20 +95,15 @@ def roinet_inference(roinet_input_tensor, roinet_model, device, debug):
     size_y = 320
     roi_size = (size_x, size_y)
 
+    min_size = 1100
+    max_size = 1600
+
     with torch.no_grad():
         test_outputs = sliding_window_inference(
             roinet_input_tensor.to(device), roi_size, 1, roinet_model)
         prob_shape = test_outputs[0,:,:,:].shape
         prob = np.empty(prob_shape)
-        for c in range(num_classes):
-            itkProb = itk.GetImageFromArray(test_outputs[0,c,:,:].cpu())
-            imMathProb = ttk.ImageMath.New(itkProb)
-            imMathProb.Blur(5)
-            itkProb = imMathProb.GetOutput()
-            if debug:
-                itk.imwrite(itkProb, "prob"+str(c)+".mha")
-            prob[c] = itk.GetArrayFromImage(itkProb)
-
+        prob = test_outputs[0,:,:,:].numpy()
 
         class_array = np.zeros(prob[0].shape)
         pmin = prob[0].min()
@@ -118,18 +113,31 @@ def roinet_inference(roinet_input_tensor, roinet_model, device, debug):
             pmax = max(pmax, prob[c].max())
         prange = pmax - pmin
         prob = (prob - pmin) / prange
+
         for c in range(num_classes):
             prob[c] = prob[c] * class_prior[c]
-        class_array = np.argmax(prob,axis=0)
-        
-        class_image = itk.GetImageFromArray(class_array.astype(np.float32))
-        imMathCleanUpClass = ttk.ImageMath.New(class_image)
-        for c in range(num_classes):
-            imMathCleanUpClass.Erode(5,c,0)
-            imMathCleanUpClass.Dilate(5,c,0)
-        class_image = imMathCleanUpClass.GetOutputUChar()
-        class_array = itk.GetArrayFromImage(class_image)
+        done = False
+        while not done:
+            done = True
+            count = np.count_nonzero(class_array>0)
+            print(count)
+            while count<min_size:
+                prob[class_sliding] = prob[class_sliding] * 1.05
+                prob[class_not_sliding] = prob[class_not_sliding] * 1.05
+                class_array = np.argmax(prob,axis=0)
+                count = np.count_nonzero(class_array>0)
+                done = False
+                print(count)
+            while count>max_size:
+                prob[class_sliding] = prob[class_sliding] * 0.95
+                prob[class_not_sliding] = prob[class_not_sliding] * 0.95
+                class_array = np.argmax(prob,axis=0)
+                count = np.count_nonzero(class_array>0)
+                done = False
+                print(count)
 
+        class_array = np.argmax(prob,axis=0).astype(np.float32)
+        
         sliding_count = np.count_nonzero(class_array==class_sliding)
         not_sliding_count = np.count_nonzero(class_array==class_not_sliding)
         if( not_sliding_count > sliding_count ):
