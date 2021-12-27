@@ -2,6 +2,7 @@ from enum import Enum
 import string
 import random
 import time
+from contextlib import contextmanager
 import win32file, winerror
 
 MAX_SIZE = 2 * 1024 * 1024 * 1024 # 2 GB
@@ -51,14 +52,20 @@ class Stats:
     _running_timers = dict()
 
     def time_start(self, name):
-        start = time.time()
+        start = time.perf_counter()
         self._running_timers[name] = start
 
     def time_end(self, name):
-        end = time.time()
+        end = time.perf_counter()
         if name in self._running_timers:
             self.timers[name] = end - self._running_timers[name]
             del self._running_timers[name]
+    
+    @contextmanager
+    def time(self, name):
+        self.time_start(name)
+        yield
+        self.time_end(name)
     
     def todict(self):
         return dict(timers=self.timers)
