@@ -1,18 +1,25 @@
 import numpy as np
+from os import path
 
-from scipy.stats import multivariate_normal
-from scipy.stats import mode
+#from scipy.stats import multivariate_normal
+#from scipy.stats import mode
 
-import skimage
-from skimage import measure
+#import skimage
+#from skimage import measure
 
-import sys
+#import sys
 
-import math
+#import math
 
 import itk
 itkResampleImageUsingMapFilter = itk.itkARGUS.ResampleImageUsingMapFilter
 
+# need to preload this when using with pyinstaller for some reason
+# TODO verify this is still necessary
+def preload_itkARGUS():
+    ImageType = itk.Image[itk.F,2]
+    itkResampleImageUsingMapFilter[ImageType,ImageType].New()
+preload_itkARGUS()
 
 ####
 # Estimate Zoom and Depth
@@ -82,7 +89,7 @@ def get_depth_and_zoom_C52(im):
 
 def linearize_video( vid ):
     depth,zoom,offsetX,offsetY = get_depth_and_zoom_C52(vid[0])
-    filename = "./linear_maps/linear_map_depth" + str(depth) + ".npy"
+    filename = path.join(path.dirname(__file__), 'linear_maps', f'linear_map_depth{str(depth)}.npy')
     mapping = np.load(filename)
 
     frame_size = np.shape(mapping)[:2]
@@ -128,7 +135,7 @@ def linearize_video( vid ):
 
 
 def linearize_image(img,depth,zoom,offsetY,interpolate=True):
-    filename = "./linear_maps/linear_map_depth" + str(depth) + ".npy"
+    filename = path.join(path.dirname(__file__), 'linear_maps', f'linear_map_depth{str(depth)}.npy')
     mapping = np.load(filename)
 
     frame_size = np.shape(mapping)[:2]
