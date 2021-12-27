@@ -1,16 +1,16 @@
 import numpy as np
-import scipy as sp
+#import scipy as sp
 
 
-from skimage import data
-from skimage.util import img_as_float
-from skimage.filters import gabor_kernel
+#from skimage import data
+#from skimage.util import img_as_float
+#from skimage.filters import gabor_kernel
 
 from monai.transforms import (
     SpatialCrop
 )
 from monai.transforms.transform import (
-    Randomizable,
+    #Randomizable,
     Transform,
     MapTransform,
     RandomizableTransform
@@ -19,7 +19,7 @@ from monai.transforms.inverse import (
     InvertibleTransform
 )
 from monai.config import (
-    IndexSelection,
+    #IndexSelection,
     KeysCollection
 )
 from monai.config.type_definitions import (
@@ -28,10 +28,10 @@ from monai.config.type_definitions import (
 from monai.utils import (
     ensure_tuple_rep
 )
-from monai.utils.type_conversion import (
-    convert_data_type,
-    convert_to_dst_type
-)
+#from monai.utils.type_conversion import (
+    #convert_data_type,
+    #convert_to_dst_type
+#)
 
 from typing import Any, Callable, Dict, Hashable, List, Mapping, Optional, Sequence, Tuple, Union
 
