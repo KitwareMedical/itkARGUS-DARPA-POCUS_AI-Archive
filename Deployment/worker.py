@@ -25,8 +25,9 @@ def load_video(filename):
             container.close()
 
 class ArgusWorker:
-    def __init__(self, sock):
+    def __init__(self, sock, log):
         self.sock = sock
+        self.log = log
 
     def run(self):
         msg = self.sock.recv()

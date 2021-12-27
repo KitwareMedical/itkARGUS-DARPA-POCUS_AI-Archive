@@ -99,7 +99,7 @@ class WinPipeServer:
                 break
             elif index == 1: # data signal
                 sock = WinPipeSock(pipe)
-                worker = self._workerClass(sock)
+                worker = self._workerClass(sock, self.log)
                 try:
                     worker.run()
                 except WorkerError as e:
@@ -108,6 +108,7 @@ class WinPipeServer:
                 break
 
 def main(WorkerClass, logger):
+    print('Starting...')
     server = WinPipeServer(WorkerClass, logger)
     server.start()
 
