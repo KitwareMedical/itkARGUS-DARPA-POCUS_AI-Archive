@@ -2,7 +2,7 @@
 
 Install the following pip packages:
 ```
-pip install pywin32 pyinstaller==4.7 monai ffmpeg ffmpeg-python av numpy
+pip install pywin32 pyinstaller==4.7 monai ffmpeg-python av numpy
 pip install --pre itk-tubetk
 ```
 
