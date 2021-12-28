@@ -3,6 +3,7 @@ import subprocess
 import sys
 import json
 import time
+import csv
 from os import path
 import win32file, win32pipe, pywintypes, winerror
 
@@ -18,6 +19,10 @@ def prepare_argparser():
 
 def start_service():
     subprocess.run(['sc.exe', 'start', 'ARGUS'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+def formatHHMMSS(secs):
+    msecs = int(1000 * (secs - int(secs)))
+    return f'{time.strftime("%H:%M:%S", time.gmtime(secs))}:{msecs}'
 
 def cli_send_video(video_file, sock):
     if not path.exists(video_file):
@@ -38,8 +43,46 @@ def cli_send_video(video_file, sock):
 
     if result.type == Message.Type.RESULT:
         srv_res = json.loads(result.data)
+        stats = srv_res['stats']
+        timers = stats['timers']
+
+        result_filename = f'{path.splitext(path.basename(video_file))[0]}.csv'
+        csv_data = dict(
+            filename=result_filename,
+            PTX_detected='Yes' if srv_res['decision'] else 'No',
+            start_read_video=formatHHMMSS(timers['Read Video']['start']),
+            end_read_video=formatHHMMSS(timers['Read Video']['end']),
+            elapsed_read_video=round(timers['Read Video']['elapsed'], 3),
+            start_process_video=formatHHMMSS(timers['Process Video']['start']),
+            end_process_video=formatHHMMSS(timers['Process Video']['end']),
+            elapsed_process_video=round(timers['Process Video']['elapsed'], 3),
+            total_elapsed=round(timers['all']['elapsed'], 3),
+        )
+        with open(result_filename, 'w', newline='') as fp:
+            fieldnames = [
+                'filename',
+                'PTX_detected',
+                'start_read_video',
+                'end_read_video',
+                'elapsed_read_video',
+                'start_process_video',
+                'end_process_video',
+                'elapsed_process_video',
+                'total_elapsed',
+            ]
+            writer = csv.DictWriter(
+                fp,
+                fieldnames=fieldnames,
+                delimiter=',',
+                quotechar='"',
+                quoting=csv.QUOTE_MINIMAL,
+            )
+            writer.writeheader()
+            writer.writerow(csv_data)
+
         decision = 'Yes' if srv_res['decision'] else 'No'
         print(f'PTX detected? {decision}')
+        print(f'Wrote detailed output to {result_filename}')
     elif result.type == Message.Type.ERROR:
         print(f'Error encountered! {json.loads(result.data)}')
     else:

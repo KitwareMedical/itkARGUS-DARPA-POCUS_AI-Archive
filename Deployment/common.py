@@ -54,14 +54,21 @@ class Stats:
     timers = dict()
     _running_timers = dict()
 
+    def __init__(self):
+        self._global_start = time.time()
+
     def time_start(self, name):
-        start = time.perf_counter()
+        start = time.time() - self._global_start
         self._running_timers[name] = start
 
     def time_end(self, name):
-        end = time.perf_counter()
+        end = time.time() - self._global_start
         if name in self._running_timers:
-            self.timers[name] = end - self._running_timers[name]
+            self.timers[name] = dict(
+                start=self._running_timers[name],
+                end=end,
+                elapsed=end - self._running_timers[name]
+            )
             del self._running_timers[name]
     
     @contextmanager

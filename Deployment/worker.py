@@ -5,12 +5,12 @@ import numpy as np
 
 # pyinstaller: import before itk, since itk.support imports torch
 # and having itk import torch causes incomplete loading of torch._C
+# for some reason...
 import torch
 
 import itk
 itk.force_load()
 
-from monai.config import print_config
 from common import Message, WorkerError, randstr, Stats
 
 def is_bundled():
@@ -40,10 +40,9 @@ class ArgusWorker:
     def __init__(self, sock, log):
         self.sock = sock
         self.log = log
+        self.linearAR = ARGUS_LinearAR(model_dir=get_model_dir(), device_name='cpu')
 
     def run(self):
-        print_config()
-
         msg = self.sock.recv()
         if msg.type != Message.Type.START:
             raise WorkerError('did not see start msg')
@@ -60,11 +59,7 @@ class ArgusWorker:
                 raise Exception(f'File {video_file} is not accessible!')
 
             stats = Stats()
-            inf_result = ARGUS_LinearAR(
-                video_file,
-                model_dir=get_model_dir(),
-                stats=stats
-            )
+            inf_result = self.linearAR.predict(video_file, stats=stats)
         except Exception as e:
             self.log.exception(e)
             error_msg = Message(Message.Type.ERROR, json.dumps(str(e)).encode('ascii'))
