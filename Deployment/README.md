@@ -1,15 +1,14 @@
 ## Installation
 
+Install the following pip packages:
 ```
-conda create -n service
-conda activate service
-pip install pywin32
-# do not install from conda-forge, as we need a more recent version
-pip install pyinstaller=4.7
-# for argus
-pip install monai itk
-conda install -c conda-forge ffmpeg ffmpeg-python av numpy
+pip install pywin32 pyinstaller==4.7 monai ffmpeg ffmpeg-python av numpy
+pip install --pre itk-tubetk
 ```
+
+install MONAI extras: https://docs.monai.io/en/latest/installation.html#installing-the-recommended-dependencies
+
+install itkARGUS from the ARGUS folder in this repo.
 
 Edit the run function in `worker.py` to run your own code.
 
