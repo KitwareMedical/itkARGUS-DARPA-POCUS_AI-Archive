@@ -2,12 +2,15 @@ from enum import Enum
 import string
 import random
 import time
+from os import path
 from contextlib import contextmanager
 import win32file, winerror
 
 MAX_SIZE = 2 * 1024 * 1024 * 1024 # 2 GB
 
 PIPE_NAME = r'\\.\pipe\AnatomicRecon-POCUS-AI\inference-server'
+LOCK_FILE = path.join(path.dirname(path.abspath(__file__)), 'argus.lock')
+LOG_FILE = path.join(path.dirname(path.abspath(__file__)), 'server-log.log')
 
 EXIT_FAILURE = 1
 EXIT_SUCCESS = 0

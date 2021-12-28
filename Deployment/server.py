@@ -1,10 +1,11 @@
 import sys
 import logging, logging.handlers
+import os
 from os import path
+from contextlib import contextmanager
 import win32pipe, win32file, pywintypes, win32event, winerror, win32security
 
-from common import WorkerError, PIPE_NAME, WinPipeSock, EXIT_FAILURE, EXIT_SUCCESS
-from worker import ArgusWorker
+from common import WorkerError, PIPE_NAME, WinPipeSock, EXIT_FAILURE, EXIT_SUCCESS, LOCK_FILE
 
 INBUF_SIZE = 512 * 1024 * 1024 # 512 MB
 OUTBUF_SIZE = 64 * 1024 # 64 KB
@@ -107,16 +108,28 @@ class WinPipeServer:
                     self.log.error(f'Worker error: {e}')
                 break
 
-def main(WorkerClass, logger):
+def main(logger):
     print('Starting...')
-    server = WinPipeServer(WorkerClass, logger)
+    # import takes a while
+    from worker import ArgusWorker
+    server = WinPipeServer(ArgusWorker, logger)
     server.start()
 
 if __name__ == '__main__':
     log = setup_logger('server')
+
+    if path.exists(LOCK_FILE):
+        log.error(f'lock file "{LOCK_FILE}" exists. If server is not running, delete the file.')
+        sys.exit(EXIT_FAILURE)
+
     try:
-        main(ArgusWorker, log)
+        # create lock file
+        with open(LOCK_FILE, 'a'): pass
+        main(log)
     except Exception as e:
         log.exception(f'Server failed with exception: {e}')
         sys.exit(EXIT_FAILURE)
+    finally:
+        if path.exists(LOCK_FILE):
+            os.remove(LOCK_FILE)
     sys.exit(EXIT_SUCCESS)

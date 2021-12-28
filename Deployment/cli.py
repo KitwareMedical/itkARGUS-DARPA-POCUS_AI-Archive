@@ -6,7 +6,7 @@ import time
 from os import path
 import win32file, win32pipe, pywintypes, winerror
 
-from common import WinPipeSock, Message, Stats, EXIT_FAILURE, PIPE_NAME, EXIT_SUCCESS
+from common import WinPipeSock, Message, Stats, EXIT_FAILURE, PIPE_NAME, LOCK_FILE, LOG_FILE
 
 class Retry(Exception):
     pass
@@ -69,16 +69,15 @@ def main(args):
     except pywintypes.error as e:
         code, source, message = e.args
         if code == winerror.ERROR_FILE_NOT_FOUND:
-            print('Service not detected; trying to start...')
+            print('Trying to connect to service...')
             start_service()
             raise Retry()
         elif code == winerror.ERROR_BROKEN_PIPE:
             print('Server hit an error condition')
-            logfile = path.join(path.dirname(path.abspath(__file__)), 'server-log.log')
-            if path.exists(logfile):
-                print(f'Last few lines of server log file ({logfile}):')
+            if path.exists(LOG_FILE):
+                print(f'Last few lines of server log file ({LOG_FILE}):')
                 # not memory efficient, but whatever for now
-                with open(logfile, 'r') as fp:
+                with open(LOG_FILE, 'r') as fp:
                     lines = fp.read().strip().split('\n')
                 for line in lines[-10:]:
                     print(f'\t{line}')
@@ -105,10 +104,14 @@ if __name__ == '__main__':
             sys.exit(main(args))
         except Retry:
             retries += 1
-            time.sleep(0.5)
+            time.sleep(1)
         except Exception as e:
             print('Fatal error:', e)
             sys.exit(EXIT_FAILURE)
-    print('Could not connect to service.')
-    print('The service may be on a delayed start. Please wait a minute before trying again.')
+
+    if path.exists(LOCK_FILE):
+        print('The service is in preload phase. Please wait a minute for preload to finalize.')
+    else:
+        print('The service is not running or exited abnormally.')
+        print(f'Please check {LOG_FILE} for details.')
     sys.exit(EXIT_FAILURE)
