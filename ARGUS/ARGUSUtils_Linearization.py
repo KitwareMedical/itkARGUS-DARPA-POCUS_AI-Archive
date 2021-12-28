@@ -101,7 +101,6 @@ def linearize_video( vid ):
     kernels_list = mapping[:,:,2:].flatten().astype(float).tolist()
 
     if(zoom!=1):
-        print("   Resampling with zoom =", zoom)
         itkimgBase = itk.GetImageFromArray(vid.astype(np.float32))
 
         itkimg = itk.GetImageFromArray(vid.astype(np.float32))
