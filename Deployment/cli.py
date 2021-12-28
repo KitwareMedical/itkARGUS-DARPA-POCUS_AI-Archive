@@ -109,3 +109,6 @@ if __name__ == '__main__':
         except Exception as e:
             print('Fatal error:', e)
             sys.exit(EXIT_FAILURE)
+    print('Could not connect to service.')
+    print('The service may be on a delayed start. Please wait a minute before trying again.')
+    sys.exit(EXIT_FAILURE)
