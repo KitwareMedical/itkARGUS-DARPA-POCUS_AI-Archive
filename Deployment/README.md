@@ -6,9 +6,9 @@ pip install pywin32 pyinstaller==4.7 monai ffmpeg ffmpeg-python av numpy
 pip install --pre itk-tubetk
 ```
 
-install MONAI extras: https://docs.monai.io/en/latest/installation.html#installing-the-recommended-dependencies
+Then, install the MONAI extras: https://docs.monai.io/en/latest/installation.html#installing-the-recommended-dependencies.
 
-install itkARGUS from the ARGUS folder in this repo.
+Finally, build and install itkARGUS from the ARGUS folder in this repo. You will need to follow the ITK python packaging guide for this step.
 
 Edit the run function in `worker.py` to run your own code.
 
