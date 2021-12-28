@@ -38,11 +38,11 @@ srv_datas += [(get_package_paths('monai')[1], 'monai')]
 srv_datas += [(get_package_paths('torch')[1], 'torch')]
 
 # ARGUS utils
-srv_datas += [('../ARGUS/*.py', 'ARGUSUtils')]
-srv_datas += [('../ARGUS/linear_maps', 'ARGUSUtils/linear_maps')]
+srv_datas += [('../ARGUS/*.py', 'ARGUS')]
+srv_datas += [('../ARGUS/linear_maps', 'ARGUS/linear_maps')]
 
 # pytorch models
-srv_datas += [('../ARGUS/Models/**/*.pth', 'models')]
+srv_datas += [('../ARGUS/Models', 'ARGUS/Models')]
 
 srv_hiddenimports = []
 srv_hiddenimports += collect_submodules('av')

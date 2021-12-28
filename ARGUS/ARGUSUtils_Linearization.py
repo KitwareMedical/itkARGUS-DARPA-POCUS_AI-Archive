@@ -14,13 +14,6 @@ from os import path
 import itk
 itkResampleImageUsingMapFilter = itk.itkARGUS.ResampleImageUsingMapFilter
 
-# need to preload this when using with pyinstaller for some reason
-# TODO verify this is still necessary
-def preload_itkARGUS():
-    ImageType = itk.Image[itk.F,2]
-    itkResampleImageUsingMapFilter[ImageType,ImageType].New()
-preload_itkARGUS()
-
 ####
 # Estimate Zoom and Depth
 ####

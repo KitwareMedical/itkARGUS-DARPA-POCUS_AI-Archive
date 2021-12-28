@@ -1,28 +1,40 @@
-import json
+import sys
 from os import path
+import json
 import numpy as np
-import av
+
+# pyinstaller: import before itk, since itk.support imports torch
+# and having itk import torch causes incomplete loading of torch._C
+import torch
+
+import itk
+itk.force_load()
+
+from monai.config import print_config
 from common import Message, WorkerError, randstr, Stats
 
-# adapted from ARGUSUtils_IO
-def load_video(filename):
-    '''frame generator
-    first item is the number of frames.
-    '''
-    container = None
-    try:
-        container = av.open(filename)
-        stream = container.streams.video[0]
-        stream.thread_type = 'AUTO'
+def is_bundled():
+    return getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS')
 
-        # number of frames
-        #yield stream.frames
+def get_ARGUS_dir():
+    if is_bundled():
+        return path.join(sys._MEIPASS, 'ARGUS')
+    return path.join('..', 'ARGUS')
 
-        for i, frame in enumerate(container.decode(stream)):
-            yield frame.to_ndarray(format='gray')
-    finally:
-        if container:
-            container.close()
+def get_model_dir():
+    return path.join(get_ARGUS_dir(), 'Models')
+
+def preload_itk_argus():
+    # avoids "ITK not compiled with TBB" errors
+    # this just does an instantiation prior to actuallly using it
+    T = itk.Image[itk.F,2]
+    itk.itkARGUS.ResampleImageUsingMapFilter[T,T].New()
+
+preload_itk_argus()
+
+# load argus stuff after ITK
+sys.path.append(get_ARGUS_dir())
+from ARGUS_LinearAR import *
 
 class ArgusWorker:
     def __init__(self, sock, log):
@@ -30,6 +42,8 @@ class ArgusWorker:
         self.log = log
 
     def run(self):
+        print_config()
+
         msg = self.sock.recv()
         if msg.type != Message.Type.START:
             raise WorkerError('did not see start msg')
@@ -46,21 +60,16 @@ class ArgusWorker:
                 raise Exception(f'File {video_file} is not accessible!')
 
             stats = Stats()
-            evenodd = 0 # even
-
-            stats.time_start('get frames and inference')
-            offset = 0
-            for frame in load_video(video_file):
-                total = np.sum(frame)
-                if total % 2 == evenodd:
-                    evenodd = 0 # even
-                else:
-                    evenodd = 1 # odd
-            stats.time_end('get frames and inference')
+            inf_result = ARGUS_LinearAR(
+                video_file,
+                model_dir=get_model_dir(),
+                stats=stats
+            )
         except Exception as e:
+            self.log.exception(e)
             error_msg = Message(Message.Type.ERROR, json.dumps(str(e)).encode('ascii'))
             self.sock.send(error_msg)
         else:
-            result = dict(evenodd=evenodd, stats=stats.todict())
+            result = dict(decision=inf_result['decision'], stats=stats.todict())
             result_msg = Message(Message.Type.RESULT, json.dumps(result).encode('ascii'))
             self.sock.send(result_msg)

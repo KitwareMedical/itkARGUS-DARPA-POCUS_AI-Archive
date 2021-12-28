@@ -38,9 +38,8 @@ def cli_send_video(video_file, sock):
 
     if result.type == Message.Type.RESULT:
         srv_res = json.loads(result.data)
-        evenodd = 'Yes' if srv_res['evenodd'] else 'No'
-        print(f'Sample workload: is the sum of all pixels even or odd?\n\tAnswer = {evenodd}')
-        print(f'Total time to read video and produce result: {round(stats.timers["inference"], 2)} seconds')
+        decision = 'Yes' if srv_res['decision'] else 'No'
+        print(f'PTX detected? {decision}')
     elif result.type == Message.Type.ERROR:
         print(f'Error encountered! {json.loads(result.data)}')
     else:
