@@ -3,7 +3,7 @@
 from glob import glob, iglob
 from os import path
 from PyInstaller import compat
-from PyInstaller.utils.hooks import collect_submodules
+from PyInstaller.utils.hooks import collect_submodules, get_package_paths
 
 def gather_mkl_dlls():
     dlls = []
@@ -25,26 +25,57 @@ def gather_ffmpeg_exes():
 
 block_cipher = None
 
-binaries = []
-# for numpy
-binaries += gather_mkl_dlls()
-# for ffmpeg-python
-binaries += gather_ffmpeg_exes()
+srv_binaries = []
 
-hiddenimports = []
-hiddenimports += collect_submodules('av')
+# for numpy
+srv_binaries += gather_mkl_dlls()
+
+# for ffmpeg-python
+srv_binaries += gather_ffmpeg_exes()
+
+srv_datas = []
+srv_datas += [(get_package_paths('monai')[1], 'monai')]
+srv_datas += [(get_package_paths('torch')[1], 'torch')]
+
+# ARGUS utils
+srv_datas += [('../ARGUS/*.py', 'ARGUSUtils')]
+srv_datas += [('../ARGUS/linear_maps', 'ARGUSUtils/linear_maps')]
+
+# pytorch models
+srv_datas += [('../ARGUS/Models/**/*.pth', 'models')]
+
+srv_hiddenimports = []
+srv_hiddenimports += collect_submodules('av')
+srv_hiddenimports += ['ffmpeg']
+
+# monai reqs
+srv_hiddenimports += [
+    'ignite',
+]
+
+# torch reqs
+srv_hiddenimports += [
+    'pickletools',
+    'ctypes.wintypes',
+]
 
 srv_hookspath = path.join(path.abspath(SPECPATH), 'hooks')
+
+srv_excludes = []
+# hide monai and torch, since we bring the py files in manually
+srv_excludes += ['monai', 'torch']
+# don't need to bring in matplotlib
+srv_excludes += ['matplotlib']
 
 # server info
 srv_a = Analysis(['server.py'],
              pathex=[SPECPATH],
-             binaries=binaries,
-             datas=[],
-             hiddenimports=hiddenimports,
+             binaries=srv_binaries,
+             datas=srv_datas,
+             hiddenimports=srv_hiddenimports,
              hookspath=[srv_hookspath],
              runtime_hooks=[],
-             excludes=[],
+             excludes=srv_excludes,
              win_no_prefer_redirects=False,
              win_private_assemblies=False,
              cipher=block_cipher,
@@ -65,9 +96,9 @@ srv_exe = EXE(srv_pyz,
 # cli info
 cli_a = Analysis(['cli.py'],
              pathex=[SPECPATH],
-             binaries=binaries,
+             binaries=[],
              datas=[],
-             hiddenimports=hiddenimports,
+             hiddenimports=[],
              hookspath=[],
              runtime_hooks=[],
              excludes=[],
