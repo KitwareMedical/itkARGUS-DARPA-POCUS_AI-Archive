@@ -9,10 +9,7 @@ def shape_video(filename):
     height = p['streams'][0]['height']
     return height, width
 
-def load_video(filename,height=0,width=0):
-    if(height==0 or width==0):
-        height,width = shape_video(filename)
-
+def load_video(filename):
     container = None
     try:
         container = av.open(filename)
@@ -21,8 +18,10 @@ def load_video(filename,height=0,width=0):
         
         num_frames = stream.frames
         
-        frames = np.empty((num_frames,height,width))
+        frames = None
         for i,frame in enumerate(container.decode(stream)):
+            if i == 0:
+                frames = np.empty((num_frames, frame.height, frame.width))
             frames[i] = frame.to_ndarray(format='gray')
         return frames
     finally:
