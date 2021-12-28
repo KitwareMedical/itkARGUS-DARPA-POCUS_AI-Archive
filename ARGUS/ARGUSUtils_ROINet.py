@@ -13,7 +13,7 @@ from monai.inferers import sliding_window_inference
 from ARGUSUtils_Transforms import *
 
 
-def roinet_segment_roi(arnet_input_tensor, arnet_output):
+def roinet_segment_roi(us_video_linear, arnet_output):
     roi_size_x = 160
 
     roi_min_x = 0
@@ -30,7 +30,7 @@ def roinet_segment_roi(arnet_input_tensor, arnet_output):
     roi_max_x = min(roi_min_x+roi_size_x,arnet_output.shape[0]-1)
     roi_min_x = roi_max_x-roi_size_x
 
-    roi_array = arnet_input_tensor[0,0,roi_min_x:roi_max_x,:,:].numpy()
+    roi_array = us_video_linear[roi_min_x:roi_max_x,:,:]
     roi_array = roi_array.transpose([2,0,1])
     return roi_array
 
@@ -95,8 +95,8 @@ def roinet_inference(roinet_input_tensor, roinet_model, device, debug):
     size_y = 320
     roi_size = (size_x, size_y)
 
-    min_size = 1100
-    max_size = 1600
+    min_size = 10000
+    max_size = 25000
 
     with torch.no_grad():
         test_outputs = sliding_window_inference(
@@ -120,21 +120,18 @@ def roinet_inference(roinet_input_tensor, roinet_model, device, debug):
         while not done:
             done = True
             count = np.count_nonzero(class_array>0)
-            print(count)
             while count<min_size:
                 prob[class_sliding] = prob[class_sliding] * 1.05
                 prob[class_not_sliding] = prob[class_not_sliding] * 1.05
                 class_array = np.argmax(prob,axis=0)
                 count = np.count_nonzero(class_array>0)
                 done = False
-                print(count)
             while count>max_size:
                 prob[class_sliding] = prob[class_sliding] * 0.95
                 prob[class_not_sliding] = prob[class_not_sliding] * 0.95
                 class_array = np.argmax(prob,axis=0)
                 count = np.count_nonzero(class_array>0)
                 done = False
-                print(count)
 
         class_array = np.argmax(prob,axis=0).astype(np.float32)
         

@@ -58,7 +58,6 @@ SegmentConnectedComponents< TImage, TSeedMask >
     curConnComp->GetLargestPossibleRegion() );
 
   unsigned int numObjects = m_Filter->GetObjectCount()+1;
-  std::cout << "numObjects = " << numObjects << std::endl;
   std::vector< bool > cSize( numObjects, true );
   if( m_MinimumVolume > 0 || m_KeepOnlyLargestComponent )
     {
@@ -85,8 +84,6 @@ SegmentConnectedComponents< TImage, TSeedMask >
         largestComponentCount = cPixelCount[c];
         }
       }
-
-    std::cout << "largest = " << largestComponent << std::endl;
 
     // compute voxelVolume
     double voxelVolume = 1;
