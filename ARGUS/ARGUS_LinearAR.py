@@ -12,8 +12,8 @@ class ARGUS_LinearAR:
     def __init__(self, device_name='cpu', model_dir='Models'):
         self.device = torch.device(device_name)
 
-        self.arnet_model_filename = path.join(model_dir, "BAMC_PTX_ARUNET-3D-PR-Final15", "best_model.vfold_0.pth")
-        self.roinet_model_filename = path.join(model_dir, "BAMC_PTX_ROINet-StdDevExtended-ExtrudedNS-Final15", "best_model.vfold_0.pth")
+        self.arnet_model_filename = path.join(model_dir, "BAMC_PTX_ARUNET-3D-PR-Final15", "Epoch333_model.pth")
+        self.roinet_model_filename = path.join(model_dir, "BAMC_PTX_ROINet-StdDevExtended-ExtrudedNS-Final15", "Epoch333_model.pth")
 
         self.arnet_model = arnet_load_model(self.arnet_model_filename, self.device)
         self.roinet_model = roinet_load_model(self.roinet_model_filename,self.device)
@@ -36,7 +36,7 @@ class ARGUS_LinearAR:
 
                 if(debug):
                     itk.imwrite(itk.GetImageFromArray(arnet_input_tensor[0,0,:,:,:]),
-                        "ARUNet_preprocessed_input.mha")
+                        "results/ARUNet_preprocessed_input.mha")
 
                 with time_this("ARNet Inference Time:"):
                     arnet_output = arnet_inference(arnet_input_tensor,self.arnet_model,
@@ -44,28 +44,29 @@ class ARGUS_LinearAR:
                 
                 if(debug):
                     itk.imwrite(itk.GetImageFromArray(arnet_output),
-                        "ARUNet_output.mha")
+                        "results/ARUNet_output.mha")
 
                 with time_this("ROI Extraction Time:"):
                     roinet_input_roi = roinet_segment_roi(us_video_linear,arnet_output)
 
                 if(debug):
                     itk.imwrite(itk.GetImageFromArray(roinet_input_roi.astype(np.float32)),
-                        "ROINet_input_roi.mha")
+                        "results/ROINet_input_roi.mha")
 
                 with time_this("Preprocess for ROINet"):
                     roinet_input_tensor = roinet_preprocess_roi(roinet_input_roi)
 
                 if(debug):
                     itk.imwrite(itk.GetImageFromArray(roinet_input_tensor[0,:,:,:]),
-                        "ROINet_preprocessed_input.mha")
+                        "results/ROINet_preprocessed_input.mha")
 
                 with time_this("ROINet Inference Time:"):
                     decision,not_sliding_count,sliding_count,class_array = roinet_inference(
                         roinet_input_tensor,self.roinet_model,self.device,True)
 
                 if(debug):
-                    itk.imwrite( itk.GetImageFromArray(class_array),"ARGUS_output.mha")
+                    itk.imwrite( itk.GetImageFromArray(class_array),
+                        "results/ARGUS_output.mha")
                     print(decision,not_sliding_count,sliding_count)
 
         return dict(
