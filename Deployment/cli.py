@@ -61,6 +61,8 @@ def cli_send_video(video_file, sock):
             end_process_video=formatHHMMSS(timers['Process Video']['end']),
             elapsed_process_video=round(timers['Process Video']['elapsed'], 3),
             total_elapsed=round(timers['all']['elapsed'], 3),
+            debug_not_sliding_count=srv_res['ns_count'],
+            debug_sliding_count=srv_res['s_count'],
         )
         with open(result_filename, 'w', newline='') as fp:
             fieldnames = [
@@ -73,6 +75,8 @@ def cli_send_video(video_file, sock):
                 'end_process_video',
                 'elapsed_process_video',
                 'total_elapsed',
+                'debug_not_sliding_count',
+                'debug_sliding_count',
             ]
             writer = csv.DictWriter(
                 fp,
