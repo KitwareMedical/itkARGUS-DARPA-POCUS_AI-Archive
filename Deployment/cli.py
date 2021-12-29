@@ -45,11 +45,15 @@ def cli_send_video(video_file, sock):
         srv_res = json.loads(result.data)
         stats = srv_res['stats']
         timers = stats['timers']
+        ptx_detected = 'No' if srv_res['sliding'] else 'Yes'
 
-        result_filename = f'{path.splitext(path.basename(video_file))[0]}.csv'
+        result_filename = path.join(
+            path.dirname(path.abspath(video_file)),
+            f'{path.splitext(path.basename(video_file))[0]}.csv'
+        )
         csv_data = dict(
             filename=result_filename,
-            PTX_detected='Yes' if srv_res['decision'] else 'No',
+            PTX_detected=ptx_detected,
             start_read_video=formatHHMMSS(timers['Read Video']['start']),
             end_read_video=formatHHMMSS(timers['Read Video']['end']),
             elapsed_read_video=round(timers['Read Video']['elapsed'], 3),
@@ -80,8 +84,8 @@ def cli_send_video(video_file, sock):
             writer.writeheader()
             writer.writerow(csv_data)
 
-        decision = 'Yes' if srv_res['decision'] else 'No'
-        print(f'PTX detected? {decision}')
+        print(f'PTX detected? {ptx_detected}')
+        #print(f'ns count: {srv_res["ns_count"]}, s count: {srv_res["s_count"]}')
         print(f'Wrote detailed output to {result_filename}')
     elif result.type == Message.Type.ERROR:
         print(f'Error encountered! {json.loads(result.data)}')

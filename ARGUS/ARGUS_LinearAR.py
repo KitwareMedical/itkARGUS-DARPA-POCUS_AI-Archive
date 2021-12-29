@@ -12,11 +12,11 @@ class ARGUS_LinearAR:
     def __init__(self, device_name='cpu', model_dir='Models'):
         self.device = torch.device(device_name)
 
-        arnet_model_filename = path.join(model_dir, "BAMC_PTX_ARUNET-3D-PR-Final15", "best_model.vfold_0.pth")
-        roinet_model_filename = path.join(model_dir, "BAMC_PTX_ROINet-StdDevExtended-ExtrudedNS-Final15", "best_model.vfold_0.pth")
+        self.arnet_model_filename = path.join(model_dir, "BAMC_PTX_ARUNET-3D-PR-Final15", "best_model.vfold_0.pth")
+        self.roinet_model_filename = path.join(model_dir, "BAMC_PTX_ROINet-StdDevExtended-ExtrudedNS-Final15", "best_model.vfold_0.pth")
 
-        self.arnet_model = arnet_load_model(arnet_model_filename, self.device)
-        self.roinet_model = roinet_load_model(roinet_model_filename,self.device)
+        self.arnet_model = arnet_load_model(self.arnet_model_filename, self.device)
+        self.roinet_model = roinet_load_model(self.roinet_model_filename,self.device)
     
     def predict(self, filename, debug=False, stats=None):
         time_this = ARGUSUtils_Timing.time_this
@@ -70,9 +70,9 @@ class ARGUS_LinearAR:
 
         return dict(
             decision=decision,
+            # debug info
             not_sliding_count=not_sliding_count,
             sliding_count=sliding_count,
-            # debug info
             arnet_input_tensor=arnet_input_tensor,
             arnet_output=arnet_output,
             roinet_input_roi=roinet_input_roi,

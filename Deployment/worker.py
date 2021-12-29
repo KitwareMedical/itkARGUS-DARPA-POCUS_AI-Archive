@@ -65,6 +65,11 @@ class ArgusWorker:
             error_msg = Message(Message.Type.ERROR, json.dumps(str(e)).encode('ascii'))
             self.sock.send(error_msg)
         else:
-            result = dict(decision=inf_result['decision'], stats=stats.todict())
+            result = dict(
+                sliding=inf_result['decision'] == 'Sliding',
+                ns_count=inf_result['not_sliding_count'],
+                s_count=inf_result['sliding_count'],
+                stats=stats.todict(),
+            )
             result_msg = Message(Message.Type.RESULT, json.dumps(result).encode('ascii'))
             self.sock.send(result_msg)
