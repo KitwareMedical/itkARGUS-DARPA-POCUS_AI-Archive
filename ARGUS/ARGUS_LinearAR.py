@@ -34,40 +34,19 @@ class ARGUS_LinearAR:
                 with time_this("Preprocess for ARNet"):
                     arnet_input_tensor = arnet_preprocess_video(us_video_linear)
 
-                if(debug):
-                    itk.imwrite(itk.GetImageFromArray(arnet_input_tensor[0,0,:,:,:]),
-                        "results/ARUNet_preprocessed_input.mha")
-
                 with time_this("ARNet Inference Time:"):
                     arnet_output = arnet_inference(arnet_input_tensor,self.arnet_model,
                         self.device)
                 
-                if(debug):
-                    itk.imwrite(itk.GetImageFromArray(arnet_output),
-                        "results/ARUNet_output.mha")
-
                 with time_this("ROI Extraction Time:"):
                     roinet_input_roi = roinet_segment_roi(us_video_linear,arnet_output)
-
-                if(debug):
-                    itk.imwrite(itk.GetImageFromArray(roinet_input_roi.astype(np.float32)),
-                        "results/ROINet_input_roi.mha")
 
                 with time_this("Preprocess for ROINet"):
                     roinet_input_tensor = roinet_preprocess_roi(roinet_input_roi)
 
-                if(debug):
-                    itk.imwrite(itk.GetImageFromArray(roinet_input_tensor[0,:,:,:]),
-                        "results/ROINet_preprocessed_input.mha")
-
                 with time_this("ROINet Inference Time:"):
                     decision,not_sliding_count,sliding_count,class_array = roinet_inference(
                         roinet_input_tensor,self.roinet_model,self.device,True)
-
-                if(debug):
-                    itk.imwrite( itk.GetImageFromArray(class_array),
-                        "results/ARGUS_output.mha")
-                    print(decision,not_sliding_count,sliding_count)
 
         return dict(
             decision=decision,

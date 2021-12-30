@@ -4,6 +4,7 @@ import sys
 import json
 import time
 import csv
+import traceback
 from os import path
 import win32file, win32pipe, pywintypes, winerror
 
@@ -15,6 +16,10 @@ class Retry(Exception):
 def prepare_argparser():
     parser = argparse.ArgumentParser(description='ARGUS inference')
     parser.add_argument('video_file', help='video file to analyze.')
+    parser.add_argument('--debug', action='store_true',
+                        help='output debugging info. '
+                             'Debug info will appear in the output CSV, '
+                             'as well as the "<video_filename>-debug-output" folder.')
     return parser
 
 def start_service():
@@ -24,7 +29,55 @@ def formatHHMMSS(secs):
     msecs = int(1000 * (secs - int(secs)))
     return f'{time.strftime("%H:%M:%S", time.gmtime(secs))}:{msecs}'
 
-def cli_send_video(video_file, sock):
+def write_result(video_file, result, debug=False):
+    stats = result['stats']
+    timers = stats['timers']
+    ptx_detected = 'No' if result['sliding'] else 'Yes'
+
+    result_filename = path.join(
+        path.dirname(path.abspath(video_file)),
+        f'{path.splitext(path.basename(video_file))[0]}.csv'
+    )
+    csv_data = dict(
+        filename=result_filename,
+        PTX_detected=ptx_detected,
+        start_read_video=formatHHMMSS(timers['Read Video']['start']),
+        end_read_video=formatHHMMSS(timers['Read Video']['end']),
+        elapsed_read_video=round(timers['Read Video']['elapsed'], 3),
+        start_process_video=formatHHMMSS(timers['Process Video']['start']),
+        end_process_video=formatHHMMSS(timers['Process Video']['end']),
+        elapsed_process_video=round(timers['Process Video']['elapsed'], 3),
+        total_elapsed=round(timers['all']['elapsed'], 3),
+    )
+
+    if debug:
+        csv_data.update(dict(
+            debug_not_sliding_count=result['not_sliding_count'],
+            debug_sliding_count=result['sliding_count'],
+        ))
+        for name, timings in timers.items():
+            csv_data.update({
+                f'debug_timer_elapsed_{name.replace(" ", "_")}': round(timings['elapsed'], 3),
+            })
+
+    with open(result_filename, 'w', newline='') as fp:
+        fieldnames = list(csv_data.keys())
+        writer = csv.DictWriter(
+            fp,
+            fieldnames=fieldnames,
+            delimiter=',',
+            quotechar='"',
+            quoting=csv.QUOTE_MINIMAL,
+        )
+        writer.writeheader()
+        writer.writerow(csv_data)
+
+    print(f'PTX detected? {ptx_detected}')
+    if debug:
+        print(f'not sliding count: {result["not_sliding_count"]}, sliding count: {result["sliding_count"]}')
+    print(f'Wrote detailed output to {result_filename}')
+
+def cli_send_video(video_file, sock, debug=False):
     if not path.exists(video_file):
         print(f'File {video_file} does not exist')
         return EXIT_FAILURE
@@ -33,7 +86,7 @@ def cli_send_video(video_file, sock):
 
     stats.time_start('inference')
     # create start_frame msg
-    start_info = dict(video_file=path.abspath(video_file))
+    start_info = dict(video_file=path.abspath(video_file), debug=debug)
 
     start_msg = Message(Message.Type.START, json.dumps(start_info).encode('ascii'))
     sock.send(start_msg)
@@ -42,57 +95,10 @@ def cli_send_video(video_file, sock):
     stats.time_end('inference')
 
     if result.type == Message.Type.RESULT:
-        srv_res = json.loads(result.data)
-        stats = srv_res['stats']
-        timers = stats['timers']
-        ptx_detected = 'No' if srv_res['sliding'] else 'Yes'
-
-        result_filename = path.join(
-            path.dirname(path.abspath(video_file)),
-            f'{path.splitext(path.basename(video_file))[0]}.csv'
-        )
-        csv_data = dict(
-            filename=result_filename,
-            PTX_detected=ptx_detected,
-            start_read_video=formatHHMMSS(timers['Read Video']['start']),
-            end_read_video=formatHHMMSS(timers['Read Video']['end']),
-            elapsed_read_video=round(timers['Read Video']['elapsed'], 3),
-            start_process_video=formatHHMMSS(timers['Process Video']['start']),
-            end_process_video=formatHHMMSS(timers['Process Video']['end']),
-            elapsed_process_video=round(timers['Process Video']['elapsed'], 3),
-            total_elapsed=round(timers['all']['elapsed'], 3),
-            debug_not_sliding_count=srv_res['ns_count'],
-            debug_sliding_count=srv_res['s_count'],
-        )
-        with open(result_filename, 'w', newline='') as fp:
-            fieldnames = [
-                'filename',
-                'PTX_detected',
-                'start_read_video',
-                'end_read_video',
-                'elapsed_read_video',
-                'start_process_video',
-                'end_process_video',
-                'elapsed_process_video',
-                'total_elapsed',
-                'debug_not_sliding_count',
-                'debug_sliding_count',
-            ]
-            writer = csv.DictWriter(
-                fp,
-                fieldnames=fieldnames,
-                delimiter=',',
-                quotechar='"',
-                quoting=csv.QUOTE_MINIMAL,
-            )
-            writer.writeheader()
-            writer.writerow(csv_data)
-
-        print(f'PTX detected? {ptx_detected}')
-        #print(f'ns count: {srv_res["ns_count"]}, s count: {srv_res["s_count"]}')
-        print(f'Wrote detailed output to {result_filename}')
+        return json.loads(result.data)
     elif result.type == Message.Type.ERROR:
         print(f'Error encountered! {json.loads(result.data)}')
+        return None
     else:
         raise Exception('Received message type that is not result nor error')
 
@@ -115,7 +121,9 @@ def main(args):
             return
         
         sock = WinPipeSock(handle)
-        return cli_send_video(args.video_file, sock)
+        result = cli_send_video(args.video_file, sock, debug=args.debug)
+        if result:
+            write_result(args.video_file, result, debug=args.debug)
     except pywintypes.error as e:
         code, source, message = e.args
         if code == winerror.ERROR_FILE_NOT_FOUND:
@@ -139,7 +147,8 @@ def main(args):
     except Retry:
         raise
     except Exception as e:
-        print('cli error:', e)
+        print('cli error:')
+        traceback.print_exc()
         return EXIT_FAILURE
     finally:
         if handle:

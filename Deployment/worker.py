@@ -1,4 +1,5 @@
 import sys
+import os
 from os import path
 import json
 import numpy as np
@@ -53,6 +54,7 @@ class ArgusWorker:
             raise WorkerError('failed to parse start frame')
         
         video_file = data['video_file']
+        debug = data.get('debug', False)
 
         try:
             if not path.exists(video_file):
@@ -64,12 +66,33 @@ class ArgusWorker:
             self.log.exception(e)
             error_msg = Message(Message.Type.ERROR, json.dumps(str(e)).encode('ascii'))
             self.sock.send(error_msg)
-        else:
-            result = dict(
-                sliding=inf_result['decision'] == 'Sliding',
-                ns_count=inf_result['not_sliding_count'],
-                s_count=inf_result['sliding_count'],
-                stats=stats.todict(),
-            )
-            result_msg = Message(Message.Type.RESULT, json.dumps(result).encode('ascii'))
-            self.sock.send(result_msg)
+            return
+
+        result = dict(
+            sliding=inf_result['decision'] == 'Sliding',
+            not_sliding_count=inf_result['not_sliding_count'],
+            sliding_count=inf_result['sliding_count'],
+            stats=stats.todict(),
+        )
+        result_msg = Message(Message.Type.RESULT, json.dumps(result).encode('ascii'))
+        self.sock.send(result_msg)
+
+        if debug:
+            # save intermediate results
+            save_path = f'{path.splitext(video_file)[0]}-debug-output'
+            os.makedirs(save_path, exist_ok=True)
+
+            itk.imwrite(itk.GetImageFromArray(inf_result['arnet_input_tensor'][0,0,:,:,:]),
+                path.join(save_path, 'ARUNet_preprocessed_input.mha'))
+
+            itk.imwrite(itk.GetImageFromArray(inf_result['arnet_output']),
+                path.join(save_path, "ARUNet_output.mha"))
+
+            itk.imwrite(itk.GetImageFromArray(inf_result['roinet_input_roi'].astype(np.float32)),
+                path.join(save_path, "ROINet_input_roi.mha"))
+
+            itk.imwrite(itk.GetImageFromArray(inf_result['roinet_input_tensor'][0,:,:,:]),
+                path.join(save_path, "ROINet_preprocessed_input.mha"))
+
+            itk.imwrite( itk.GetImageFromArray(inf_result['class_array']),
+                path.join(save_path, "ARGUS_output.mha"))

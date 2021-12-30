@@ -2,4 +2,7 @@ build
 dist
 Output
 *.log
+*.log.*
 *.exe
+venv
+argus.lock
