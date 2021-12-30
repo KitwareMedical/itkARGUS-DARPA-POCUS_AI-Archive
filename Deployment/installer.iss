@@ -2,7 +2,7 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 [Setup]
-AppVersion=0.95.4
+AppVersion=0.95.5
 AppName=ARGUS
 AppContact=Kitware, Inc.
 AppPublisher=Kitware, Inc.
