@@ -8,7 +8,7 @@ import traceback
 from os import path
 import win32file, win32pipe, pywintypes, winerror
 
-from common import WinPipeSock, Message, EXIT_FAILURE, PIPE_NAME, LOCK_FILE, LOG_FILE
+from common import WinPipeSock, Message, EXIT_FAILURE, PIPE_NAME, LOCK_FILE, LOG_FILE, EXIT_SUCCESS
 
 class Retry(Exception):
     pass
@@ -85,7 +85,7 @@ def write_result(video_file, result, debug=False):
 def cli_send_video(video_file, sock, debug=False):
     if not path.exists(video_file):
         print(f'File {video_file} does not exist')
-        return EXIT_FAILURE
+        return None
 
     # create start_frame msg
     start_info = dict(video_file=path.abspath(video_file), debug=debug)
@@ -135,6 +135,8 @@ def main(args):
         result = cli_send_video(args.video_file, sock, debug=args.debug)
         if result:
             write_result(args.video_file, result, debug=args.debug)
+            return EXIT_SUCCESS
+        return EXIT_FAILURE
     except pywintypes.error as e:
         code, source, message = e.args
         if code == winerror.ERROR_FILE_NOT_FOUND:
@@ -151,7 +153,7 @@ def main(args):
                 for line in lines[-10:]:
                     print(f'\t{line}')
         elif code == winerror.ERROR_PIPE_BUSY:
-            print('server is busy')
+            raise Retry()
         else:
             print('Unknown windows error:', e.args)
         return EXIT_FAILURE
