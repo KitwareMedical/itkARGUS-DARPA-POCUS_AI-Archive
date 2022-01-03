@@ -16,7 +16,7 @@ class ARGUS_LinearAR:
 
         self.roinet_model0_filename = path.join(model_dir, "BAMC_PTX_ROINet-StdDevExtended-ExtrudedNS-Final15", "best_model.pth")
         self.roinet_model1_filename = path.join(model_dir, "BAMC_PTX_ROINet-StdDevExtended-ExtrudedNS-Final15", "Epoch333_model.pth")
-        self.roinet_model2_filename = path.join(model_dir, "BAMC_PTX_ROINet-StdDevExtended-ExtrudedNS-Final15", "best_model.pth")
+        self.roinet_model2_filename = path.join(model_dir, "BAMC_PTX_ROINet-StdDevExtended-ExtrudedNS-Final15", "Epoch333_model-48s.pth")
 
         self.arnet_model = arnet_load_model(self.arnet_model_filename, self.device)
         self.roinet_model0 = roinet_load_model(self.roinet_model0_filename,self.device)
