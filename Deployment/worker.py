@@ -3,6 +3,7 @@ import os
 from os import path
 import json
 import numpy as np
+import gc
 
 # pyinstaller: import before itk, since itk.support imports torch
 # and having itk import torch causes incomplete loading of torch._C
@@ -44,6 +45,19 @@ class ArgusWorker:
         self.linearAR = ARGUS_LinearAR(model_dir=get_model_dir(), device_name='cpu')
 
     def run(self):
+        stats = Stats()
+        gc.disable()
+        self.handle_request()
+
+        with stats.time('manual gc'):
+            gc.collect()
+            gc.enable()
+        
+        self.log.info(f'Manual GC overhead: {stats.timers["manual gc"]["elapsed"]}')
+    
+    def handle_request(self):
+        stats = Stats()
+
         msg = self.sock.recv()
         if msg.type != Message.Type.START:
             raise WorkerError('did not see start msg')
@@ -60,7 +74,6 @@ class ArgusWorker:
             if not path.exists(video_file):
                 raise Exception(f'File {video_file} is not accessible!')
 
-            stats = Stats()
             inf_result = self.linearAR.predict(video_file, stats=stats)
         except Exception as e:
             self.log.exception(e)
