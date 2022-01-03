@@ -32,10 +32,10 @@ class ARGUS_LinearAR:
             with time_this("Read Video"):
                 us_video = load_video(filename)
 
-            with time_this("Process Video"):
                 with time_this("Linearization Video"):
                     us_video_linear = linearize_video(us_video).transpose([2,1,0])
 
+            with time_this("Process Video"):
                 with time_this("Preprocess for ARNet"):
                     arnet_input_tensor = arnet_preprocess_video(us_video_linear)
 
