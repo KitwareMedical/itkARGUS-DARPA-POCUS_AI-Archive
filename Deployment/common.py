@@ -51,10 +51,10 @@ class Message:
         return cls(Message.Type.frombyte(data[:1]), data[1:])
 
 class Stats:
-    timers = dict()
-    _running_timers = dict()
 
     def __init__(self):
+        self.timers = dict()
+        self._running_timers = dict()
         self._global_start = time.time()
 
     def time_start(self, name):
