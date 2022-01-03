@@ -77,17 +77,6 @@ class ARGUS_LinearAR:
                     else:
                         decision = "Sliding"
 
-                if(debug):
-                    itk.imwrite( itk.GetImageFromArray(class_array0),
-                        "results/ARGUS_output0.mha")
-                    print(decision0,not_sliding_count0,sliding_count0)
-                    itk.imwrite( itk.GetImageFromArray(class_array1),
-                        "results/ARGUS_output1.mha")
-                    print(decision1,not_sliding_count1,sliding_count1)
-                    itk.imwrite( itk.GetImageFromArray(class_array2),
-                        "results/ARGUS_output2.mha")
-                    print(decision2,not_sliding_count2,sliding_count2)
-
         return dict(
             decision=decision,
             # debug info
@@ -96,6 +85,15 @@ class ARGUS_LinearAR:
             arnet_input_tensor=arnet_input_tensor,
             arnet_output=arnet_output,
             roinet_input_roi=roinet_input_roi,
-            roinet_input_tensor=roinet_input_tensor0,
-            class_array=class_array0,
+            roinet_input_tensors=[
+                roinet_input_tensor0,
+                roinet_input_tensor1,
+                roinet_input_tensor2,
+            ],
+            class_arrays=[
+                class_array0,
+                class_array1,
+                class_array2,
+            ],
+            
         )
