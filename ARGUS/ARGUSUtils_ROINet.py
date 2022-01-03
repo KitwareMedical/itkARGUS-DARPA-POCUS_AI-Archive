@@ -56,8 +56,19 @@ def roinet_load_model(filename, device):
 
     return model
 
-def roinet_preprocess_roi(roi_array):
-    num_slices = 32
+def roinet_preprocess_roi(roi_array, model_type):
+    if( model_type == 0 ):
+        num_slices = 32
+        offset = (num_slices//2 + roi_array.shape[0]//2) // 2
+        center_slice = offset
+    elif( model_type == 1 ):
+        num_slices = 32
+        offset = (num_slices//2 + roi_array.shape[0]//2) // 2
+        center_slice = roi_array.shape[0] - offset - 1
+    else:
+        num_slices = 48
+        offset = roi_array.shape[0]//2
+        center_slice = offset
 
     net_in_channels = 4
 
@@ -71,6 +82,7 @@ def roinet_preprocess_roi(roi_array):
 
     Crop = ARGUS_RandSpatialCropSlices(
         num_slices=num_slices,
+        center_slice=center_slice,
         axis=0,
         reduce_to_statistics=True,
         extended=True)
@@ -88,8 +100,6 @@ def roinet_inference(roinet_input_tensor, roinet_model, device, debug):
     class_sliding = 2
 
     class_prior = [1,1,1] #[1.3,1.0,0.85]
-
-    num_slices = 32
 
     size_x = 160
     size_y = 320
