@@ -91,8 +91,10 @@ class ArgusWorker:
             itk.imwrite(itk.GetImageFromArray(inf_result['roinet_input_roi'].astype(np.float32)),
                 path.join(save_path, "ROINet_input_roi.mha"))
 
-            itk.imwrite(itk.GetImageFromArray(inf_result['roinet_input_tensor'][0,:,:,:]),
-                path.join(save_path, "ROINet_preprocessed_input.mha"))
+            for idx, roinet_input_tensor in enumerate(inf_result['roinet_input_tensors']):
+                itk.imwrite(itk.GetImageFromArray(roinet_input_tensor[0,:,:,:]),
+                    path.join(save_path, f"ROINet_preprocessed_input_{idx}.mha"))
 
-            itk.imwrite( itk.GetImageFromArray(inf_result['class_array']),
-                path.join(save_path, "ARGUS_output.mha"))
+            for idx, class_array in enumerate(inf_result['class_arrays']):
+                itk.imwrite( itk.GetImageFromArray(class_array),
+                    path.join(save_path, f"ARGUS_output_{idx}.mha"))

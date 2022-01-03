@@ -8,7 +8,7 @@ import traceback
 from os import path
 import win32file, win32pipe, pywintypes, winerror
 
-from common import WinPipeSock, Message, Stats, EXIT_FAILURE, PIPE_NAME, LOCK_FILE, LOG_FILE
+from common import WinPipeSock, Message, EXIT_FAILURE, PIPE_NAME, LOCK_FILE, LOG_FILE
 
 class Retry(Exception):
     pass
@@ -25,9 +25,14 @@ def prepare_argparser():
 def start_service():
     subprocess.run(['sc.exe', 'start', 'ARGUS'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-def formatHHMMSS(secs):
+def formatHHMMSS(secs=None):
+    if secs is None:
+        secs = time.time()
     msecs = int(1000 * (secs - int(secs)))
     return f'{time.strftime("%H:%M:%S", time.gmtime(secs))}:{msecs}'
+
+def dbg(*args, **kwargs):
+    print(f'DEBUG [{formatHHMMSS()}]:', *args, **kwargs)
 
 def write_result(video_file, result, debug=False):
     stats = result['stats']
@@ -74,7 +79,7 @@ def write_result(video_file, result, debug=False):
 
     print(f'PTX detected? {ptx_detected}')
     if debug:
-        print(f'not sliding count: {result["not_sliding_count"]}, sliding count: {result["sliding_count"]}')
+        dbg(f'not sliding count: {result["not_sliding_count"]}, sliding count: {result["sliding_count"]}')
     print(f'Wrote detailed output to {result_filename}')
 
 def cli_send_video(video_file, sock, debug=False):
@@ -82,17 +87,23 @@ def cli_send_video(video_file, sock, debug=False):
         print(f'File {video_file} does not exist')
         return EXIT_FAILURE
 
-    stats = Stats()
-
-    stats.time_start('inference')
     # create start_frame msg
     start_info = dict(video_file=path.abspath(video_file), debug=debug)
+
+    if debug:
+        dbg('Sending start message...')
 
     start_msg = Message(Message.Type.START, json.dumps(start_info).encode('ascii'))
     sock.send(start_msg)
 
+    if debug:
+        dbg('...start message sent.')
+        dbg('Waiting on result message...')
+
     result = sock.recv()
-    stats.time_end('inference')
+
+    if debug:
+        dbg('...result message received.')
 
     if result.type == Message.Type.RESULT:
         return json.loads(result.data)
