@@ -83,10 +83,16 @@ class ArgusWorker:
 
         result = dict(
             sliding=inf_result['decision'] == 'Sliding',
-            not_sliding_count=inf_result['not_sliding_count'],
-            sliding_count=inf_result['sliding_count'],
             stats=stats.todict(),
         )
+        if debug:
+            result.update(dict(
+                not_sliding_count=inf_result['not_sliding_count'],
+                sliding_count=inf_result['sliding_count'],
+                voter_decisions=inf_result['voter_decisions'],
+                voter_not_sliding_counts=inf_result['voter_not_sliding_counts'],
+                voter_sliding_counts=inf_result['voter_sliding_counts'],
+            ))
         result_msg = Message(Message.Type.RESULT, json.dumps(result).encode('ascii'))
         self.sock.send(result_msg)
 

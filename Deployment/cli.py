@@ -60,6 +60,19 @@ def write_result(video_file, result, debug=False):
             debug_not_sliding_count=result['not_sliding_count'],
             debug_sliding_count=result['sliding_count'],
         ))
+        for idx, voter in enumerate(
+            zip(
+                result['voter_decisions'],
+                result['voter_not_sliding_counts'],
+                result['voter_sliding_counts']
+            )
+        ):
+            decision, ns_count, s_count = voter
+            csv_data.update({
+                f'debug_voter{idx}_decision': decision,
+                f'debug_voter{idx}_not_sliding_count': ns_count,
+                f'debug_voter{idx}_sliding_count': s_count,
+            })
         for name, timings in timers.items():
             csv_data.update({
                 f'debug_timer_elapsed_{name.replace(" ", "_")}': round(timings['elapsed'], 3),

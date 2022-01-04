@@ -82,6 +82,21 @@ class ARGUS_LinearAR:
             # debug info
             not_sliding_count=not_sliding_count,
             sliding_count=sliding_count,
+            voter_decisions=[
+                decision0,
+                decision1,
+                decision2,
+            ],
+            voter_not_sliding_counts=[
+                not_sliding_count0,
+                not_sliding_count1,
+                not_sliding_count2,
+            ],
+            voter_sliding_counts=[
+                sliding_count0,
+                sliding_count1,
+                sliding_count2,
+            ],
             arnet_input_tensor=arnet_input_tensor,
             arnet_output=arnet_output,
             roinet_input_roi=roinet_input_roi,
@@ -95,5 +110,4 @@ class ARGUS_LinearAR:
                 class_array1,
                 class_array2,
             ],
-            
         )
