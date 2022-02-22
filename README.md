@@ -42,4 +42,4 @@ If you prefer working on local branches, then the workflow would be similar exce
 
 ## Funding
 
-This work was funded, in part, by DARPA agreement HR00112190077 Anatomic Reconstruction for Multi-Task POCUS Automated Interpretation (AR for POCUS AI).
+This work was funded, in part, by DARPA agreement HR00112190077 "Anatomic Reconstruction for Multi-Task POCUS Automated Interpretation (AR for POCUS AI)" and by NIH NIBIB/NIGMS R01 EB021396 "Slicer+PLUS: Collaborative, open-source software for ultrasound analysis".
