@@ -1,12 +1,33 @@
 from typing import Optional, Tuple
-
+from glob import glob
+import os
+import matplotlib.pyplot as plt
 import torch
 from pytorch_lightning import LightningDataModule
 from torch.utils.data import DataLoader, Dataset, random_split
 from monai.transforms import Compose
-import torchio as tio
-from glob import glob
-import os
+from monai.transforms import (
+    AddChanneld,
+    AsDiscrete,
+    AsDiscreted,
+    Compose,
+    EnsureChannelFirstd,
+    EnsureTyped,
+    EnsureType,
+    Invertd,
+    LabelFilterd,
+    LoadImaged,
+    RandFlipd,
+    RandSpatialCropd,
+    RandZoomd,
+    Resized,
+    ScaleIntensityRanged,
+    SpatialCrop,
+    SpatialCropd,
+    ToTensord,
+)
+from monai.utils import first
+from monai.data import CacheDataset
 import site
 site.addsitedir('/home/local/KHQ/christopher.funk/code/AnatomicRecon-POCUS-AI/PTX/ARGUS')
 from ARGUSUtils_Transforms import *
@@ -17,19 +38,11 @@ log = utils.get_logger(__name__)
 
 
 class PTXDataModule(LightningDataModule):
-    """Example of LightningDataModule for MNIST dataset.
+    """Example of LightningDataModule for PTX data.
 
-    A DataModule implements 5 key methods:
-        - prepare_data (things to do on 1 GPU/TPU, not on every GPU/TPU in distributed mode)
-        - setup (things to do on every accelerator in distributed mode)
-        - train_dataloader (the training dataloader)
-        - val_dataloader (the validation dataloader(s))
-        - test_dataloader (the test dataloader(s))
 
-    This allows you to share a full dataset without explaining how to download,
-    split, transform and process the data.
 
-    Read the docs:
+    For more information, read the docs:
         https://pytorch-lightning.readthedocs.io/en/latest/extensions/datamodules.html
 
     To test: 
@@ -67,9 +80,10 @@ class PTXDataModule(LightningDataModule):
         return 3
 
     def get_transforms(self):
+        num_slices = 32
         train_transforms = Compose(
             [
-                # LoadImaged(keys=["image", "label"]),
+                LoadImaged(keys=["image", "label"]),
                 AddChanneld(keys=["image", "label"]),
                 ScaleIntensityRanged(
                     a_min=0, a_max=255,
@@ -100,7 +114,7 @@ class PTXDataModule(LightningDataModule):
         )
         val_transforms = Compose(
             [
-                # LoadImaged(keys=["image", "label"]),
+                LoadImaged(keys=["image", "label"]),
                 AddChanneld(keys=["image", "label"]),
                 ScaleIntensityRanged(
                     a_min=0, a_max=255,
@@ -118,7 +132,7 @@ class PTXDataModule(LightningDataModule):
                 ToTensord(keys=["image", "label"]),
             ]
         )
-        return {'train': train_transforms, 'val': val_transforms}
+        return {'train': train_transforms, 'test': val_transforms}
 
 
     def get_data(self):
@@ -143,13 +157,7 @@ class PTXDataModule(LightningDataModule):
             
         self.subjects = []
         for image_path, label_path in zip(img_paths,label_paths):            
-            # 'image' and 'label' are arbitrary names for the images
-            # import ipdb
-            # ipdb.set_trace()
-            subject = tio.Subject(
-                image=tio.ScalarImage(image_path),
-                label=tio.LabelMap(label_path)
-            )
+            subject = {'image': image_path, 'label': label_path}
             self.subjects.append(subject)
         
         
@@ -171,10 +179,12 @@ class PTXDataModule(LightningDataModule):
             lengths=splits, 
             generator=torch.Generator().manual_seed(self.hparams.data_seed),)
 
-        self.transforms = self.get_transforms()
+        self.transform = self.get_transforms()
         
-        self.train_set = tio.SubjectsDataset(train_subjects, transform=self.transform['train'])
-        self.val_set = tio.SubjectsDataset(val_subjects, transform=self.transform['test'])
+        log.info(f'Loading Train Dataset')
+        self.train_set = CacheDataset(train_subjects, transform=self.transform['train'], num_workers=self.hparams.num_workers)
+        log.info(f'Loading Validation Dataset')
+        self.val_set = CacheDataset(train_subjects, transform=self.transform['test'], num_workers=self.hparams.num_workers)
 
 
     def train_dataloader(self):
@@ -203,3 +213,26 @@ class PTXDataModule(LightningDataModule):
             pin_memory=self.hparams.pin_memory,
             shuffle=False,
         )
+
+if __name__=="__main__":
+    import src.datamodules.ptx_datamodule as ptx_d
+    d = ptx_d.PTXDataModule(data_dir="/data/krsdata2-pocus-ai-synced/root/Data_PTX/VFoldData/BAMC-PTX*Sliding-Annotations-Linear/")
+    d.prepare_data()
+    d.setup()
+    train_dataloader = d.train_dataloader()
+    check_data = first(train_dataloader)
+    imgnum = 1
+    image, label = (check_data["image"][imgnum][0], check_data["label"][imgnum][0])
+    print(check_data["image"].shape)
+    print(image.shape)
+    print(f"image shape: {image.shape}, label shape: {label.shape}")
+    plt.figure("check", (12, 6))
+    plt.subplot(1, 2, 1)
+    plt.title("image")
+    plt.imshow(image[:, :, 2], cmap="gray")
+    plt.subplot(1, 2, 2)
+    plt.title("label")
+    plt.imshow(label[:, :, 2])
+    plt.savefig("dummy_name.png")
+    print(f'Label value min:{label.min()} and max {label.max()}')
+    pass
