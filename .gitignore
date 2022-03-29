@@ -2,3 +2,19 @@ Data
 Data_Net
 .ipynb_checkpoints
 __pycache__
+
+
+# Environments
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+
+PTX/Experiments/ARUNet-MiddleLines-Pipeline/data/
+PTX/Experiments/ARUNet-MiddleLines-Pipeline/logs/
+PTX/Experiments/ARUNet-MiddleLines-Pipeline/wandb/
+PTX/Experiments/ARUNet-MiddleLines-Pipeline/.env
+PTX/Experiments/ARUNet-MiddleLines-Pipeline/.autoenv
