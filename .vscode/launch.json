@@ -11,6 +11,15 @@
             "module": "src.datamodules.ptx_datamodule",
             "justMyCode": true,
             "cwd": "${workspaceFolder}/PTX/Experiments/ARUNet-MiddleLines-Pipeline/"
-        }
+        },
+        {
+            "name": "PTX Debugging",
+            "type": "python",
+            "request": "launch",
+            "program": "train.py",
+            "justMyCode": true,
+            "cwd": "${workspaceFolder}/PTX/Experiments/ARUNet-MiddleLines-Pipeline/",
+            "args" : ["experiment=PTX_UNet", "logger=tensorboard", "debug=default"]
+        },
     ]
 }
