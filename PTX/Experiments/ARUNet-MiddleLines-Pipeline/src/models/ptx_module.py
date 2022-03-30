@@ -6,8 +6,12 @@ from torchmetrics import MaxMetric
 # from torchmetrics.classification.accuracy import Accuracy
 from monai.metrics import DiceMetric
 from monai.losses import DiceLoss
+from monai.networks.utils import one_hot
 
-from src.models.components.simple_dense_net import SimpleDenseNet
+import matplotlib.pyplot as plt
+
+from src.models.components.unet import UNet
+
 
 
 class PTXLitModule(LightningModule):
@@ -29,6 +33,7 @@ class PTXLitModule(LightningModule):
         net: torch.nn.Module,
         lr: float = 0.001,
         weight_decay: float = 0.0005,
+        num_classes: int = 3,
     ):
         super().__init__()
 
@@ -39,10 +44,11 @@ class PTXLitModule(LightningModule):
         self.net = net
 
         # loss function
-        self.criterion = torch.nn.DiceLoss(to_onehot_y=True, softmax=True)
+        self.criterion = DiceLoss(to_onehot_y=True, softmax=True)
 
         # use separate metric instance for train, val and test step
         # to ensure a proper reduction over the epoch
+
         self.train_acc = DiceMetric(include_background=False, reduction="mean")
         self.val_acc = DiceMetric(include_background=False, reduction="mean")
         self.test_acc = DiceMetric(include_background=False, reduction="mean")
@@ -53,18 +59,25 @@ class PTXLitModule(LightningModule):
     def forward(self, x: torch.Tensor):
         return self.net(x)
 
+    def compute_monai_metric(self, y_pred, y, acc_metric):
+        acc_metric(
+            y_pred=one_hot(y_pred, self.hparams.num_classes), 
+            y=one_hot(y, self.hparams.num_classes)
+            )
+        return acc_metric.aggregate().item()
+
     def step(self, batch: Any):
-        x, y = batch
+        x, y = batch['image'], batch['label']
         logits = self.forward(x)
         loss = self.criterion(logits, y)
-        preds = torch.argmax(logits, dim=0)
+        preds = torch.argmax(logits, dim=1, keepdim=True)
         return loss, preds, y
 
     def training_step(self, batch: Any, batch_idx: int):
         loss, preds, targets = self.step(batch)
 
         # log train metrics
-        acc = self.train_acc(preds, targets)
+        acc = self.compute_monai_metric(preds, targets, self.train_acc)
         self.log("train/loss", loss, on_step=False, on_epoch=True, prog_bar=False)
         self.log("train/acc", acc, on_step=False, on_epoch=True, prog_bar=True)
 
@@ -81,22 +94,23 @@ class PTXLitModule(LightningModule):
         loss, preds, targets = self.step(batch)
 
         # log val metrics
-        acc = self.val_acc(preds, targets)
+        acc = self.compute_monai_metric(preds, targets, self.val_acc)
         self.log("val/loss", loss, on_step=False, on_epoch=True, prog_bar=False)
         self.log("val/acc", acc, on_step=False, on_epoch=True, prog_bar=True)
 
         return {"loss": loss, "preds": preds, "targets": targets}
 
     def validation_epoch_end(self, outputs: List[Any]):
-        acc = self.val_acc.compute()  # get val accuracy from current epoch
+        acc = self.val_acc.aggregate().item()
         self.val_acc_best.update(acc)
+        
         self.log("val/acc_best", self.val_acc_best.compute(), on_epoch=True, prog_bar=True)
 
     def test_step(self, batch: Any, batch_idx: int):
         loss, preds, targets = self.step(batch)
 
         # log test metrics
-        acc = self.test_acc(preds, targets)
+        acc = self.compute_monai_metric(preds, targets, self.test_acc)
         self.log("test/loss", loss, on_step=False, on_epoch=True)
         self.log("test/acc", acc, on_step=False, on_epoch=True)
 
@@ -121,4 +135,46 @@ class PTXLitModule(LightningModule):
         return torch.optim.Adam(
             params=self.parameters(), lr=self.hparams.lr, weight_decay=self.hparams.weight_decay
         )
+
+
+if __name__=="__main__":
+    # Import the net
+    from src.models.components.unet import UNet
+    net = UNet(
+        dimensions=3,
+        in_channels=1,
+        out_channels=3,
+        channels=(32,64,128),
+        strides=(2,2),
+        num_res_units=2,
+        norm="batch",
+    )
+
+    # Create the lit module
+    import src.models.ptx_module as ptx_m
+    ptx_model = ptx_m.PTXLitModule(net=net)
+
+    # Get data to test
+    from monai.utils import first
+    import src.datamodules.ptx_datamodule as ptx_d
+    d = ptx_d.PTXDataModule(data_dir="/data/krsdata2-pocus-ai-synced/root/Data_PTX/VFoldData/BAMC-PTX*Sliding-Annotations-Linear/")
+    d.prepare_data()
+    d.setup()
+    train_dataloader = d.train_dataloader()
+    check_data = first(train_dataloader)
+    imgnum = 1
+    image, label = (check_data["image"][imgnum][0], check_data["label"][imgnum][0])
+    print(f'Image batch size {check_data["image"].shape}')
+    print(f'Image Shape {image.shape}')
+
+    # Check forward pass
+    loss, preds, targets = ptx_model.step(check_data)
+    print(f'pred shape: {preds.shape} vs label shape {targets.shape}')
+    from monai.networks.utils import one_hot
+    
+    # Check 
+    loss, preds, targets = ptx_model.training_step(batch=check_data, batch_idx=1)
+    loss, preds, targets = ptx_model.validation_step(batch=check_data, batch_idx=1)
+    ptx_model.validation_epoch_end([])
+    loss, preds, targets = ptx_model.test_step(batch=check_data, batch_idx=1)
 

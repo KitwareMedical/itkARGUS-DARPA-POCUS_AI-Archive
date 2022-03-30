@@ -1,11 +1,7 @@
-_target_: src.models.mnist_module.PTXLitModule
+_target_: src.models.ptx_module.PTXLitModule
 lr: 0.001
 weight_decay: 0.0005
+num_classes: ${datamodule.num_classes}
 
-net:
-  _target_: src.models.components.unet.UNET
-  input_size: 784
-  lin1_size: 256
-  lin2_size: 256
-  lin3_size: 256
-  output_size: 10
+defaults:
+-  net: UNet_singlegpu

@@ -60,6 +60,7 @@ class PTXDataModule(LightningDataModule):
         batch_size: int = 64,
         num_workers: int = 0,
         pin_memory: bool = False,
+        num_classes: int = 3
     ):
         super().__init__()
 
@@ -67,7 +68,6 @@ class PTXDataModule(LightningDataModule):
         self.save_hyperparameters(logger=False)
 
         self.subjects = None
-        self.test_subjects = None
 
         # data transformations
         self.transforms = self.get_transforms
@@ -77,7 +77,7 @@ class PTXDataModule(LightningDataModule):
 
     @property
     def num_classes(self) -> int:
-        return 3
+        return self.hparams.num_classes
 
     def get_transforms(self):
         num_slices = 32
@@ -206,7 +206,7 @@ class PTXDataModule(LightningDataModule):
 
     def test_dataloader(self):
         return DataLoader(
-            dataset=self.data_test,
+            dataset=self.val_set,
             batch_size=self.hparams.batch_size,
             num_workers=self.hparams.num_workers,
             pin_memory=self.hparams.pin_memory,
