@@ -186,7 +186,6 @@ class PTXDataModule(LightningDataModule):
         log.info(f'Loading Validation Dataset')
         self.val_set = CacheDataset(train_subjects, transform=self.transform['test'], num_workers=self.hparams.num_workers)
 
-
     def train_dataloader(self):
         return DataLoader(
             dataset=self.val_set,
