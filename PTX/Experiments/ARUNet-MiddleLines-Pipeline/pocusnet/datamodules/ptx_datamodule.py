@@ -4,7 +4,7 @@ from typing import Optional
 
 import torch
 
-from src.vendor.argus_transforms import ARGUS_RandSpatialCropSlicesd
+from pocusnet.vendor.argus_transforms import ARGUS_RandSpatialCropSlicesd
 from monai.data import CacheDataset
 from monai.transforms import (AddChanneld, Compose,
                               LoadImaged, RandFlipd,
@@ -15,7 +15,7 @@ from monai.utils import first
 from pytorch_lightning import LightningDataModule
 from torch.utils.data import DataLoader, Dataset, random_split
 
-from src import utils
+from pocusnet import utils
 
 log = utils.get_logger(__name__)
 
@@ -27,7 +27,7 @@ class PTXDataModule(LightningDataModule):
         https://pytorch-lightning.readthedocs.io/en/latest/extensions/datamodules.html
 
     To test:
-        >>> import src.datamodules.ptx_datamodule as ptx_d
+        >>> import pocusnet.datamodules.ptx_datamodule as ptx_d
         >>> d = ptx_d.PTXDataModule(data_dir="/data/krsdata2-pocus-ai-synced/root/Data_PTX/VFoldData/BAMC-PTX*Sliding-Annotations-Linear/")
         >>> d.prepare_data()
         >>> d.setup()
@@ -212,7 +212,7 @@ class PTXDataModule(LightningDataModule):
 
 def demo():
     import matplotlib.pyplot as plt
-    import src.datamodules.ptx_datamodule as ptx_d
+    import pocusnet.datamodules.ptx_datamodule as ptx_d
     d = ptx_d.PTXDataModule(
         data_dir="/data/krsdata2-pocus-ai-synced/root/Data_PTX/VFoldData/BAMC-PTX*Sliding-Annotations-Linear/")
     d.prepare_data()

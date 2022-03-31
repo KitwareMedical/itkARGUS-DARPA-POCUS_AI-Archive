@@ -1,4 +1,4 @@
-_target_: src.datamodules.ptx_datamodule.PTXDataModule
+_target_: pocusnet.datamodules.ptx_datamodule.PTXDataModule
 
 data_dir: ${data_dir} # data_dir is specified in config.yaml
 batch_size: 64
