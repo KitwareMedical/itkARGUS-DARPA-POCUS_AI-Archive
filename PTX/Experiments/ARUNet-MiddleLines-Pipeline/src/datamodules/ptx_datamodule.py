@@ -1,38 +1,28 @@
-from typing import Optional, Tuple
-from glob import glob
 import os
+import site
+from glob import glob
+from typing import Optional
+
 import matplotlib.pyplot as plt
 import torch
+
+from src.vendor.argus_transforms import ARGUS_RandSpatialCropSlicesd
+# from ARGUSUtils_Transforms import *
+from monai.data import CacheDataset
+from monai.transforms import (AddChanneld, Compose,
+                              LoadImaged, RandFlipd,
+                              RandZoomd,
+                              ScaleIntensityRanged, SpatialCropd,
+                              ToTensord)
+from monai.utils import first
 from pytorch_lightning import LightningDataModule
 from torch.utils.data import DataLoader, Dataset, random_split
-from monai.transforms import Compose
-from monai.transforms import (
-    AddChanneld,
-    AsDiscrete,
-    AsDiscreted,
-    Compose,
-    EnsureChannelFirstd,
-    EnsureTyped,
-    EnsureType,
-    Invertd,
-    LabelFilterd,
-    LoadImaged,
-    RandFlipd,
-    RandSpatialCropd,
-    RandZoomd,
-    Resized,
-    ScaleIntensityRanged,
-    SpatialCrop,
-    SpatialCropd,
-    ToTensord,
-)
-from monai.utils import first
-from monai.data import CacheDataset
-import site
-site.addsitedir('/home/local/KHQ/christopher.funk/code/AnatomicRecon-POCUS-AI/PTX/ARGUS')
-from ARGUSUtils_Transforms import *
 
 from src import utils
+
+site.addsitedir(
+    '/home/local/KHQ/christopher.funk/code/AnatomicRecon-POCUS-AI/PTX/ARGUS')
+
 
 log = utils.get_logger(__name__)
 
@@ -45,7 +35,7 @@ class PTXDataModule(LightningDataModule):
     For more information, read the docs:
         https://pytorch-lightning.readthedocs.io/en/latest/extensions/datamodules.html
 
-    To test: 
+    To test:
         >>> import src.datamodules.ptx_datamodule as ptx_d
         >>> d = ptx_d.PTXDataModule(data_dir="/data/krsdata2-pocus-ai-synced/root/Data_PTX/VFoldData/BAMC-PTX*Sliding-Annotations-Linear/")
         >>> d.prepare_data()
@@ -90,25 +80,25 @@ class PTXDataModule(LightningDataModule):
                     b_min=0.0, b_max=1.0,
                     keys=["image"]),
                 SpatialCropd(
-                    roi_start=[80,0,1],
-                    roi_end=[240,320,61],
+                    roi_start=[80, 0, 1],
+                    roi_end=[240, 320, 61],
                     keys=["image", "label"]),
                 ARGUS_RandSpatialCropSlicesd(
                     num_slices=num_slices,
                     axis=3,
                     keys=['image', 'label']),
-                RandFlipd(prob=0.5, 
-                    spatial_axis=2,
-                    keys=['image', 'label']),
-                RandFlipd(prob=0.5, 
-                    spatial_axis=0,
-                    keys=['image', 'label']),
-                RandZoomd(prob=0.5, 
-                    min_zoom=1.0,
-                    max_zoom=1.2,
-                    keep_size=True,
-                    mode=['trilinear', 'nearest'],
-                    keys=['image', 'label']),
+                RandFlipd(prob=0.5,
+                          spatial_axis=2,
+                          keys=['image', 'label']),
+                RandFlipd(prob=0.5,
+                          spatial_axis=0,
+                          keys=['image', 'label']),
+                RandZoomd(prob=0.5,
+                          min_zoom=1.0,
+                          max_zoom=1.2,
+                          keep_size=True,
+                          mode=['trilinear', 'nearest'],
+                          keys=['image', 'label']),
                 ToTensord(keys=["image", "label"]),
             ]
         )
@@ -121,8 +111,8 @@ class PTXDataModule(LightningDataModule):
                     b_min=0.0, b_max=1.0,
                     keys=["image"]),
                 SpatialCropd(
-                    roi_start=[80,0,1],
-                    roi_end=[240,320,61],
+                    roi_start=[80, 0, 1],
+                    roi_end=[240, 320, 61],
                     keys=["image", "label"]),
                 ARGUS_RandSpatialCropSlicesd(
                     num_slices=num_slices,
@@ -134,10 +124,17 @@ class PTXDataModule(LightningDataModule):
         )
         return {'train': train_transforms, 'test': val_transforms}
 
-
     def get_data(self):
-        all_images = sorted(glob(os.path.join(self.hparams.data_dir, '*_?????.nii.gz')))
-        all_labels = sorted(glob(os.path.join(self.hparams.data_dir, '*.extruded-overlay-NS.nii.gz')))
+        all_images = sorted(
+            glob(
+                os.path.join(
+                    self.hparams.data_dir,
+                    '*_?????.nii.gz')))
+        all_labels = sorted(
+            glob(
+                os.path.join(
+                    self.hparams.data_dir,
+                    '*.extruded-overlay-NS.nii.gz')))
         return all_images, all_labels
 
     def prepare_data(self):
@@ -146,21 +143,20 @@ class PTXDataModule(LightningDataModule):
         This method is called only from a single GPU.
         Do not use it to assign state (self.x = y).
         """
-        
+
         img_paths, label_paths = self.get_data()
-        if len(img_paths) < 1 or len(label_paths) < 1 or len(img_paths) != len(label_paths):
-            log.error(f'Problem with image or label data in location {self.hparams.data_dir}. '  
+        if len(img_paths) < 1 or len(label_paths) < 1 or len(
+                img_paths) != len(label_paths):
+            log.error(f'Problem with image or label data in location {self.hparams.data_dir}. '
                       f'Found Num images / labels = {len(img_paths)}/{len(label_paths)}')
         else:
-            log.info(f"Num images / labels = {len(img_paths)}/{len(label_paths)}")
+            log.info(
+                f"Num images / labels = {len(img_paths)}/{len(label_paths)}")
 
-            
         self.subjects = []
-        for image_path, label_path in zip(img_paths,label_paths):            
+        for image_path, label_path in zip(img_paths, label_paths):
             subject = {'image': image_path, 'label': label_path}
             self.subjects.append(subject)
-        
-        
 
     def setup(self, stage: Optional[str] = None):
         """Load data. Set variables: `self.data_train`, `self.data_val`, `self.data_test`.
@@ -170,21 +166,30 @@ class PTXDataModule(LightningDataModule):
         differentiate whether it's called before trainer.fit()` or `trainer.test()`.
         """
         num_subjects = len(self.subjects)
-        num_train_subjects = int(round(num_subjects * self.hparams.train_val_ratio))
+        num_train_subjects = int(
+            round(
+                num_subjects *
+                self.hparams.train_val_ratio))
         num_val_subjects = num_subjects - num_train_subjects
 
         splits = num_train_subjects, num_val_subjects
         train_subjects, val_subjects = random_split(
-            dataset=self.subjects, 
-            lengths=splits, 
+            dataset=self.subjects,
+            lengths=splits,
             generator=torch.Generator().manual_seed(self.hparams.data_seed),)
 
         self.transform = self.get_transforms()
-        
-        log.info(f'Loading Train Dataset')
-        self.train_set = CacheDataset(train_subjects, transform=self.transform['train'], num_workers=self.hparams.num_workers)
-        log.info(f'Loading Validation Dataset')
-        self.val_set = CacheDataset(train_subjects, transform=self.transform['test'], num_workers=self.hparams.num_workers)
+
+        log.info('Loading Train Dataset')
+        self.train_set = CacheDataset(
+            train_subjects,
+            transform=self.transform['train'],
+            num_workers=self.hparams.num_workers)
+        log.info('Loading Validation Dataset')
+        self.val_set = CacheDataset(
+            train_subjects,
+            transform=self.transform['test'],
+            num_workers=self.hparams.num_workers)
 
     def train_dataloader(self):
         return DataLoader(
@@ -213,15 +218,18 @@ class PTXDataModule(LightningDataModule):
             shuffle=False,
         )
 
-if __name__=="__main__":
+
+if __name__ == "__main__":
     import src.datamodules.ptx_datamodule as ptx_d
-    d = ptx_d.PTXDataModule(data_dir="/data/krsdata2-pocus-ai-synced/root/Data_PTX/VFoldData/BAMC-PTX*Sliding-Annotations-Linear/")
+    d = ptx_d.PTXDataModule(
+        data_dir="/data/krsdata2-pocus-ai-synced/root/Data_PTX/VFoldData/BAMC-PTX*Sliding-Annotations-Linear/")
     d.prepare_data()
     d.setup()
     train_dataloader = d.train_dataloader()
     check_data = first(train_dataloader)
     imgnum = 1
-    image, label = (check_data["image"][imgnum][0], check_data["label"][imgnum][0])
+    image, label = (check_data["image"][imgnum][0],
+                    check_data["label"][imgnum][0])
     print(check_data["image"].shape)
     print(image.shape)
     print(f"image shape: {image.shape}, label shape: {label.shape}")
