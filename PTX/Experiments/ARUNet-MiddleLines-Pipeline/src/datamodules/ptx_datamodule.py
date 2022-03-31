@@ -1,5 +1,4 @@
 import os
-import site
 from glob import glob
 from typing import Optional
 
@@ -7,7 +6,6 @@ import matplotlib.pyplot as plt
 import torch
 
 from src.vendor.argus_transforms import ARGUS_RandSpatialCropSlicesd
-# from ARGUSUtils_Transforms import *
 from monai.data import CacheDataset
 from monai.transforms import (AddChanneld, Compose,
                               LoadImaged, RandFlipd,
@@ -19,10 +17,6 @@ from pytorch_lightning import LightningDataModule
 from torch.utils.data import DataLoader, Dataset, random_split
 
 from src import utils
-
-site.addsitedir(
-    '/home/local/KHQ/christopher.funk/code/AnatomicRecon-POCUS-AI/PTX/ARGUS')
-
 
 log = utils.get_logger(__name__)
 
