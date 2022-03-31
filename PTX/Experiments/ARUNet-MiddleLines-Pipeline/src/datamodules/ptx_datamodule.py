@@ -2,7 +2,6 @@ import os
 from glob import glob
 from typing import Optional
 
-import matplotlib.pyplot as plt
 import torch
 
 from src.vendor.argus_transforms import ARGUS_RandSpatialCropSlicesd
@@ -23,8 +22,6 @@ log = utils.get_logger(__name__)
 
 class PTXDataModule(LightningDataModule):
     """Example of LightningDataModule for PTX data.
-
-
 
     For more information, read the docs:
         https://pytorch-lightning.readthedocs.io/en/latest/extensions/datamodules.html
@@ -213,7 +210,8 @@ class PTXDataModule(LightningDataModule):
         )
 
 
-if __name__ == "__main__":
+def demo():
+    import matplotlib.pyplot as plt
     import src.datamodules.ptx_datamodule as ptx_d
     d = ptx_d.PTXDataModule(
         data_dir="/data/krsdata2-pocus-ai-synced/root/Data_PTX/VFoldData/BAMC-PTX*Sliding-Annotations-Linear/")
@@ -236,4 +234,7 @@ if __name__ == "__main__":
     plt.imshow(label[:, :, 2])
     plt.savefig("dummy_name.png")
     print(f'Label value min:{label.min()} and max {label.max()}')
-    pass
+
+
+if __name__ == "__main__":
+    demo()
