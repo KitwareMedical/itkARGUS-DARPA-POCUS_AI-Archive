@@ -1,0 +1,4 @@
+# Requirements for testing
+
+pytest>=6.2.5  
+xdoctest>=1.0.0
