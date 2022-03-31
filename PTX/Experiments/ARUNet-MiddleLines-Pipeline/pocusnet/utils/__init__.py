@@ -139,7 +139,11 @@ def log_hyperparameters(
         hparams["callbacks"] = config["callbacks"]
 
     # send hparams to all loggers
-    trainer.logger.log_hyperparams(hparams)
+    if trainer.logger is None:
+        import warnings
+        warnings.warn('Trainer has no logger to log hyperparmas')
+    else:
+        trainer.logger.log_hyperparams(hparams)
 
 
 def finish(

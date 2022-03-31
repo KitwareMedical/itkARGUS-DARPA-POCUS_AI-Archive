@@ -8,7 +8,7 @@ class SimpleDenseNet(nn.Module):
         lin1_size: int = 256,
         lin2_size: int = 256,
         lin3_size: int = 256,
-        output_size: int = 10,
+        num_classes: int = 10,
     ):
         super().__init__()
 
@@ -22,7 +22,7 @@ class SimpleDenseNet(nn.Module):
             nn.Linear(lin2_size, lin3_size),
             nn.BatchNorm1d(lin3_size),
             nn.ReLU(),
-            nn.Linear(lin3_size, output_size),
+            nn.Linear(lin3_size, num_classes),
         )
 
     def forward(self, x):
