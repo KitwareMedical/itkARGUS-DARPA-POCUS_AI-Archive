@@ -22,7 +22,7 @@ hydra:
   verbose: True
 
   # use this to set level of only chosen command line loggers to 'DEBUG':
-  # verbose: [src.train, src.utils]
+  # verbose: [pocusnet.train, pocusnet.utils]
 
 # config is already printed by hydra when `hydra/verbose: True`
 print_config: False

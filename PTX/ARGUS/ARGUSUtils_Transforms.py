@@ -67,7 +67,7 @@ class ARGUS_RandSpatialCropSlices(RandomizableTransform, Transform):
         if self.boundary == -1:
             self.boundary = self.num_slices//2
 
-    
+
     def randomize(self, data: NdarrayOrTensor) -> None:
         if self.center_slice == -1:
             buffer = 0
@@ -106,7 +106,7 @@ class ARGUS_RandSpatialCropSlices(RandomizableTransform, Transform):
             tlist = list(_start)
             tlist[self.axis] = smin
             _start = tuple(tlist)
-        
+
             tlist = list(_end)
             tlist[self.axis] = smax
             _end = tuple(tlist)
@@ -141,7 +141,7 @@ class ARGUS_RandSpatialCropSlices(RandomizableTransform, Transform):
                 roffset = r * 0.3
 
                 r0_min = 0
-                r0_max = r 
+                r0_max = r
                 r0_min,r0_max,slices = make_slices(r0_min,r0_max,_start,_end)
                 outstd0 = np.std(arr[tuple(slices)],axis=self.axis)
 
@@ -274,9 +274,9 @@ class ARGUS_RandSpatialCropSlicesd(RandomizableTransform, MapTransform, Invertib
 
             pad_to_start = np.empty((len(orig_size)), dtype=np.int32)
             pad_to_end = np.empty((len(orig_size)), dtype=np.int32)
-            
+
             boundary = num_slices//2
-        
+
             self._roi_start = np.zeros((len(orig_size)), dtype=np.int32)
             tlist = list(self._roi_start)
             tlist[self.axis] = self._roi_center_slice - boundary
@@ -286,7 +286,7 @@ class ARGUS_RandSpatialCropSlicesd(RandomizableTransform, MapTransform, Invertib
             tlist = list(self._roi_end)
             tlist[self.axis] = self._roi_start[self.axis] + num_slices
             self._roi_end = tuple(tlist)
-        
+
             pad_to_start = self._roi_start
             pad_to_end = self._roi_end
             # interleave mins and maxes
@@ -298,5 +298,5 @@ class ARGUS_RandSpatialCropSlicesd(RandomizableTransform, MapTransform, Invertib
 
             # Remove the applied transform
             self.pop_transform(d, key)
-            
+
         return d
