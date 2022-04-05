@@ -17,9 +17,8 @@
             "type": "python",
             "request": "launch",
             "program": "train.py",
-            "justMyCode": true,
             "cwd": "${workspaceFolder}/PTX/Experiments/ARUNet-MiddleLines-Pipeline/",
-            "args" : ["experiment=PTX_UNet", "logger=tensorboard", "debug=default"]
+            "args" : ["experiment=PTX_Patches", "logger=tensorboard", "debug=default"]
         },
     ]
 }

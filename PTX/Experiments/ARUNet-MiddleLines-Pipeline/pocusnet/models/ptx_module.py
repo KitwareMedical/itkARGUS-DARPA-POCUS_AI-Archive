@@ -1,12 +1,14 @@
 from typing import Any, List
 
 import torch
+import torchvision
 from pytorch_lightning import LightningModule
 from torchmetrics import MaxMetric
 # from torchmetrics.classification.accuracy import Accuracy
 from monai.metrics import DiceMetric
 from monai.losses import DiceLoss
 from monai.networks.utils import one_hot
+from copy import deepcopy
 
 
 class PTXLitModule(LightningModule):
@@ -102,7 +104,19 @@ class PTXLitModule(LightningModule):
             on_step=False,
             on_epoch=True,
             prog_bar=False)
+        
         self.log("val/acc", acc, on_step=False, on_epoch=True, prog_bar=True)
+
+        if batch_idx==0:
+            grid = torchvision.utils.make_grid(deepcopy(batch['image'][:,:,:,:,2]), padding=10)
+            self.logger.experiment[0].add_image('val/imgs', grid, global_step=self.current_epoch)
+
+            grid = torchvision.utils.make_grid(deepcopy(preds[:,:,:,:,2]).float(),normalize=True,
+                value_range=(0,self.hparams.num_classes-1), padding=10)
+            self.logger.experiment[0].add_image('val/pred', grid, global_step=self.current_epoch)
+            grid = torchvision.utils.make_grid(deepcopy(targets[:,:,:,:,2]).float(),normalize=True,
+                value_range=(0,self.hparams.num_classes-1), padding=10)
+            self.logger.experiment[0].add_image('val/gt', grid, global_step=self.current_epoch)
 
         return {"loss": loss, "preds": preds, "targets": targets}
 
@@ -161,9 +175,26 @@ def _demo():
         norm="batch",
     )
 
+
     # Create the lit module
     import pocusnet.models.ptx_module as ptx_m
     ptx_model = ptx_m.PTXLitModule(net=net)
+
+
+    from pocusnet.models.components.patches import ConvMixer
+    image_shape = [1, 160, 320, 32]
+    patches = ConvMixer(
+            hidden_dim=124, 
+            depth=2, 
+            img_size=image_shape,
+            n_classes=3,
+            new_t_dim=True,
+            t_channel_last=True,
+            verbose=True
+            )
+
+    import pocusnet.models.ptx_module as ptx_m
+    ptx_model = ptx_m.PTXLitModule(net=patches)
 
     # Get data to test
     from monai.utils import first

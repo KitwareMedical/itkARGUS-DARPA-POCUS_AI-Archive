@@ -6,7 +6,7 @@
 defaults:
   - override /datamodule: ptx.yaml
   - override /model: ptx.yaml
-  - override /model/net: UNet_singlegpu.yaml
+  - override /model/net: Patches.yaml
   - override /callbacks: default.yaml
   - override /logger: null
   - override /trainer: default.yaml
@@ -15,13 +15,14 @@ defaults:
 # this allows you to overwrite only specified parameters
 
 # name of the run determines folder name in logs
-name: "PTX_UNet"
+name: "PTX_Patches"
 
 seed: 12345
 
 trainer:
+  gpus: 1
   min_epochs: 10
   max_epochs: 1000
 
 datamodule:
-  batch_size: 32
+  batch_size: 50

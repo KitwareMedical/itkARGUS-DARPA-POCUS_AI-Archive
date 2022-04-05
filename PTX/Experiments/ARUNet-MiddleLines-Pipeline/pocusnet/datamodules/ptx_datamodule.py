@@ -171,20 +171,21 @@ class PTXDataModule(LightningDataModule):
 
         self.transform = self.get_transforms()
 
-        log.info('Loading Train Dataset')
+        log.info(f'Loading Train Dataset {len(train_subjects)}/{len(self.subjects)}')
         self.train_set = CacheDataset(
             train_subjects,
             transform=self.transform['train'],
             num_workers=self.hparams.num_workers)
-        log.info('Loading Validation Dataset')
+            
+        log.info(f'Loading Validation Dataset {len(val_subjects)}/{len(self.subjects)}')
         self.val_set = CacheDataset(
-            train_subjects,
+            val_subjects,
             transform=self.transform['test'],
             num_workers=self.hparams.num_workers)
 
     def train_dataloader(self):
         return DataLoader(
-            dataset=self.val_set,
+            dataset=self.train_set,
             batch_size=self.hparams.batch_size,
             num_workers=self.hparams.num_workers,
             pin_memory=self.hparams.pin_memory,

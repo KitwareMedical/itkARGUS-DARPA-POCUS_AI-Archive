@@ -1,0 +1,18 @@
+_target_: pocusnet.models.components.patches.ConvMixer
+hidden_dim: 124
+depth: 20
+img_size: 
+- 1
+- 160
+- 320
+- 32
+kernel_size: 9 
+patch_size: 7 
+n_classes: ${datamodule.num_classes}
+norm: False
+classification: False
+segmentation: True
+upsample_mode: 'deconv' # 'deconv' or 'pixelshuffle',
+new_t_dim: True # Switch Temporal dims for channels - only valid if single channel (grayscale) video
+t_channel_last: False # if shifting temporal to last dim before final inter.  Only valid if `new_t_dim = True' 
+verbose: False
