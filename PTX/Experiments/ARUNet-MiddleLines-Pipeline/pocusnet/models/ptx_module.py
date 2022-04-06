@@ -124,7 +124,7 @@ class PTXLitModule(LightningModule):
         acc = self.val_acc.aggregate().item()
         self.val_acc_best.update(acc)
 
-        self.log("hp_metric", acc)
+        
         self.log(
             "val/acc_best",
             self.val_acc_best.compute(),
@@ -138,6 +138,19 @@ class PTXLitModule(LightningModule):
         acc = self.compute_monai_metric(preds, targets, self.test_acc)
         self.log("test/loss", loss, on_step=False, on_epoch=True)
         self.log("test/acc", acc, on_step=False, on_epoch=True)
+
+        if batch_idx==0:
+            grid = torchvision.utils.make_grid(deepcopy(batch['image'][:,:,:,:,2]), padding=10)
+            self.logger.experiment[0].add_image('test/imgs', grid)
+
+            grid = torchvision.utils.make_grid(deepcopy(preds[:,:,:,:,2]).float(),normalize=True,
+                value_range=(0,self.hparams.num_classes-1), padding=10)
+            self.logger.experiment[0].add_image('test/pred', grid)
+            grid = torchvision.utils.make_grid(deepcopy(targets[:,:,:,:,2]).float(),normalize=True,
+                value_range=(0,self.hparams.num_classes-1), padding=10)
+            self.logger.experiment[0].add_image('test/gt', grid)
+
+        self.log("hp_metric", acc)
 
         return {"loss": loss, "preds": preds, "targets": targets}
 
