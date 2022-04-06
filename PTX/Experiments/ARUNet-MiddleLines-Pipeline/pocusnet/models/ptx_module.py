@@ -82,7 +82,7 @@ class PTXLitModule(LightningModule):
             on_epoch=True,
             prog_bar=False)
         self.log("train/acc", acc, on_step=False, on_epoch=True, prog_bar=True)
-
+        
         # we can return here dict with any tensors
         # and then read it in some callback or in `training_epoch_end()`` below
         # remember to always return loss from `training_step()` or else
@@ -124,6 +124,7 @@ class PTXLitModule(LightningModule):
         acc = self.val_acc.aggregate().item()
         self.val_acc_best.update(acc)
 
+        self.log("hp_metric", acc)
         self.log(
             "val/acc_best",
             self.val_acc_best.compute(),
