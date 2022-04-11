@@ -17,4 +17,4 @@ wandb/
 dummy_name.png
 cufile.log
 
-.vscode
+*.vscode
