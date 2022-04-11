@@ -1,6 +1,7 @@
 import os
 from glob import glob
 from typing import Optional
+import numpy as np
 
 import torch
 
@@ -9,7 +10,7 @@ from monai.data import CacheDataset
 from monai.transforms import (AddChanneld, Compose,
                               LoadImaged, RandFlipd,
                               RandZoomd,
-                              ScaleIntensityRanged, SpatialCropd,
+                              ScaleIntensityRanged, Lambdad,
                               ToTensord)
 from monai.utils import first
 from pytorch_lightning import LightningDataModule
