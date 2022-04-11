@@ -82,7 +82,7 @@ class PTXLitModule(LightningModule):
             on_epoch=True,
             prog_bar=False)
         self.log("train/acc", acc, on_step=False, on_epoch=True, prog_bar=True)
-        
+
         # we can return here dict with any tensors
         # and then read it in some callback or in `training_epoch_end()`` below
         # remember to always return loss from `training_step()` or else
@@ -104,18 +104,21 @@ class PTXLitModule(LightningModule):
             on_step=False,
             on_epoch=True,
             prog_bar=False)
-        
+
         self.log("val/acc", acc, on_step=False, on_epoch=True, prog_bar=True)
 
-        if batch_idx==0:
-            grid = torchvision.utils.make_grid(deepcopy(batch['image'][:,:,:,:,2]), padding=10)
+        if batch_idx == 0:
+            grid = torchvision.utils.make_grid(deepcopy(
+                batch['image'][:, :, :, :, 2]), padding=10)
             self.logger.experiment[0].add_image('val/imgs', grid, global_step=self.current_epoch)
 
-            grid = torchvision.utils.make_grid(deepcopy(preds[:,:,:,:,2]).float(),normalize=True,
-                value_range=(0,self.hparams.num_classes-1), padding=10)
+            grid = torchvision.utils.make_grid(deepcopy(
+                preds[:, :, :, :, 2]).float(), normalize=True,
+                value_range=(0, self.hparams.num_classes - 1), padding=10)
             self.logger.experiment[0].add_image('val/pred', grid, global_step=self.current_epoch)
-            grid = torchvision.utils.make_grid(deepcopy(targets[:,:,:,:,2]).float(),normalize=True,
-                value_range=(0,self.hparams.num_classes-1), padding=10)
+            grid = torchvision.utils.make_grid(deepcopy(
+                targets[:, :, :, :, 2]).float(), normalize=True,
+                value_range=(0, self.hparams.num_classes - 1), padding=10)
             self.logger.experiment[0].add_image('val/gt', grid, global_step=self.current_epoch)
 
         return {"loss": loss, "preds": preds, "targets": targets}
@@ -124,7 +127,6 @@ class PTXLitModule(LightningModule):
         acc = self.val_acc.aggregate().item()
         self.val_acc_best.update(acc)
 
-        
         self.log(
             "val/acc_best",
             self.val_acc_best.compute(),
@@ -139,15 +141,17 @@ class PTXLitModule(LightningModule):
         self.log("test/loss", loss, on_step=False, on_epoch=True)
         self.log("test/acc", acc, on_step=False, on_epoch=True)
 
-        if batch_idx==0:
-            grid = torchvision.utils.make_grid(deepcopy(batch['image'][:,:,:,:,2]), padding=10)
+        if batch_idx == 0:
+            grid = torchvision.utils.make_grid(deepcopy(batch['image'][:, :, :, :, 2]), padding=10)
             self.logger.experiment[0].add_image('test/imgs', grid)
 
-            grid = torchvision.utils.make_grid(deepcopy(preds[:,:,:,:,2]).float(),normalize=True,
-                value_range=(0,self.hparams.num_classes-1), padding=10)
+            grid = torchvision.utils.make_grid(deepcopy(
+                preds[:, :, :, :, 2]).float(), normalize=True,
+                value_range=(0, self.hparams.num_classes - 1), padding=10)
             self.logger.experiment[0].add_image('test/pred', grid)
-            grid = torchvision.utils.make_grid(deepcopy(targets[:,:,:,:,2]).float(),normalize=True,
-                value_range=(0,self.hparams.num_classes-1), padding=10)
+            grid = torchvision.utils.make_grid(deepcopy(
+                targets[:, :, :, :, 2]).float(), normalize=True,
+                value_range=(0, self.hparams.num_classes - 1), padding=10)
             self.logger.experiment[0].add_image('test/gt', grid)
 
         self.log("hp_metric", acc)
@@ -189,17 +193,15 @@ def _demo():
         norm="batch",
     )
 
-
     # Create the lit module
     import pocusnet.models.ptx_module as ptx_m
     ptx_model = ptx_m.PTXLitModule(net=net)
 
-
     from pocusnet.models.components.patches import ConvMixer
     image_shape = [1, 160, 320, 32]
     patches = ConvMixer(
-            hidden_dim=124, 
-            depth=2, 
+            hidden_dim=124,
+            depth=2,
             img_size=image_shape,
             n_classes=3,
             new_t_dim=True,

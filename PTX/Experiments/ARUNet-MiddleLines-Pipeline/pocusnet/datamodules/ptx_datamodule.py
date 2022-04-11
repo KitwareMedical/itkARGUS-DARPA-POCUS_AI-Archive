@@ -72,7 +72,7 @@ class PTXDataModule(LightningDataModule):
                     b_min=0.0, b_max=1.0,
                     keys=["image"]),
                 Lambdad(
-                    func=lambda x: np.where(x==3,1,x),
+                    func=lambda x: np.where(x == 3, 1, x),
                     keys=['label']),
                 ARGUS_RandSpatialCropSlicesd(
                     num_slices=num_slices,
@@ -98,7 +98,7 @@ class PTXDataModule(LightningDataModule):
                 LoadImaged(keys=["image", "label"]),
                 AddChanneld(keys=["image", "label"]),
                 Lambdad(
-                    func=lambda x: np.where(x==3,1,x),
+                    func=lambda x: np.where(x == 3, 1, x),
                     keys=['label']),
                 ScaleIntensityRanged(
                     a_min=0, a_max=255,
@@ -175,7 +175,7 @@ class PTXDataModule(LightningDataModule):
             train_subjects,
             transform=self.transform['train'],
             num_workers=self.hparams.num_workers)
-            
+
         log.info(f'Loading Validation Dataset {len(val_subjects)}/{len(self.subjects)}')
         self.val_set = CacheDataset(
             val_subjects,

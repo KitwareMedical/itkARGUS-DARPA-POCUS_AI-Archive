@@ -1,9 +1,7 @@
-from asyncio import new_event_loop
-from typing import Any, Dict
-
 import torch
 from torch import nn
 from monai.networks.blocks import Convolution, Upsample
+
 
 class Residual(nn.Module):
     def __init__(self, fn):
@@ -13,25 +11,26 @@ class Residual(nn.Module):
     def forward(self, x):
         return self.fn(x) + x
 
+
 class ConvMixer(nn.Module):
     def __init__(
         self,
-        hidden_dim: int, 
-        depth: int, 
-        img_size: int, 
-        kernel_size=9, 
-        patch_size=7, 
-        n_classes=1000,
-        norm=False,
-        classification=False,
-        segmentation=True,
-        upsample_mode='deconv', # 'deconv' or 'pixelshuffle',
-        new_t_dim=False, # Switch Temporal dims for channels - only valid if single channel (grayscale) video
-        t_channel_last=False, # if shifting temporal to last dim before final inter.  Only valid if `new_t_dim = True' 
-        verbose=True,
-    )->None:
+        hidden_dim: int,
+        depth: int,
+        img_size: int,
+        kernel_size: int = 9,
+        patch_size: int = 7,
+        n_classes: int = 1000,
+        norm: bool = False,
+        classification: bool = False,
+        segmentation: bool = True,
+        upsample_mode: str = 'deconv', # 'deconv' or 'pixelshuffle',
+        new_t_dim: bool = False, # Switch Temporal dims for channels - only valid if single channel (grayscale) video
+        t_channel_last: bool = False, # if shifting temporal to last dim before final inter.  Only valid if `new_t_dim = True'
+        verbose: bool = True,
+    ) -> None:
         super().__init__()
-        
+
         self.norm = norm
         self.classification = classification
         self.segmentation = segmentation
@@ -40,9 +39,9 @@ class ConvMixer(nn.Module):
         self.verbose = verbose
 
         if self.new_t_dim:
-            dimensions = len(img_size)-2
-        else: 
-            dimensions = len(img_size)-1
+            dimensions = len(img_size) - 2
+        else:
+            dimensions = len(img_size) - 1
 
         if self.verbose:
             print(f'Patches Dimension: {dimensions}')
@@ -50,10 +49,10 @@ class ConvMixer(nn.Module):
         if self.new_t_dim:
             self.patch_embedding  = Convolution(
                 dimensions=dimensions,
-                in_channels=img_size[3], 
-                out_channels=hidden_dim, 
-                kernel_size=(patch_size,patch_size), 
-                strides=(patch_size,patch_size),
+                in_channels=img_size[3],
+                out_channels=hidden_dim,
+                kernel_size=(patch_size, patch_size),
+                strides=(patch_size, patch_size),
                 act='GELU',
                 norm='BATCH',
                 padding='valid'
@@ -61,10 +60,10 @@ class ConvMixer(nn.Module):
         else:
             self.patch_embedding  = Convolution(
                 dimensions=dimensions,
-                in_channels=img_size[0], 
-                out_channels=hidden_dim, 
-                kernel_size=(patch_size,patch_size,1), 
-                strides=(patch_size,patch_size,1),
+                in_channels=img_size[0],
+                out_channels=hidden_dim,
+                kernel_size=(patch_size, patch_size, 1),
+                strides=(patch_size, patch_size, 1),
                 act='GELU',
                 norm='BATCH',
                 padding='valid'
@@ -75,9 +74,9 @@ class ConvMixer(nn.Module):
                 depthwise = Residual(
                                 Convolution(
                                     dimensions=dimensions,
-                                    in_channels=hidden_dim, 
-                                    out_channels=hidden_dim, 
-                                    kernel_size=kernel_size, 
+                                    in_channels=hidden_dim,
+                                    out_channels=hidden_dim,
+                                    kernel_size=kernel_size,
                                     strides=1,
                                     groups=hidden_dim,
                                     act='GELU',
@@ -86,15 +85,15 @@ class ConvMixer(nn.Module):
                                     conv_only=True
                                 )
                             )
-            else: 
+            else:
                 depthwise = Residual(
                     nn.Sequential(
                         Convolution(
                             dimensions=dimensions,
-                            in_channels=hidden_dim, 
-                            out_channels=hidden_dim, 
-                            kernel_size=(kernel_size,kernel_size,1), 
-                            strides=(1,1,1),
+                            in_channels=hidden_dim,
+                            out_channels=hidden_dim,
+                            kernel_size=(kernel_size, kernel_size, 1),
+                            strides=(1, 1, 1),
                             groups=hidden_dim,
                             act='GELU',
                             norm='BATCH',
@@ -103,10 +102,10 @@ class ConvMixer(nn.Module):
                         ),
                         Convolution(
                             dimensions=dimensions,
-                            in_channels=hidden_dim, 
-                            out_channels=hidden_dim, 
-                            kernel_size=(1,1,kernel_size), 
-                            strides=(1,1,1),
+                            in_channels=hidden_dim,
+                            out_channels=hidden_dim,
+                            kernel_size=(1, 1, kernel_size),
+                            strides=(1, 1, 1),
                             act='GELU',
                             norm='BATCH',
                             padding='same',
@@ -115,22 +114,21 @@ class ConvMixer(nn.Module):
                 )
             pointwise = Convolution(
                     dimensions=dimensions,
-                    in_channels=hidden_dim, 
-                    out_channels=hidden_dim, 
-                    kernel_size=1, 
+                    in_channels=hidden_dim,
+                    out_channels=hidden_dim,
+                    kernel_size=1,
                     strides=1,
                     act='GELU',
                     norm='BATCH',
                     padding='same'
-                )
-            
-            blocks.append(nn.Sequential(depthwise,pointwise))
-    
+                    )
+
+            blocks.append(nn.Sequential(depthwise, pointwise))
 
         self.blocks = nn.ModuleList(blocks)
 
         if self.norm:
-            self.norm = nn.AdaptiveAvgPool2d((1,1))
+            self.norm = nn.AdaptiveAvgPool2d((1, 1))
         if self.classification:
             self.classification_head = nn.Linear(hidden_dim, n_classes)
         if self.segmentation:
@@ -139,26 +137,26 @@ class ConvMixer(nn.Module):
             # If need to create a new Temporal dimension
             if self.new_t_dim:
                 # Interpolate last t channel (since nothing there before)
-                if self.t_channel_last: 
+                if self.t_channel_last:
                     up_layer = Upsample(
-                        spatial_dims=dimensions+1,
+                        spatial_dims=dimensions + 1,
                         in_channels=1,
                         out_channels=n_classes,
-                        scale_factor=[patch_size,patch_size, 1],
+                        scale_factor=[patch_size, patch_size, 1],
                         mode=upsample_mode,
                         pre_conv=None
                     )
-                else: 
+                else:
                     up_layer = Upsample(
-                        spatial_dims=dimensions+1,
+                        spatial_dims=dimensions + 1,
                         in_channels=hidden_dim,
                         out_channels=n_classes,
-                        scale_factor=[patch_size,patch_size, img_size[0]],
+                        scale_factor=[patch_size, patch_size, img_size[0]],
                         mode=upsample_mode,
                         pre_conv=None
                     )
                 interp_layer = Upsample(
-                    spatial_dims=dimensions+1,
+                    spatial_dims=dimensions + 1,
                     in_channels=n_classes,
                     out_channels=n_classes,
                     size=img_size[1:],
@@ -171,7 +169,7 @@ class ConvMixer(nn.Module):
                     spatial_dims=dimensions,
                     in_channels=hidden_dim,
                     out_channels=n_classes,
-                    scale_factor=[patch_size,patch_size,1],
+                    scale_factor=[patch_size, patch_size, 1],
                     mode=upsample_mode,
                     pre_conv=None
                 )
@@ -185,14 +183,12 @@ class ConvMixer(nn.Module):
                 )
 
             self.segmentation_head = nn.Sequential(up_layer, interp_layer)
-            
-
 
     def forward(self, x):
         if self.verbose:
             print(f'Initial Shape {x.shape}')
         if self.new_t_dim:
-            x = torch.transpose(torch.squeeze(x),1,3)
+            x = torch.transpose(torch.squeeze(x), 1, 3)
             if self.verbose:
                 print(f'Squeezed Shape {x.shape}')
         x = self.patch_embedding(x)
@@ -211,10 +207,10 @@ class ConvMixer(nn.Module):
         if self.segmentation:
             if self.new_t_dim:
                 if self.t_channel_last:
-                    x = torch.unsqueeze(torch.transpose(x,1,3),1)
+                    x = torch.unsqueeze(torch.transpose(x, 1, 3), 1)
                 else:
-                    x = torch.unsqueeze(x,-1)
-            if self.verbose: 
+                    x = torch.unsqueeze(x, -1)
+            if self.verbose:
                 print(f'Shape before segmentations: {x.shape}')
 
             x = self.segmentation_head(x)
