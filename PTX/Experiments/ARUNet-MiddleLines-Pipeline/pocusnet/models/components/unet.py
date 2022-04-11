@@ -1,6 +1,5 @@
 from typing import Any, Dict
 
-from torch import nn
 from monai.networks.nets import UNet as MONAI_UNet
 
 
@@ -11,6 +10,6 @@ class UNet(MONAI_UNet):
     """
     def __init__(
         self,
-        **kwargs: Dict[str,Any]
+        **kwargs: Dict[str, Any]
     ):
         super().__init__(**kwargs)
