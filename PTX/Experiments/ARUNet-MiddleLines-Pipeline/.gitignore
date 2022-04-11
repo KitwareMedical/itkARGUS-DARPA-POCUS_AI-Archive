@@ -1,2 +1,12 @@
 *.egg-info
 .hypothesis
+
+data/
+logs/
+wandb/
+.env
+.autoenv
+dummy_name.png
+cufile.log
+
+.vscode

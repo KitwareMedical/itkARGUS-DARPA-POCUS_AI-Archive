@@ -12,11 +12,5 @@ ENV/
 env.bak/
 venv.bak/
 
-
-PTX/Experiments/ARUNet-MiddleLines-Pipeline/data/
-PTX/Experiments/ARUNet-MiddleLines-Pipeline/logs/
-PTX/Experiments/ARUNet-MiddleLines-Pipeline/wandb/
-PTX/Experiments/ARUNet-MiddleLines-Pipeline/.env
-PTX/Experiments/ARUNet-MiddleLines-Pipeline/.autoenv
-PTX/Experiments/ARUNet-MiddleLines-Pipeline/dummy_name.png
+.vscode
 cufile.log

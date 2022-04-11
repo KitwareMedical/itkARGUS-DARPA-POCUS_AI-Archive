@@ -70,10 +70,9 @@ class PTXDataModule(LightningDataModule):
                     a_min=0, a_max=255,
                     b_min=0.0, b_max=1.0,
                     keys=["image"]),
-                SpatialCropd(
-                    roi_start=[80, 0, 1],
-                    roi_end=[240, 320, 61],
-                    keys=["image", "label"]),
+                Lambdad(
+                    func=lambda x: np.where(x==3,1,x),
+                    keys=['label']),
                 ARGUS_RandSpatialCropSlicesd(
                     num_slices=num_slices,
                     axis=3,
@@ -97,14 +96,13 @@ class PTXDataModule(LightningDataModule):
             [
                 LoadImaged(keys=["image", "label"]),
                 AddChanneld(keys=["image", "label"]),
+                Lambdad(
+                    func=lambda x: np.where(x==3,1,x),
+                    keys=['label']),
                 ScaleIntensityRanged(
                     a_min=0, a_max=255,
                     b_min=0.0, b_max=1.0,
                     keys=["image"]),
-                SpatialCropd(
-                    roi_start=[80, 0, 1],
-                    roi_end=[240, 320, 61],
-                    keys=["image", "label"]),
                 ARGUS_RandSpatialCropSlicesd(
                     num_slices=num_slices,
                     axis=3,
