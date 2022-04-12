@@ -1,0 +1,9 @@
+_target_: pocusnet.datamodules.ptx_datamodule.PTXDataModule
+
+data_dir: ${data_dir} # data_dir is specified in config.yaml
+batch_size: 64
+data_seed: 1
+train_val_ratio: 0.8
+num_workers: 0
+pin_memory: False
+num_classes: 3
