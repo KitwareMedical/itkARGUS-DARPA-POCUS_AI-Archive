@@ -25,7 +25,7 @@ PAUSE
 
 for %%f in (.\images_to_be_annotated\*) do (
 	echo Now annotating %%f
-	.\ImageViewer\ImageViewer.exe -s 0 --fixedSliceDelta 3 --preserveOverlayPaint -w p,HiConfArtery,10,1,p,LoConfArtery,10,2,p,HiConfNeedle,5,3,p,LoConfNeedle,5,4 -b 0.5 -S ".\annotations\%%~nf" "%%f"
+	.\ImageViewer.windows-2019\ImageViewer.exe -s 0 --fixedSliceDelta 1 --preserveOverlayPaint -W p2,Artery,20,1,p2,Needle,7,2 -b 0.5 -S ".\annotations\%%~nf" "%%f"
 	echo Saving overlays with prefix .\annotations\%%~nf
 	move "%%f" ".\already_annotated_images\%%~nf%%~xf"
 	echo.
