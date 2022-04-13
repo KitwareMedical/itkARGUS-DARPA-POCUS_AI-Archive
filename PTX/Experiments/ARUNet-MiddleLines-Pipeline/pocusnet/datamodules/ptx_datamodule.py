@@ -12,7 +12,6 @@ from monai.transforms import (AddChanneld, Compose,
                               RandZoomd,
                               ScaleIntensityRanged, Lambdad,
                               ToTensord)
-from monai.utils import first
 from pytorch_lightning import LightningDataModule
 from torch.utils.data import DataLoader, Dataset, random_split
 
@@ -42,7 +41,8 @@ class PTXDataModule(LightningDataModule):
         batch_size: int = 64,
         num_workers: int = 0,
         pin_memory: bool = False,
-        num_classes: int = 3
+        num_classes: int = 3,
+        num_slices: int = 48
     ):
         super().__init__()
 
@@ -62,7 +62,6 @@ class PTXDataModule(LightningDataModule):
         return self.hparams.num_classes
 
     def get_transforms(self):
-        num_slices = 32
         train_transforms = Compose(
             [
                 LoadImaged(keys=["image", "label"]),
@@ -75,7 +74,7 @@ class PTXDataModule(LightningDataModule):
                     func=lambda x: np.where(x == 3, 1, x),
                     keys=['label']),
                 ARGUS_RandSpatialCropSlicesd(
-                    num_slices=num_slices,
+                    num_slices=self.hparams.num_slices,
                     axis=3,
                     keys=['image', 'label']),
                 RandFlipd(prob=0.5,
@@ -97,15 +96,15 @@ class PTXDataModule(LightningDataModule):
             [
                 LoadImaged(keys=["image", "label"]),
                 AddChanneld(keys=["image", "label"]),
-                Lambdad(
-                    func=lambda x: np.where(x == 3, 1, x),
-                    keys=['label']),
                 ScaleIntensityRanged(
                     a_min=0, a_max=255,
                     b_min=0.0, b_max=1.0,
                     keys=["image"]),
+                Lambdad(
+                    func=lambda x: np.where(x == 3, 1, x),
+                    keys=['label']),
                 ARGUS_RandSpatialCropSlicesd(
-                    num_slices=num_slices,
+                    num_slices=self.hparams.num_slices,
                     axis=3,
                     center_slice=30,
                     keys=['image', 'label']),
@@ -124,7 +123,7 @@ class PTXDataModule(LightningDataModule):
             glob(
                 os.path.join(
                     self.hparams.data_dir,
-                    '*.extruded-overlay-NS.nii.gz')))
+                    '*.interpolated-overlay.nii.gz')))
         return all_images, all_labels
 
     def prepare_data(self):
@@ -214,11 +213,16 @@ def demo():
     import matplotlib.pyplot as plt
     import pocusnet.datamodules.ptx_datamodule as ptx_d
     d = ptx_d.PTXDataModule(
-        data_dir="/data/krsdata2-pocus-ai-synced/root/Data_PTX/VFoldData/BAMC-PTX*Sliding-Annotations-Linear/")
+        data_dir="/data/krsdata2-pocus-ai-synced/root/Data_PTX/Final15/BAMC-PTX*Sliding-Annotations-Linear/")
     d.prepare_data()
     d.setup()
     train_dataloader = d.train_dataloader()
+
+    from monai.utils import first
     check_data = first(train_dataloader)
+
+    val_dataloader = d.val_dataloader()
+    check_data = first(val_dataloader)
     imgnum = 1
     image, label = (check_data["image"][imgnum][0],
                     check_data["label"][imgnum][0])

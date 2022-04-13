@@ -25,7 +25,7 @@ trainer:
   max_epochs: 1000
 
 datamodule:
-  batch_size: 16
+  batch_size: 8
 
 model:
   net: 

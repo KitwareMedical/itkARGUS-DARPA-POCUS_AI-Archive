@@ -178,6 +178,11 @@ class PTXLitModule(LightningModule):
             params=self.parameters(), lr=self.hparams.lr, weight_decay=self.hparams.weight_decay
         )
 
+    def save_net_for_production(self, file: str):
+        """ Save actual network of just weights and only relying on Pytorch and MONAI for production
+        """
+        torch.save(self.net.state_dict(), file)
+
 
 def _demo():
     # import matplotlib.pyplot as plt
@@ -198,7 +203,7 @@ def _demo():
     ptx_model = ptx_m.PTXLitModule(net=net)
 
     from pocusnet.models.components.patches import ConvMixer
-    image_shape = [1, 160, 320, 32]
+    image_shape = [1, 320, 320, 48]
     patches = ConvMixer(
             hidden_dim=124,
             depth=2,
@@ -231,13 +236,17 @@ def _demo():
     loss, preds, targets = ptx_model.step(check_data)
     print(f'pred shape: {preds.shape} vs label shape {targets.shape}')
 
-    # Check
+    # Check training and testing steps
     loss, preds, targets = ptx_model.training_step(
         batch=check_data, batch_idx=1)
     loss, preds, targets = ptx_model.validation_step(
         batch=check_data, batch_idx=1)
     ptx_model.validation_epoch_end([])
     loss, preds, targets = ptx_model.test_step(batch=check_data, batch_idx=1)
+
+    # Test saving for production
+    ptx_model.save_net_for_production('test.pt')
+    patches.load_state_dict(torch.load('test.pt'))
 
 
 if __name__ == "__main__":

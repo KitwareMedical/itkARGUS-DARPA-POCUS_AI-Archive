@@ -3,9 +3,9 @@ hidden_dim: 124
 depth: 20
 img_size: 
 - 1
-- 160
 - 320
-- 32
+- 320
+- ${datamodule.num_slices}
 kernel_size: 9 
 patch_size: 7 
 n_classes: ${datamodule.num_classes}

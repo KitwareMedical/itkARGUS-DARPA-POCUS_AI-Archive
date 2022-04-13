@@ -7,3 +7,4 @@ train_val_ratio: 0.8
 num_workers: 0
 pin_memory: False
 num_classes: 3
+num_slices: 48
