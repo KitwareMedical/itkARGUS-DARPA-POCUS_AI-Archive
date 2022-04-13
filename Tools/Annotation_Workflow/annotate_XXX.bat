@@ -14,17 +14,20 @@ ECHO This CMD is automating a workflow for annotating images with ImageViewer.
 ECHO Close this window to stop working on annotations. Your progress will be saved.
 ECHO Input images are located in "images_to_be_annotated".
 ECHO Output overlays and annotated images will be moved to "already_annotated_images_and_overlays".
-ECHO Use { and } to change paint color. Use [ and ] to change paint radius.
-ECHO Your current paint color and radius are in the bottom right corner. Color 0 erases.
+ECHO Use [ and ] to change paint radius.
+ECHO Hold SHIFT to erase paint.
+ECHO Press "." to advance the slice, and "," to go back a slice.
+ECHO Press SPACEBAR to advance to the next workflow.
+ECHO The workflow order: High Confidence Artery, Low Confidence Artery, High Confidence Needle, Low Confidence Needle.
 ECHO.  
 
 PAUSE
 
 for %%f in (.\images_to_be_annotated\*) do (
 	echo Now annotating %%f
-	.\ImageViewer\ImageViewer.exe -M Paint -S .\already_annotated_images_and_overlays\%%~nf_overlay.mha %%f
-	echo Saving overlay as .\already_annotated_images_and_overlays\%%~nf_overlay.mha
-	move %%f .\already_annotated_images_and_overlays\%%~nf%%~xf
+	.\ImageViewer.windows-2019\ImageViewer.exe -s 0 --fixedSliceDelta 1 --preserveOverlayPaint -W p2,Artery,20,1,p2,Needle,7,2 -b 0.5 -S ".\annotations\%%~nf" "%%f"
+	echo Saving overlays with prefix .\annotations\%%~nf
+	move "%%f" ".\already_annotated_images\%%~nf%%~xf"
 	echo.
 	echo ---------------------------------------------
 	echo.
