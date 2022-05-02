@@ -221,9 +221,6 @@ def main():
                 a_min=0, a_max=255,
                 b_min=0.0, b_max=1.0,
                 keys=["image"]),
-            # Lambdad(
-            #     func=lambda x: np.where(x==3,1,x),
-            #     keys=['label']),
             ARGUS_RandSpatialCropSlicesd(
                 num_slices=num_slices,
                 axis=3,
@@ -237,9 +234,6 @@ def main():
             RandFlipd(prob=0.5, 
                 spatial_axis=0,
                 keys=['image', 'label']),
-            # RandFlipd(prob=0.5, 
-            #     spatial_axis=1,
-            #     keys=['image', 'label']),
             RandFlipd(prob=0.5, 
                 spatial_axis=2,
                 keys=['image', 'label']),
@@ -260,9 +254,6 @@ def main():
                 a_min=0, a_max=255,
                 b_min=0.0, b_max=1.0,
                 keys=["image"]),
-            # Lambdad(
-            #     func=lambda x: np.where(x==3,1,x),
-            #     keys=['label']),
             ARGUS_RandSpatialCropSlicesd(
                 num_slices=num_slices,
                 center_slice=30,
@@ -279,15 +270,6 @@ def main():
     )
 
     device = torch.device("cuda:"+str(device_num))
-    # train_ds = [CacheDataset(data=train_files[i], transform=train_transforms,cache_rate=1.0, num_workers=num_workers_tr)
-    #             for i in range(num_folds)]
-    # train_loader = [DataLoader(train_ds[i], batch_size=batch_size_tr, shuffle=True, num_workers=num_workers_tr) 
-    #                 for i in range(num_folds)]
-
-    # val_ds = [CacheDataset(data=val_files[i], transform=val_transforms, cache_rate=1.0, num_workers=num_workers_vl)
-    #         for i in range(num_folds)]
-    # val_loader = [DataLoader(val_ds[i], batch_size=batch_size_vl, num_workers=num_workers_vl)
-    #             for i in range(num_folds)]
 
     for i in range(0,num_folds,num_devices):
         train_ds = CacheDataset(data=train_files[i], transform=train_transforms,cache_rate=1.0, num_workers=num_workers_tr)
