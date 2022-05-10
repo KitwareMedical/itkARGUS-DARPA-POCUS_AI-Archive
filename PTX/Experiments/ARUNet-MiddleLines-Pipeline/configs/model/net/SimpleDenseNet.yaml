@@ -1,0 +1,6 @@
+_target_: pocusnet.models.components.simple_dense_net.SimpleDenseNet
+input_size: 784
+lin1_size: 256
+lin2_size: 256
+lin3_size: 256
+num_classes: ${datamodule.num_classes}

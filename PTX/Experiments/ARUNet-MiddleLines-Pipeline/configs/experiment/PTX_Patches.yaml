@@ -1,0 +1,28 @@
+# @package _global_
+
+# to execute this experiment run:
+# python train.py experiment=example
+
+defaults:
+  - override /datamodule: ptx.yaml
+  - override /model: ptx.yaml
+  - override /model/net: Patches.yaml
+  - override /callbacks: default.yaml
+  - override /logger: null
+  - override /trainer: default.yaml
+
+# all parameters below will be merged with parameters from default configurations set above
+# this allows you to overwrite only specified parameters
+
+# name of the run determines folder name in logs
+name: "PTX_Patches"
+
+seed: 12345
+
+trainer:
+  gpus: 1
+  min_epochs: 10
+  max_epochs: 1000
+
+datamodule:
+  batch_size: 50

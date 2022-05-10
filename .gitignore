@@ -2,4 +2,8 @@ Data
 Data_Net
 .ipynb_checkpoints
 __pycache__
+<<<<<<< HEAD
 Archive
+=======
+.vscode
+>>>>>>> c379c782d1eb1edeeeda7fcc236f2ea19cfce613
