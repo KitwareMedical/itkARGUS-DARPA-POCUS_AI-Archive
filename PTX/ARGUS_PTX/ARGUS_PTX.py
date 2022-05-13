@@ -3,7 +3,7 @@
 
 import sys
 
-from ARGUS_LinearAR import *
+from ARGUS_PTX_LinearAR import *
 
 if __name__ == "__main__":
     if len(sys.argv) == 1:
@@ -14,6 +14,6 @@ if __name__ == "__main__":
         filename = sys.argv[1]
         print(filename)
 
-argus = ARGUS_LinearAR()
+argus = ARGUS_PTX_LinearAR()
 result = argus.predict(filename)
 print(result["decision"])

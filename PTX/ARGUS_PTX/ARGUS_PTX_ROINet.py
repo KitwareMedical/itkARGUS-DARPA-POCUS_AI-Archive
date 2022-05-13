@@ -10,10 +10,10 @@ from monai.transforms import ( ScaleIntensityRange, ToTensor )
 from monai.networks.layers import Norm
 from monai.inferers import sliding_window_inference
 
-from ARGUSUtils_Transforms import *
+from ARGUS_Transforms import *
 
 
-def roinet_segment_roi(us_video_linear, arnet_output):
+def ARGUS_PTX_roinet_segment_roi(us_video_linear, arnet_output):
     roi_size_x = 160
 
     roi_min_x = 0
@@ -34,7 +34,7 @@ def roinet_segment_roi(us_video_linear, arnet_output):
     roi_array = roi_array.transpose([2,0,1])
     return roi_array
 
-def roinet_load_model(filename, device):
+def ARGUS_PTX_roinet_load_model(filename, device):
     num_classes = 3
 
     net_in_dims = 2
@@ -56,7 +56,7 @@ def roinet_load_model(filename, device):
 
     return model
 
-def roinet_preprocess_roi(roi_array, model_type):
+def ARGUS_PTX_roinet_preprocess_roi(roi_array, model_type):
     if( model_type == 0 ):
         num_slices = 32
         offset = (num_slices//2 + roi_array.shape[0]//2) // 2
@@ -93,7 +93,7 @@ def roinet_preprocess_roi(roi_array, model_type):
 
     return roi_input_tensor
 
-def roinet_inference(roinet_input_tensor, roinet_model, device, debug):
+def ARGUS_PTX_roinet_inference(roinet_input_tensor, roinet_model, device, debug):
     num_classes = 3
 
     class_not_sliding = 1
