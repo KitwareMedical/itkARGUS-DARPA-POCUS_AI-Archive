@@ -1,16 +1,6 @@
 import numpy as np
 from os import path
 
-#from scipy.stats import multivariate_normal
-#from scipy.stats import mode
-
-#import skimage
-#from skimage import measure
-
-#import sys
-
-#import math
-
 import itk
 itkResampleImageUsingMapFilter = itk.itkARGUS.ResampleImageUsingMapFilter
 
@@ -18,7 +8,7 @@ itkResampleImageUsingMapFilter = itk.itkARGUS.ResampleImageUsingMapFilter
 # Estimate Zoom and Depth
 ####
 
-def get_ruler_points_C52(im):
+def ARGUS_PTX_get_ruler_points_C52(im):
     """ Find points along ruler on left side of image """
     y_min = 80
     y_max = 1080
@@ -28,8 +18,8 @@ def get_ruler_points_C52(im):
     y = np.flatnonzero(mid)+80
     return y
 
-def get_depth_and_zoom_C52(im):
-    y = get_ruler_points_C52(im)
+def ARGUS_PTX_get_depth_and_zoom_C52(im):
+    y = ARGUS_PTX_get_ruler_points_C52(im)
 
     im_shape = im.shape
 
@@ -80,8 +70,8 @@ def get_depth_and_zoom_C52(im):
         
     return tic_depth,tic_scale,tic_offsetX,tic_offsetY #,tic_num,tic_min,tic_max,tic_diff
 
-def linearize_video( vid ):
-    depth,zoom,offsetX,offsetY = get_depth_and_zoom_C52(vid[0])
+def ARGUS_PTX_linearize_video( vid ):
+    depth,zoom,offsetX,offsetY = ARGUS_PTX_get_depth_and_zoom_C52(vid[0])
     filename = path.join(path.dirname(__file__), 'linear_maps', f'linear_map_depth{str(depth)}.npy')
     mapping = np.load(filename)
 
@@ -126,7 +116,7 @@ def linearize_video( vid ):
     return vid_linear
 
 
-def linearize_image(img,depth,zoom,offsetY,interpolate=True):
+def ARGUS_PTX_linearize_image(img,depth,zoom,offsetY,interpolate=True):
     filename = path.join(path.dirname(__file__), 'linear_maps', f'linear_map_depth{str(depth)}.npy')
     mapping = np.load(filename)
 

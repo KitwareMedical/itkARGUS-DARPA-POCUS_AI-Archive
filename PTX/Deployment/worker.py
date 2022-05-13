@@ -21,10 +21,15 @@ def is_bundled():
 def get_ARGUS_dir():
     if is_bundled():
         return path.join(sys._MEIPASS, 'ARGUS')
-    return path.join('..', 'ARGUS')
+    return path.join('../..', 'ARGUS')
+
+def get_ARGUS_PTX_dir():
+    if is_bundled():
+        return path.join(sys._MEIPASS, 'ARGUS_PTX')
+    return path.join('..', 'ARGUS_PTX')
 
 def get_model_dir():
-    return path.join(get_ARGUS_dir(), 'Models')
+    return path.join(get_ARGUS_PTX_dir(), 'Models')
 
 def preload_itk_argus():
     # avoids "ITK not compiled with TBB" errors
@@ -36,13 +41,14 @@ preload_itk_argus()
 
 # load argus stuff after ITK
 sys.path.append(get_ARGUS_dir())
-from ARGUS_LinearAR import *
+sys.path.append(get_ARGUS_PTX_dir())
+from ARGUS_PTX_LinearAR import *
 
 class ArgusWorker:
     def __init__(self, sock, log):
         self.sock = sock
         self.log = log
-        self.linearAR = ARGUS_LinearAR(model_dir=get_model_dir(), device_name='cpu')
+        self.linearAR = ARGUS_PTX_LinearAR(model_dir=get_model_dir(), device_name='cpu')
 
     def run(self):
         stats = Stats()

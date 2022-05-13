@@ -3,13 +3,13 @@ import numpy as np
 import ffmpeg
 import av
 
-def shape_video(filename):
+def ARGUS_shape_video(filename):
     p = ffmpeg.probe(filename, select_streams='v');
     width = p['streams'][0]['width']
     height = p['streams'][0]['height']
     return height, width
 
-def load_video(filename):
+def ARGUS_load_video(filename):
     container = None
     try:
         container = av.open(filename)

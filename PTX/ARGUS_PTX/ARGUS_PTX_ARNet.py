@@ -10,10 +10,10 @@ from monai.transforms import ( ScaleIntensityRange, ToTensor )
 from monai.networks.layers import Norm
 from monai.inferers import sliding_window_inference
 
-from ARGUSUtils_Transforms import *
+from ARGUS_Transforms import *
 
 
-def arnet_load_model(filename, device):
+def ARGUS_PTX_arnet_load_model(filename, device):
     num_classes = 3
 
     net_in_dims = 3
@@ -35,7 +35,7 @@ def arnet_load_model(filename, device):
 
     return model
 
-def arnet_preprocess_video(input_array):
+def ARGUS_PTX_arnet_preprocess_video(input_array):
     num_slices = 48
 
     arnet_input_array = np.empty([1, 1,
@@ -58,7 +58,7 @@ def arnet_preprocess_video(input_array):
 
     return arnet_input_tensor
 
-def arnet_inference(arnet_input_tensor, arnet_model, device):
+def ARGUS_PTX_arnet_inference(arnet_input_tensor, arnet_model, device):
     num_classes = 3
 
     num_slices = 48
