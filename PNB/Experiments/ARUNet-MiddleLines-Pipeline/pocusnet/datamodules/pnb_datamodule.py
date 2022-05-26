@@ -7,9 +7,9 @@ import torch
 
 from pocusnet.vendor.argus_transforms import ARGUS_RandSpatialCropSlicesd
 from monai.data import CacheDataset, DataLoader, Dataset
-from monai.transforms import (AddChanneld, Compose,
+from monai.transforms import (AddChanneld, AsChannelFirstd, Compose,
                               LoadImaged, RandFlipd,
-                              RandZoomd,
+                              RandZoomd, Resized,
                               ScaleIntensityRanged, Lambdad,
                               ToTensord, RandSpatialCropd)
 from pytorch_lightning import LightningDataModule
@@ -20,22 +20,22 @@ from pocusnet import utils
 log = utils.get_logger(__name__)
 
 
-class PTXDataModule(LightningDataModule):
-    """Example of LightningDataModule for PTX data.
+class PNBDataModule(LightningDataModule):
+    """Example of LightningDataModule for PNB data.
 
     For more information, read the docs:
         https://pytorch-lightning.readthedocs.io/en/latest/extensions/datamodules.html
 
     To test:
-        >>> import pocusnet.datamodules.ptx_datamodule as ptx_d
-        >>> d = ptx_d.PTXDataModule(data_dir="/data/krsdata2-pocus-ai-synced/root/Data_PTX/VFoldData/BAMC-PTX*Sliding-Annotations-Linear/")
+        >>> import pocusnet.datamodules.pnb_datamodule as pnb_d
+        >>> d = pnb_d.PNBDataModule(data_dir="/data/krsdata2-pocus-ai-synced/root/Data_PNB/Annotations/annptations_yuri/")
         >>> d.prepare_data()
         >>> d.setup()
     """
 
     def __init__(
         self,
-        data_dir: str = "data/PTX",
+        data_dir: str = "data/PNB",
         train_val_ratio: float = 0.8,
         data_seed: int = 1,
         batch_size: int = 64,
@@ -67,59 +67,51 @@ class PTXDataModule(LightningDataModule):
         train_transforms = Compose(
             [
                 LoadImaged(keys=["image", "label"]),
-                AddChanneld(keys=["image", "label"]),
+                AsChannelFirstd(keys='image'),
+                AsChannelFirstd(keys='label'),
                 ScaleIntensityRanged(
                     a_min=0, a_max=255,
                     b_min=0.0, b_max=1.0,
                     keys=["image"]),
-                # Lambdad(
-                #     func=lambda x: np.where(x == 3, 1, x),
-                #     keys=['label']),
                 ARGUS_RandSpatialCropSlicesd(
-                    num_slices=self.hparams.num_slices,
-                    axis=3,
-                    keys=['image', 'label']),
+                    num_slices=[self.hparams.num_slices,1],
+                    axis=0,
+                    reduce_to_statistics=[True,False],
+                    extended=False,
+                    keys=['image','label']),
+                Resized(
+                    spatial_size=(-1,640),
+                    mode=["bilinear","nearest"],
+                    keys=['image','label']
+                ),
                 RandSpatialCropd(
-                    roi_size=(self.hparams.size_x,self.hparams.size_y,-1),
+                    roi_size=(self.hparams.size_x,self.hparams.size_y),
                     random_center=True,
                     random_size=False,
                     keys=['image','label']
                 ),
-                RandFlipd(prob=0.5,
-                          spatial_axis=2,
-                          keys=['image', 'label']),
-                RandFlipd(prob=0.5,
-                          spatial_axis=0,
-                          keys=['image', 'label']),
-                RandZoomd(prob=0.5,
-                          min_zoom=1.0,
-                          max_zoom=1.2,
-                          keep_size=True,
-                          mode=['trilinear', 'nearest'],
-                          keys=['image', 'label']),
                 ToTensord(keys=["image", "label"]),
             ]
         )
         val_transforms = Compose(
             [
                 LoadImaged(keys=["image", "label"]),
-                AddChanneld(keys=["image", "label"]),
+                AsChannelFirstd(keys='image'),
+                AsChannelFirstd(keys='label'),
                 ScaleIntensityRanged(
                     a_min=0, a_max=255,
                     b_min=0.0, b_max=1.0,
                     keys=["image"]),
-                # Lambdad(
-                #     func=lambda x: np.where(x == 3, 1, x),
-                #     keys=['label']),
                 ARGUS_RandSpatialCropSlicesd(
-                    num_slices=self.hparams.num_slices,
-                    axis=3,
-                    center_slice=30,
-                    keys=['image', 'label']),
-                RandSpatialCropd(
-                    roi_size=(self.hparams.size_x,self.hparams.size_y,-1),
-                    random_center=True,
-                    random_size=False,
+                    num_slices=[self.hparams.num_slices,1],
+                    center_slice=self.hparams.num_slices/2,
+                    axis=0,
+                    reduce_to_statistics=[True,False],
+                    extended=False,
+                    keys=['image','label']),
+                Resized(
+                    spatial_size=(-1,640),
+                    mode=["bilinear","nearest"],
                     keys=['image','label']
                 ),
                 ToTensord(keys=["image", "label"]),
@@ -132,12 +124,12 @@ class PTXDataModule(LightningDataModule):
             glob(
                 os.path.join(
                     self.hparams.data_dir,
-                    '*_resized.nii.gz')))
+                    '*_cropM.nii.gz')))
         all_labels = sorted(
             glob(
                 os.path.join(
                     self.hparams.data_dir,
-                    '*.overlay.nii.gz')))
+                    '*.overlay.mha')))
         return all_images, all_labels
 
     def prepare_data(self):
@@ -225,9 +217,9 @@ class PTXDataModule(LightningDataModule):
 
 def demo():
     import matplotlib.pyplot as plt
-    import pocusnet.datamodules.ptx_datamodule as ptx_d
-    d = ptx_d.PTXDataModule(
-        data_dir="/data/barry.ravichandran/repos/AnatomicRecon-POCUS-AI/PNB/Data_PNB_resized/annotations_yuri/")
+    import pocusnet.datamodules.pnb_datamodule as pnb_d
+    d = pnb_d.PNBDataModule(
+        data_dir="/data/krsdata2-pocus-ai-synced/root/Data_PNB/Annotations/annotations_yuri/")
     d.prepare_data()
     d.setup()
     train_dataloader = d.train_dataloader()
@@ -238,21 +230,24 @@ def demo():
     val_dataloader = d.val_dataloader()
     check_data = first(val_dataloader)
     imgnum = 1
-    image, label = (check_data["image"][imgnum][0],
-                    check_data["label"][imgnum][0])
+    image, label = (check_data["image"][imgnum],
+                    check_data["label"][imgnum])
     print(check_data["image"].shape)
     print(image.shape)
     print(f"image shape: {image.shape}, label shape: {label.shape}")
     plt.figure("check", (12, 6))
-    plt.subplot(1, 2, 1)
-    plt.title("image")
-    plt.imshow(image[:, :, 2], cmap="gray")
-    plt.subplot(1, 2, 2)
+    plt.subplot(1, 4, 1)
+    plt.title("image mean")
+    plt.imshow(image[0, :, :])
+    plt.subplot(1, 4, 2)
+    plt.imshow(image[1, :, :])
+    plt.title("image std")
+    plt.subplot(1, 4, 3)
+    plt.imshow(label[0, :, :])
     plt.title("label")
-    plt.imshow(label[:, :, 2])
+    plt.show()
     plt.savefig("dummy_name.png")
     print(f'Label value min:{label.min()} and max {label.max()}')
-
 
 if __name__ == "__main__":
     demo()
