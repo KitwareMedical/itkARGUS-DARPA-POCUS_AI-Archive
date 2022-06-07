@@ -321,5 +321,5 @@ class ARGUS_RandSpatialCropSlicesd(RandomizableTransform, MapTransform, Invertib
 
         #     # Remove the applied transform
         #     self.pop_transform(d, key)
-            
+
         # return d

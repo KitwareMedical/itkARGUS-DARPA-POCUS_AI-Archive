@@ -77,7 +77,7 @@ class PNBDataModule(LightningDataModule):
                     extended=False,
                     keys=['image', 'label']),
                 Resized(
-                    spatial_size=(self.hparams.size_x, 640),
+                    spatial_size=(-1, 640),
                     mode=["bilinear", "nearest"],
                     keys=['image', 'label']
                 ),
@@ -107,7 +107,7 @@ class PNBDataModule(LightningDataModule):
                     extended=False,
                     keys=['image', 'label']),
                 Resized(
-                    spatial_size=(self.hparams.size_x, 640),
+                    spatial_size=(-1, 640),
                     mode=["bilinear", "nearest"],
                     keys=['image', 'label']
                 ),
