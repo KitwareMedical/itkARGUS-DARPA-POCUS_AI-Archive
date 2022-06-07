@@ -284,7 +284,7 @@ class ARGUS_RandSpatialCropSlicesd(RandomizableTransform, MapTransform, Invertib
         return d
 
     def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
-        raise NotADirectoryError()
+        raise NotImplementedError()
         # d = deepcopy(dict(data))
 
         # for key in self.key_iterator(d):
