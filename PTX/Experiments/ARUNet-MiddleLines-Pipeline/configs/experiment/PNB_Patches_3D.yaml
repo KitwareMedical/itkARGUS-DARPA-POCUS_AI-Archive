@@ -1,0 +1,41 @@
+# @package _global_
+
+# to execute this experiment run:
+# python train.py experiment=example
+
+defaults:
+  - override /datamodule: pnb.yaml
+  - override /model: pnb.yaml
+  - override /model/net: UNet_singlegpu.yaml
+  - override /callbacks: default.yaml
+  - override /logger: null
+  - override /trainer: default
+
+# all parameters below will be merged with parameters from default configurations set above
+# this allows you to overwrite only specified parameters
+
+# name of the run determines folder name in logs
+name: "PNB_UNet"
+
+data_dir: "/data/krsdata2-pocus-ai-synced/root/Data_PNB/Annotations/annotations_yuri/"
+seed: 12345
+
+trainer:
+  gpus: 1
+  min_epochs: 10
+  max_epochs: 1000
+
+datamodule:
+  batch_size: 8
+
+model:
+  net: 
+    channels:
+      - 16
+      - 32
+      - 16
+    strides: 
+      - 2
+      - 2
+    dimensions: 2
+    in_channels: 2

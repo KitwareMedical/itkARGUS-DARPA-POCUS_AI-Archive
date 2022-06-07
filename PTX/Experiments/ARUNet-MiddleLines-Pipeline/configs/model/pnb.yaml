@@ -1,0 +1,7 @@
+_target_: pocusnet.models.pnb_module.PNBLitModule
+lr: 0.001
+weight_decay: 0.0005
+num_classes: ${datamodule.num_classes}
+
+defaults:
+-  net: UNet_singlegpu
