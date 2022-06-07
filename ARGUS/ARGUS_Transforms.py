@@ -171,7 +171,6 @@ class ARGUS_RandSpatialCropSlices(RandomizableTransform, Transform):
                 r_max = r_min + 1
                 r_min,r_max,slices = make_slices(r_min,r_max,_start,_end)
                 outrandframe = arr[tuple(slices)]
-                outrandframe = outrandframe.reshape((1,outrandframe.shape[0],outrandframe.shape[1]))
                 img = np.concatenate([outrandframe,img])
             if self.include_mean_abs_diff:
                 outframediff = np.absolute(np.diff(arr,axis=self.axis))
