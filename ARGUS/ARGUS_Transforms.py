@@ -52,7 +52,7 @@ class ARGUS_RandSpatialCropSlices(RandomizableTransform, Transform):
         require_labeled: bool = False,
         reduce_to_statistics: bool = False,
         extended: bool = False,
-        include_random_slice: bool = False,
+        include_center_slice: bool = False,
         include_mean_abs_diff: bool = False
     ) -> None:
         RandomizableTransform.__init__(self, 1.0)
@@ -63,7 +63,7 @@ class ARGUS_RandSpatialCropSlices(RandomizableTransform, Transform):
         self.require_labeled = require_labeled
         self.reduce_to_statistics = reduce_to_statistics
         self.extended = extended
-        self.include_random_slice = include_random_slice
+        self.include_center_slice = include_center_slice
         self.include_mean_abs_diff = include_mean_abs_diff
         self._roi_start: Optional[Sequence[int]] = None
         self._roi_center_slice: int = -1
@@ -166,12 +166,12 @@ class ARGUS_RandSpatialCropSlices(RandomizableTransform, Transform):
                 img = np.stack([outmean, outstd, outstdMin, outstdMax])
             else:
                 img = np.stack([outmean, outstd])
-            if self.include_random_slice:
-                r_min = self.R.randint(0,self.num_slices - 1)
+            if self.include_center_slice:
+                r_min = self.num_slices // 2
                 r_max = r_min + 1
                 r_min,r_max,slices = make_slices(r_min,r_max,_start,_end)
-                outrandframe = arr[tuple(slices)]
-                img = np.concatenate([outrandframe,img])
+                outrawframe = arr[tuple(slices)]
+                img = np.concatenate([img,outrawframe])
             if self.include_mean_abs_diff:
                 outframediff = np.absolute(np.diff(arr,axis=self.axis))
                 outmeandiff = np.mean(outframediff,axis=self.axis)
@@ -199,7 +199,7 @@ class ARGUS_RandSpatialCropSlicesd(RandomizableTransform, MapTransform, Invertib
         require_labeled: bool = False,
         reduce_to_statistics: Union[Sequence[bool], bool] = False,
         extended: bool = False,
-        include_random_slice: bool = False,
+        include_center_slice: bool = False,
         include_mean_abs_diff: bool = False,
         allow_missing_keys: bool = False,
     ) -> None:
@@ -214,7 +214,7 @@ class ARGUS_RandSpatialCropSlicesd(RandomizableTransform, MapTransform, Invertib
             roi_end: voxel coordinates for end of the crop ROI, if a coordinate is out of image,
                 use the end coordinate of image.
             roi_slices: list of slices for each of the spatial dimensions.
-            include_random_slice: If enabled, a random raw frame from the chosen window of frames is concatenated with the Mean/Std statistics.
+            include_center_slice: If enabled, the raw center frame from the chosen window of frames is concatenated with the Mean/Std statistics.
             include_mean_abs_diff: If enabled, the mean absolute value of the difference between adjacent slices is concatenated with the Mean/Std statistics.
             allow_missing_keys: don't raise exception if key is missing.
         """
@@ -228,7 +228,7 @@ class ARGUS_RandSpatialCropSlicesd(RandomizableTransform, MapTransform, Invertib
         self.require_labeled = require_labeled
         self.reduce_to_statistics = ensure_tuple_rep(reduce_to_statistics, len(self.keys))
         self.extended = extended
-        self.include_random_slice = include_random_slice
+        self.include_center_slice = include_center_slice
         self.include_mean_abs_diff = include_mean_abs_diff
         self._roi_start: Optional[Sequence[int]] = None
         self._roi_center_slice: int = -1
@@ -269,7 +269,7 @@ class ARGUS_RandSpatialCropSlicesd(RandomizableTransform, MapTransform, Invertib
         d = dict(data)
 
         for key, num_slices, reduce_to_statistics in self.key_iterator(d, self.num_slices, self.reduce_to_statistics):
-            cropper = ARGUS_RandSpatialCropSlices(num_slices=num_slices, axis=self.axis, center_slice=self._roi_center_slice, reduce_to_statistics=reduce_to_statistics, boundary=self.boundary, extended=self.extended,include_random_slice=self.include_random_slice,include_mean_abs_diff=self.include_mean_abs_diff)
+            cropper = ARGUS_RandSpatialCropSlices(num_slices=num_slices, axis=self.axis, center_slice=self._roi_center_slice, reduce_to_statistics=reduce_to_statistics, boundary=self.boundary, extended=self.extended,include_center_slice=self.include_center_slice,include_mean_abs_diff=self.include_mean_abs_diff)
             orig_size = d[key].shape
             d[key] = cropper(d[key])
             self.push_transform(
