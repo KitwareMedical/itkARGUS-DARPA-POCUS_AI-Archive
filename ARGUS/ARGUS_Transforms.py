@@ -47,7 +47,7 @@ class ARGUS_RandSpatialCropSlices(RandomizableTransform, Transform):
         self,
         num_slices: int = 16,
         axis: int = -1,
-        center_slice: int = -1,
+        center_slice: int = 99999,
         boundary: int = -1,
         require_labeled: bool = False,
         reduce_to_statistics: bool = False,
@@ -66,14 +66,14 @@ class ARGUS_RandSpatialCropSlices(RandomizableTransform, Transform):
         self.include_center_slice = include_center_slice
         self.include_mean_abs_diff = include_mean_abs_diff
         self._roi_start: Optional[Sequence[int]] = None
-        self._roi_center_slice: int = -1
+        self._roi_center_slice: int = 99999
         self._roi_end: Optional[Sequence[int]] = None
         if self.boundary == -1:
             self.boundary = self.num_slices//2
 
     
     def randomize(self, data: NdarrayOrTensor) -> None:
-        if self.center_slice == -1:
+        if self.center_slice == 99999:
             buffer = 0
             # if even num_slices, add a buffer so last slice can be used
             if self.boundary*2 == self.num_slices:
@@ -122,6 +122,10 @@ class ARGUS_RandSpatialCropSlices(RandomizableTransform, Transform):
         _size = img.shape
         _start = np.zeros((len(_size)), dtype=np.int32)
         _end = _size
+
+        if self._roi_center_slice < 0:
+            self._roi_center_slice = img.shape[self.axis] + self._roi_center_slice
+        
         self._roi_start, self._roi_end, slices = make_slices(
                 self._roi_center_slice - self.boundary,
                 self._roi_center_slice - self.boundary + self.num_slices,
@@ -194,7 +198,7 @@ class ARGUS_RandSpatialCropSlicesd(RandomizableTransform, MapTransform, Invertib
         keys: KeysCollection,
         num_slices: Union[Sequence[int], int] = 16,
         axis: int = -1,
-        center_slice: int = -1,
+        center_slice: int = 99999,
         boundary: int = -1,
         require_labeled: bool = False,
         reduce_to_statistics: Union[Sequence[bool], bool] = False,
@@ -231,14 +235,14 @@ class ARGUS_RandSpatialCropSlicesd(RandomizableTransform, MapTransform, Invertib
         self.include_center_slice = include_center_slice
         self.include_mean_abs_diff = include_mean_abs_diff
         self._roi_start: Optional[Sequence[int]] = None
-        self._roi_center_slice: int = -1
+        self._roi_center_slice: int = 99999
         self._roi_end: Optional[Sequence[int]] = None
         if self.boundary == -1:
             self.boundary = max(self.num_slices)//2
 
     def randomize(self, data: NdarrayOrTensor) -> None:
         super().randomize(data)
-        if self.center_slice == -1:
+        if self.center_slice == 99999:
             buffer = 0
             # if even num_slices, add a buffer so last slice can be used
             if self.boundary*2 == max(self.num_slices):
