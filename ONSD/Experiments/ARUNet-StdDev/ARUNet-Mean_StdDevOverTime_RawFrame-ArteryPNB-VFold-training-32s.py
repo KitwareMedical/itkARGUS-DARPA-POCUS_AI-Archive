@@ -96,7 +96,7 @@ def main():
     size_y = 640
 
 
-    model_filename_base = "./results/BAMC_PNB-CLEANED_ARUNet-3D-Mean_StdDevOverTime_RawFrame-yuriArteryData-" + str(num_slice) + "s-VFold-Run" + str(run_id)
+    model_filename_base = "./results/BAMC_ONSD_ARUNet-Mean_StdDevOverTime_RawFrame-yuriNerveData-" + str(num_slice) + "s-VFold-Run" + str(run_id)
 
     if not os.path.exists(model_filename_base):
         os.makedirs(model_filename_base)
