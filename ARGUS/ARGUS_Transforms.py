@@ -95,13 +95,7 @@ class ARGUS_RandSpatialCropSlices(RandomizableTransform, Transform):
                     slice_roi[self.axis] = self._roi_center_slice
                     is_labeled = (data[tuple(slice_roi)]!=0).any()
                     if is_labeled:
-                        slice_roi[self.axis] -= self.boundary
-                        is_labeled = (data[tuple(slice_roi)]!=0).any()
-                        if is_labeled:
-                            slice_roi[self.axis] += self.num_slices-1
-                            is_labeled = (data[tuple(slice_roi)]!=0).any()
-                            if is_labeled:
-                                break
+                        break
         else:
             self._roi_center_slice = self.center_slice
 
@@ -136,16 +130,35 @@ class ARGUS_RandSpatialCropSlices(RandomizableTransform, Transform):
                 self._roi_center_slice - self.boundary,
                 self._roi_center_slice - self.boundary + self.num_slices,
                 _start, _end)
-        img = img[tuple(slices)]
+
+        arr = img[tuple(slices)]
 
         if self.reduce_to_statistics:
+            num_stats = 2
+            if self.extended:
+                num_stats += 2
+            if self.include_center_slice:
+                num_stats += 1
+            if self.include_mean_abs_diff:
+                num_stats += 1
+            if self.include_skewness:
+                num_stats += 1
+            if self.include_kurtosis:
+                num_stats += 1
+            if self.include_gradient:
+                num_stats += len(img.shape)
 
-            clip_step = img.shape[self.axis]/6
-            clip_size = img.shape[self.axis]/3
+            out_img_shape = list(img.shape)
+            if self.axis != 0:
+                out_img_shape[:self.axis] = out_img_shape[1:self.axis+1]
+            out_img_shape[0] = num_stats
+            out_img = np.empty(tuple(out_img_shape))
 
-            arr = img
-            outmean = np.mean(arr,axis=self.axis)
-            outstd = np.std(arr,axis=self.axis)
+            out_img_slice = 0
+            outmean = np.mean(arr,axis=self.axis,out=out_img[out_img_slice])
+            out_img_slice += 1
+            outstd = np.std(arr,axis=self.axis,out=out_img[out_img_slice])
+            out_img_slice += 1
 
             if self.extended:
                 _size = img.shape
@@ -170,34 +183,38 @@ class ARGUS_RandSpatialCropSlices(RandomizableTransform, Transform):
                 outstd2 = np.std(arr[tuple(slices)],axis=self.axis)
 
                 outstdMin = np.minimum(outstd0,outstd1)
-                outstdMin = np.minimum(outstdMin, outstd2)
+                np.minimum(outstdMin, outstd2, out=out_img[out_img_slice])
+                out_img_slice += 1
+
                 outstdMax = np.maximum(outstd0,outstd1)
-                outstdMax = np.maximum(outstdMax,outstd2)
-                img = np.stack([outmean, outstd, outstdMin, outstdMax])
-            else:
-                img = np.stack([outmean, outstd])
+                np.maximum(outstdMax, outstd2, out=out_img[out_img_slice])
+                out_img_slice += 1
+
             if self.include_center_slice:
                 r_min = self.num_slices // 2
                 r_max = r_min + 1
                 r_min,r_max,slices = make_slices(r_min,r_max,_start,_end)
-                rawframe = arr[tuple(slices)]
-                img = np.concatenate([img,rawframe])
+                out_img[out_img_slice] = arr[tuple(slices)]
+                out_img_slice += 1
             if self.include_mean_abs_diff:
                 framediff = np.absolute(np.diff(arr,axis=self.axis))
-                meandiff = np.mean(framediff,axis=self.axis,keepdims=True)
-                img = np.concatenate((img,meandiff),axis=self.axis)
+                np.mean(framediff,axis=self.axis,out=out_img[out_img_slice])
+                out_img_slice += 1
             if self.include_skewness:
-                skewness = sp.stats.skew(arr,axis=self.axis,keepdims=True)
-                img = np.concatenate((img,skewness),axis=self.axis)
+                out_img[out_img_slice] = sp.stats.skew(arr,axis=self.axis)
+                out_img_slice += 1
             if self.include_kurtosis:
-                kurtosis = sp.stats.kurtosis(arr,axis=self.axis,keepdims=True)
-                img = np.concatenate((img,kurtosis),axis=self.axis)
+                out_img[out_img_slice] = sp.stats.kurtosis(arr,axis=self.axis)
+                out_img_slice += 1
             if self.include_gradient:
                 gradlist = np.gradient(arr)
                 for d in range(len(gradlist)):
-                    grad = np.mean(gradlist[d],axis=self.axis,keepdims=True)
-                    img = np.concatenate((img,grad),axis=self.axis)
-        return img
+                    np.mean(gradlist[d],axis=self.axis,
+                        out=out_img[out_img_slice])
+                    out_img_slice += 1
+            return out_img
+
+        return arr
 
 
 class ARGUS_RandSpatialCropSlicesd(RandomizableTransform, MapTransform, InvertibleTransform):
@@ -284,13 +301,7 @@ class ARGUS_RandSpatialCropSlicesd(RandomizableTransform, MapTransform, Invertib
                     slice_roi[self.axis] = self._roi_center_slice
                     is_labeled = (data[tuple(slice_roi)]!=0).any()
                     if is_labeled:
-                        slice_roi[self.axis] -= self.boundary
-                        is_labeled = (data[tuple(slice_roi)]!=0).any()
-                        if is_labeled:
-                            slice_roi[self.axis] += max(self.num_slices)-1
-                            is_labeled = (data[tuple(slice_roi)]!=0).any()
-                            if is_labeled:
-                                break
+                        break
         else:
             self._roi_center_slice = self.center_slice
 
