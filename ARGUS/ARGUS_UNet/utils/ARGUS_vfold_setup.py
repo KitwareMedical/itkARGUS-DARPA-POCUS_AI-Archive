@@ -6,14 +6,15 @@ import ubelt as ub
 import pint
 Ureg = pint.UnitRegistry()
 
-def setup_ONSD_vfold_files(self, img_dir, anno_dir, p_prefix, n_prefix):
-    self.all_train_images = sorted(glob(os.path.join(img_dir, "*_cropM.mha")))
-    self.all_train_labels = sorted(glob(os.path.join(anno_dir, "*.overlay.mha")))
+def setup_vfold_files(self, img_dir, anno_dir, p_prefix, n_prefix):
+    self.all_train_images = sorted(glob(os.path.join(img_dir, self.img_file_extension)))
+    self.all_train_labels = sorted(glob(os.path.join(anno_dir, self.label_file_extension)))
 
     total_bytes = 0
     for p in self.all_train_images:
         p = ub.Path(p)
         total_bytes += p.stat().st_size
+    print("\n")
     print("Total size of images in the dataset: ")
     print((total_bytes * Ureg.byte).to("GiB"))
 
@@ -21,11 +22,15 @@ def setup_ONSD_vfold_files(self, img_dir, anno_dir, p_prefix, n_prefix):
     for p in self.all_train_labels:
         p = ub.Path(p)
         total_bytes += p.stat().st_size
+    print("\n")
     print("Total size of labels in the dataset: ")    
     print((total_bytes * Ureg.byte).to("GiB"))
 
     num_images = len(self.all_train_images)
+    
+    print("\n")
     print("Num images / labels =", num_images, len(self.all_train_labels))
+    print("\n")
 
     fold_prefix_list = []
     p_count = 0
@@ -33,13 +38,13 @@ def setup_ONSD_vfold_files(self, img_dir, anno_dir, p_prefix, n_prefix):
     for i in range(self.num_folds):
         num_p = 1
         num_n = 1
-        if i > self.num_folds - 5:
+        if i > self.num_folds - 2:
             if i % 2 == 0:
                 num_p = 2
                 num_n = 1
             else:
                 num_p = 1
-                num_n = 2
+                num_n = 1
         f = []
         if p_count < len(p_prefix):
             for p in range(num_p):
@@ -53,6 +58,7 @@ def setup_ONSD_vfold_files(self, img_dir, anno_dir, p_prefix, n_prefix):
 
     for i in range(self.num_folds):
         print(i, fold_prefix_list[i])
+    print("\n")
 
     self.train_files = []
     self.val_files = []

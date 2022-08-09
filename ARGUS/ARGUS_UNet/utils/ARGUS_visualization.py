@@ -91,11 +91,8 @@ def view_testing_results_vfold(self, model_type="best", run_id=[0], device_num=0
 
     num_runs = len(run_id)
 
-    artery_prior = 1
+    class_prior = np.ones(self.num_classes)
     class_artery = 1
-
-    artery_min_size = 20000
-    artery_max_size = 30000
 
     with torch.no_grad():
         for image_num, test_data in enumerate(self.test_loader):
@@ -140,18 +137,18 @@ def view_testing_results_vfold(self, model_type="best", run_id=[0], device_num=0
                 pmax = prob.max()
                 prange = pmax - pmin
                 prob = (prob - pmin) / prange
-                prob[class_artery] = prob[class_artery] * artery_prior
+                prob[class_artery] = prob[class_artery] * class_prior[class_artery]
                 class_array = np.argmax(prob, axis=0)
                 done = False
                 while not done:
                     done = True
                     count = np.count_nonzero(class_array > 0)
-                    while count < artery_min_size:
+                    while count < self.class_min_size[class_artery]:
                         prob[class_artery] = prob[class_artery] * 1.05
                         class_array = np.argmax(prob, axis=0)
                         count = np.count_nonzero(class_array == class_artery)
                         done = False
-                    while count > artery_max_size:
+                    while count > self.class_max_size[class_artery]:
                         prob[class_artery] = prob[class_artery] * 0.95
                         class_array = np.argmax(prob, axis=0)
                         count = np.count_nonzero(class_array == class_artery)
@@ -178,8 +175,8 @@ def view_testing_results_vfold(self, model_type="best", run_id=[0], device_num=0
             class_array = np.argmax(prob_total, axis=0)
             class_image = itk.GetImageFromArray(class_array.astype(np.float32))
             imMathClassCleanup = tube.ImageMath.New(class_image)
-            imMathClassCleanup.Erode(5, class_artery, 0)
-            imMathClassCleanup.Dilate(5, class_artery, 0)
+            imMathClassCleanup.Erode(self.erosion_size, class_artery, 0)
+            imMathClassCleanup.Dilate(self.dilation_size, class_artery, 0)
             class_image = imMathClassCleanup.GetOutputUChar()
 
             imMathClassCleanup.Threshold(class_artery, class_artery, 1, 0)
