@@ -76,15 +76,15 @@ class ARGUS_Needle_Network:
         self.net_channels = (16, 32, 64, 128, 32)
         self.net_strides = (2, 2, 2, 2)
 
-        self.cache_rate_train = 0.1
+        self.cache_rate_train = 1.0
         self.num_workers_train = 3
         self.batch_size_train = 12
 
-        self.cache_rate_val = 0.1
+        self.cache_rate_val = 1.0
         self.num_workers_val = 1
         self.batch_size_val = 2
 
-        self.cache_rate_test = 0.1
+        self.cache_rate_test = 1.0
         self.num_workers_test = 1
         self.batch_size_test = 1
 
@@ -185,7 +185,7 @@ class ARGUS_Needle_Network:
         )
 
     def setup_vfold_files(self, img_dir, anno_dir):
-        self.all_train_images = sorted(glob(os.path.join(img_dir, "*_cropM.mha")))
+        self.all_train_images = sorted(glob(os.path.join(img_dir, "*_cropM.nii.gz")))
         self.all_train_labels = sorted(glob(os.path.join(anno_dir, "*.overlay.mha")))
 
         total_bytes = 0
