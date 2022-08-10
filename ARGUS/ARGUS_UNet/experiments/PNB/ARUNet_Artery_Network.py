@@ -13,6 +13,7 @@ from monai.transforms import (
     ScaleIntensityRanged,
     ToTensord,
 )
+import numpy as np
 import os
 from glob import glob
 import site
@@ -48,6 +49,10 @@ class ARUNet_Artery_Network:
         self.num_workers_val = 2
         self.batch_size_val = 2
 
+        self.cache_rate_test = 1.0
+        self.num_workers_test = 2
+        self.batch_size_test = 2
+
         self.num_slices = 16
 
         self.size_x = 320
@@ -55,6 +60,16 @@ class ARUNet_Artery_Network:
 
         self.all_images = []
         self.all_labels = []
+
+        self.class_artery = 1
+
+        self.class_min_size = np.zeros(self.num_classes)
+        self.class_max_size = np.zeros(self.num_classes)
+        self.class_min_size[self.class_artery] = 20000
+        self.class_max_size[self.class_artery] = 30000
+        
+        self.erosion_size = 5
+        self.dilation_size = 5
 
         self.train_transforms = Compose(
             [
@@ -89,6 +104,30 @@ class ARUNet_Artery_Network:
             ])
         
         self.val_transforms = Compose(
+            [
+            LoadImaged(keys=["image", "label"]),
+            AsChannelFirstd(keys='image'),
+            AsChannelFirstd(keys='label'),
+            ScaleIntensityRanged(
+                a_min=0, a_max=255,
+                b_min=0.0, b_max=1.0,
+                keys=["image"]),
+            ARGUS_RandSpatialCropSlicesd(
+                num_slices=[self.num_slices,1],
+                center_slice=-self.num_slices/2 - 1,
+                axis=0,
+                reduce_to_statistics=[True,False],
+                extended=False,
+                include_center_slice=True,
+                keys=['image','label']),
+            Resized(
+                spatial_size=(-1,self.size_y),
+                mode=["bilinear","nearest"],
+                keys=['image','label']),
+            ToTensord(keys=["image", "label"],dtype=torch.float)
+            ])
+
+        self.test_transforms = Compose(
             [
             LoadImaged(keys=["image", "label"]),
             AsChannelFirstd(keys='image'),

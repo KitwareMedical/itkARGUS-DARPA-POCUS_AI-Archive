@@ -177,8 +177,6 @@ def test_vfold(self, model_type="best", run_id=0, device_num=0):
 
     device = torch.device("cuda:" + str(device_num))
 
-    test_outputs_total = []
-
     if os.path.exists(model_file):
         model = UNet(
             dimensions=self.net_dims,
@@ -204,9 +202,17 @@ def test_vfold(self, model_type="best", run_id=0, device_num=0):
                 ).cpu()
                 if b == 0:
                     test_outputs_total = test_outputs
+                    test_images_total = test_data["image"]
+                    test_labels_total = test_data["label"]
                 else:
                     test_outputs_total = np.concatenate(
                         (test_outputs_total, test_outputs), axis=0
                     )
+                    test_images_total = np.concatenate(
+                        (test_images_total,test_data["image"]),axis=0
+                    )
+                    test_labels_total = np.concatenate(
+                        (test_labels_total,test_data["label"]),axis=0
+                    )
 
-    return test_outputs_total
+    return test_outputs_total, test_images_total, test_labels_total
