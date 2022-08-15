@@ -19,6 +19,7 @@ from monai.transforms import (
     RandZoomd,
     Resized,
     ScaleIntensityRanged,
+    SpatialResampled,
     SpatialCrop,
     SpatialCropd,
     ToTensord,
@@ -29,7 +30,7 @@ from monai.networks.layers import Norm
 from monai.metrics import DiceMetric
 from monai.losses import DiceLoss
 from monai.inferers import sliding_window_inference
-from monai.data import PersistentDataset, CacheDataset, DataLoader, Dataset, decollate_batch
+from monai.data import PersistentDataset, CacheDataset, DataLoader, Dataset, decollate_batch, list_data_collate
 from monai.config import print_config
 from monai.apps import download_and_extract
 import torch
@@ -54,17 +55,19 @@ from ARGUS_Transforms import ARGUS_RandSpatialCropSlicesd
 import pint
 Ureg = pint.UnitRegistry()
 
+def use_needle_label_only(img):
+    return np.where(img==2,1,0)
 
 class ARGUS_Needle_Network:
     def __init__(self):
         self.filename_base = "ARUNet-NeedleArtery-VFold-Training"
 
-        self.num_classes = 3
-        self.class_blur = [8, 5, 1]
-        self.class_min_size = [0, 20000, 100]
-        self.class_max_size = [0, 30000, 30000]
-        self.class_morph = [0, 5, 1]
-        self.class_keep_only_largest=[False, True, True]
+        self.num_classes = 2
+        self.class_blur = [2, 1]
+        self.class_min_size = [0, 100]
+        self.class_max_size = [0, 5000]
+        self.class_morph = [0, 1]
+        self.class_keep_only_largest=[False, False]
 
         self.max_epochs = 2500
 
@@ -78,23 +81,23 @@ class ARGUS_Needle_Network:
         self.net_channels = (16, 32, 64, 128, 32)
         self.net_strides = (2, 2, 2, 2)
 
-        self.cache_rate_train = 0
+        self.cache_rate_train = 1
         self.num_workers_train = 4
-        self.batch_size_train = 6
+        self.batch_size_train = 2
 
         self.val_interval = 10
-        self.cache_rate_val = 0
-        self.num_workers_val = 2
+        self.cache_rate_val = 1
+        self.num_workers_val = 4
         self.batch_size_val = 2
 
-        self.cache_rate_test = 0
-        self.num_workers_test = 2
+        self.cache_rate_test = 1
+        self.num_workers_test = 4
         self.batch_size_test = 2
 
         self.num_slices = 16
 
         self.size_x = 320
-        self.size_y = 640
+        self.size_y = 480
 
         self.all_train_images = []
         self.all_train_labels = []
@@ -104,8 +107,9 @@ class ARGUS_Needle_Network:
                 LoadImaged(keys=["image", "label"]),
                 AsChannelFirstd(keys="image"),
                 AsChannelFirstd(keys="label"),
-                ScaleIntensityRanged(
-                    a_min=0, a_max=255, b_min=0.0, b_max=1.0, keys=["image"]
+                Lambdad(
+                    func=use_needle_label_only,
+                    keys='label',
                 ),
                 ARGUS_RandSpatialCropSlicesd(
                     num_slices=[self.num_slices, 1],
@@ -115,17 +119,6 @@ class ARGUS_Needle_Network:
                     extended=False,
                     include_center_slice=True,
                     include_gradient=True,
-                    keys=["image", "label"],
-                ),
-                Resized(
-                    spatial_size=(-1, self.size_y),
-                    mode=["bilinear", "nearest"],
-                    keys=["image", "label"],
-                ),
-                RandSpatialCropd(
-                    roi_size=(self.size_x, self.size_y),
-                    random_center=True,
-                    random_size=False,
                     keys=["image", "label"],
                 ),
                 RandFlipd(prob=0.5, spatial_axis=0, keys=["image", "label"]),
@@ -138,8 +131,9 @@ class ARGUS_Needle_Network:
                 LoadImaged(keys=["image", "label"]),
                 AsChannelFirstd(keys="image"),
                 AsChannelFirstd(keys="label"),
-                ScaleIntensityRanged(
-                    a_min=0, a_max=255, b_min=0.0, b_max=1.0, keys=["image"]
+                Lambdad(
+                    func=use_needle_label_only,
+                    keys='label',
                 ),
                 ARGUS_RandSpatialCropSlicesd(
                     num_slices=[self.num_slices, 1],
@@ -149,11 +143,6 @@ class ARGUS_Needle_Network:
                     extended=False,
                     include_center_slice=True,
                     include_gradient=True,
-                    keys=["image", "label"],
-                ),
-                Resized(
-                    spatial_size=(-1, self.size_y),
-                    mode=["bilinear", "nearest"],
                     keys=["image", "label"],
                 ),
                 ToTensord(keys=["image", "label"], dtype=torch.float),
@@ -165,8 +154,9 @@ class ARGUS_Needle_Network:
                 LoadImaged(keys=["image", "label"]),
                 AsChannelFirstd(keys="image"),
                 AsChannelFirstd(keys="label"),
-                ScaleIntensityRanged(
-                    a_min=0, a_max=255, b_min=0.0, b_max=1.0, keys=["image"]
+                Lambdad(
+                    func=use_needle_label_only,
+                    keys='label',
                 ),
                 ARGUS_RandSpatialCropSlicesd(
                     num_slices=[self.num_slices, 1],
@@ -178,18 +168,13 @@ class ARGUS_Needle_Network:
                     include_gradient=True,
                     keys=["image", "label"],
                 ),
-                Resized(
-                    spatial_size=(-1, self.size_y),
-                    mode=["bilinear", "nearest"],
-                    keys=["image", "label"],
-                ),
                 ToTensord(keys=["image", "label"], dtype=torch.float),
             ]
         )
 
     def setup_vfold_files(self, img_dir, anno_dir):
-        self.all_train_images = sorted(glob(os.path.join(img_dir, "*_cropM.nii.gz")))
-        self.all_train_labels = sorted(glob(os.path.join(anno_dir, "*.overlay.mha")))
+        self.all_train_images = sorted(glob(os.path.join(img_dir, "*_cropM_prep.nii.gz")))
+        self.all_train_labels = sorted(glob(os.path.join(anno_dir, "*.overlay_prep.nii.gz")))
 
         total_bytes = 0
         for p in self.all_train_images:
@@ -343,50 +328,53 @@ class ARGUS_Needle_Network:
             )
 
     def setup_training_vfold(self, vfold_num):
-        persistent_cache = pathlib.Path("./data_cache"+str(vfold_num), "persistent_cache")
-        persistent_cache.mkdir(parents=True, exist_ok=True)
-        
         self.vfold_num = vfold_num
 
-        train_ds = PersistentDataset(
+        train_ds = CacheDataset(
             data=self.train_files[self.vfold_num],
             transform=self.train_transforms,
-            cache_dir=persistent_cache,
-            #cache_rate=self.cache_rate_train,
-            #num_workers=self.num_workers_train,
+            cache_rate=self.cache_rate_train,
+            num_workers=self.num_workers_train
         )
         self.train_loader = DataLoader(
             train_ds,
             batch_size=self.batch_size_train,
             shuffle=True,
             num_workers=self.num_workers_train,
+            collate_fn=list_data_collate,
+            pin_memory=True,
         )
 
-        val_ds = PersistentDataset(
+        val_ds = CacheDataset(
             data=self.val_files[self.vfold_num],
             transform=self.val_transforms,
-            cache_dir=persistent_cache,
-            #cache_rate=self.cache_rate_val,
-            #num_workers=self.num_workers_val,
+            cache_rate=self.cache_rate_val,
+            num_workers=self.num_workers_val
+
         )
         self.val_loader = DataLoader(
-            val_ds, batch_size=self.batch_size_val, num_workers=self.num_workers_val
+            val_ds, 
+            batch_size=self.batch_size_val, 
+            num_workers=self.num_workers_val,
+            collate_fn=list_data_collate,
+            pin_memory=True,
         )
 
     def setup_testing_vfold(self, vfold_num):
-        persistent_cache = pathlib.Path("./data_cache"+str(vfold_num), "persistent_cache")
-        persistent_cache.mkdir(parents=True, exist_ok=True)
-        
         self.vfold_num = vfold_num
-        test_ds = PersistentDataset(
+        test_ds = CacheDataset(
             data=self.test_files[self.vfold_num],
             transform=self.test_transforms,
-            cache_dir=persistent_cache,
-            #cache_rate=self.cache_rate_test,
-            #num_workers=self.num_workers_test,
+            cache_rate=self.cache_rate_test,
+            num_workers=self.num_workers_test
+
         )
         self.test_loader = DataLoader(
-            test_ds, batch_size=self.batch_size_test, num_workers=self.num_workers_test
+            test_ds, 
+            batch_size=self.batch_size_test, 
+            num_workers=self.num_workers_test,
+            collate_fn=list_data_collate,
+            pin_memory=True,
         )
 
     def train_vfold(self, run_id=0, device_num=0):
@@ -486,7 +474,7 @@ class ARGUS_Needle_Network:
 
                     metric_values.append(metric)
                     if epoch > 100:
-                        metric = np.mean(metric_value[-val_interval:-1])
+                        metric = np.mean(metric_values[-self.val_interval:-1])
                         if metric > best_metric:
                             best_metric = metric
                             best_metric_epoch = epoch + 1

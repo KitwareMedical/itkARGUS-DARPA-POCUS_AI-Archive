@@ -155,9 +155,9 @@ class ARGUS_RandSpatialCropSlices(RandomizableTransform, Transform):
             out_img = np.empty(tuple(out_img_shape))
 
             out_img_slice = 0
-            outmean = np.mean(arr,axis=self.axis,out=out_img[out_img_slice])
+            np.mean(arr,axis=self.axis,out=out_img[out_img_slice])
             out_img_slice += 1
-            outstd = np.std(arr,axis=self.axis,out=out_img[out_img_slice])
+            np.std(arr,axis=self.axis,out=out_img[out_img_slice])
             out_img_slice += 1
 
             if self.extended:
