@@ -90,9 +90,9 @@ class ARGUS_Needle_Network:
         self.num_workers_val = 4
         self.batch_size_val = 2
 
-        self.cache_rate_test = 1
-        self.num_workers_test = 4
-        self.batch_size_test = 2
+        self.cache_rate_test = 0
+        self.num_workers_test = 1
+        self.batch_size_test = 1
 
         self.num_slices = 16
 
@@ -328,13 +328,17 @@ class ARGUS_Needle_Network:
             )
 
     def setup_training_vfold(self, vfold_num):
+        persistent_cache = pathlib.Path("./data_cache"+str(vfold_num), "persistent_cache")
+        persistent_cache.mkdir(parents=True, exist_ok=True)
+        
         self.vfold_num = vfold_num
 
-        train_ds = CacheDataset(
+        train_ds = PersistentDataset(
             data=self.train_files[self.vfold_num],
             transform=self.train_transforms,
-            cache_rate=self.cache_rate_train,
-            num_workers=self.num_workers_train
+            cache_dir=persistent_cache,
+            #cache_rate=self.cache_rate_train,
+            #num_workers=self.num_workers_train
         )
         self.train_loader = DataLoader(
             train_ds,
@@ -345,11 +349,12 @@ class ARGUS_Needle_Network:
             pin_memory=True,
         )
 
-        val_ds = CacheDataset(
+        val_ds = PersistentDataset(
             data=self.val_files[self.vfold_num],
             transform=self.val_transforms,
-            cache_rate=self.cache_rate_val,
-            num_workers=self.num_workers_val
+            cache_dir=persistent_cache,
+            #cache_rate=self.cache_rate_val,
+            #num_workers=self.num_workers_val
 
         )
         self.val_loader = DataLoader(
@@ -361,13 +366,16 @@ class ARGUS_Needle_Network:
         )
 
     def setup_testing_vfold(self, vfold_num):
+        persistent_cache = pathlib.Path("./data_cache"+str(vfold_num), "persistent_cache")
+        persistent_cache.mkdir(parents=True, exist_ok=True)
+        
         self.vfold_num = vfold_num
-        test_ds = CacheDataset(
+        test_ds = PersistentDataset(
             data=self.test_files[self.vfold_num],
             transform=self.test_transforms,
-            cache_rate=self.cache_rate_test,
-            num_workers=self.num_workers_test
-
+            cache_dir=persistent_cache,
+            #cache_rate=self.cache_rate_test,
+            #num_workers=self.num_workers_test
         )
         self.test_loader = DataLoader(
             test_ds, 
