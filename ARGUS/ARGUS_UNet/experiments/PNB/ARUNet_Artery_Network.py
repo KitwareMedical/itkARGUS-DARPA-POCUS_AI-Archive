@@ -23,9 +23,10 @@ from ARGUS_Transforms import ARGUS_RandSpatialCropSlicesd  # NOQA
 class ARUNet_Artery_Network:
     
     def __init__(self):
-        self.filename_base = "ARUNet-Artery-VFold-Training"
+        self.filename_base = "ARUNet-PNB-Artery-VFold-Training-320x480"
         self.img_file_extension = "*_cropM.nii.gz"
-        self.label_file_extension = "*.overlay.mha"
+        self.label_file_extension = "*.overlay.nii.gz"
+        self.result_files_savepath = "/data/barry.ravichandran/repos/AnatomicRecon-POCUS-AI/ARGUS/ARGUS_UNet/Results/ARUNet-PNB-Artery-VFold-Training-320x480-16s-VFold"
 
         self.num_classes = 2
 
@@ -35,8 +36,8 @@ class ARUNet_Artery_Network:
 
         self.net_dims = 2
 
-        # Mean, Std, RawFrame
-        self.net_in_channels = 3
+        # Mean, Std, RawFrame, Gradient
+        self.net_in_channels = 6
 
         self.net_channels=(16, 32, 64, 128, 32)
         self.net_strides=(2, 2, 2, 2)
@@ -56,7 +57,7 @@ class ARUNet_Artery_Network:
         self.num_slices = 16
 
         self.size_x = 320
-        self.size_y = 640
+        self.size_y = 480
 
         self.all_images = []
         self.all_labels = []
@@ -65,8 +66,8 @@ class ARUNet_Artery_Network:
 
         self.class_min_size = np.zeros(self.num_classes)
         self.class_max_size = np.zeros(self.num_classes)
-        self.class_min_size[self.class_artery] = 20000
-        self.class_max_size[self.class_artery] = 30000
+        self.class_min_size[self.class_artery] = 0
+        self.class_max_size[self.class_artery] = 20000
         
         self.erosion_size = 5
         self.dilation_size = 5
@@ -87,15 +88,7 @@ class ARUNet_Artery_Network:
                 require_labeled=True,
                 extended=False,
                 include_center_slice=True,
-                keys=['image','label']),
-            Resized(
-                spatial_size=(-1,self.size_y),
-                mode=["bilinear","nearest"],
-                keys=['image','label']),
-            RandSpatialCropd(
-                roi_size=(self.size_x,self.size_y),
-                random_center=True,
-                random_size=False,
+                include_gradient=True,
                 keys=['image','label']),
             RandFlipd(prob=0.5, 
                 spatial_axis=0,
@@ -119,10 +112,7 @@ class ARUNet_Artery_Network:
                 reduce_to_statistics=[True,False],
                 extended=False,
                 include_center_slice=True,
-                keys=['image','label']),
-            Resized(
-                spatial_size=(-1,self.size_y),
-                mode=["bilinear","nearest"],
+                include_gradient=True,
                 keys=['image','label']),
             ToTensord(keys=["image", "label"],dtype=torch.float)
             ])
@@ -143,10 +133,7 @@ class ARUNet_Artery_Network:
                 reduce_to_statistics=[True,False],
                 extended=False,
                 include_center_slice=True,
-                keys=['image','label']),
-            Resized(
-                spatial_size=(-1,self.size_y),
-                mode=["bilinear","nearest"],
+                include_gradient=True,
                 keys=['image','label']),
             ToTensord(keys=["image", "label"],dtype=torch.float)
             ])
