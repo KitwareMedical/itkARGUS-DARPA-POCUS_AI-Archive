@@ -205,7 +205,9 @@ def view_testing_results_vfold(self, test_outputs, test_images, test_labels, mod
             plt.imshow(rotate(self.class_artery_array,270))
             plt.show()
             save_img = itk.GetImageFromArray(self.class_artery_array)
-            save_inference_results(save_img,fname)
+            save_inference_results(self,
+                                class_image=save_img,
+                                fname=fname)
 
 def save_inference_results(self,class_image,fname):
-    itk.imwrite(class_image,os.path.join(self.result_files_savepath,fname),compression=True)
+    itk.imwrite(class_image,os.path.join(self.result_files_savepath,fname.split('.nii.gz')[0] + '_result.nii.gz'),compression=True)
