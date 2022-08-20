@@ -55,12 +55,20 @@ from ARGUS_Transforms import ARGUS_RandSpatialCropSlicesd
 import pint
 Ureg = pint.UnitRegistry()
 
-def use_needle_label_only(img):
-    return np.where(img==2,1,0)
+do_needle = False
+
+def use_one_label_only(img):
+    if do_needle:
+        return np.where(img==2,1,0)
+    else:
+        return np.where(img==2,0,img)
 
 class ARGUS_Needle_Network:
     def __init__(self):
-        self.filename_base = "ARUNet-NeedleArtery-VFold-Training"
+        if do_needle:
+            self.filename_base = "ARUNet-Needle-VFold-Training"
+        else:
+            self.filename_base = "ARUNet-Artery-VFold-Training"
 
         self.num_classes = 2
         self.class_blur = [2, 1]
@@ -69,7 +77,10 @@ class ARGUS_Needle_Network:
         self.class_morph = [0, 1]
         self.class_keep_only_largest=[False, False]
 
-        self.max_epochs = 2500
+        if do_needle:
+            self.max_epochs = 500
+        else:
+            self.max_epochs = 2500
 
         self.num_folds = 10
 
@@ -83,7 +94,7 @@ class ARGUS_Needle_Network:
 
         self.cache_rate_train = 1
         self.num_workers_train = 4
-        self.batch_size_train = 2
+        self.batch_size_train = 6
 
         self.val_interval = 10
         self.cache_rate_val = 1
@@ -108,7 +119,7 @@ class ARGUS_Needle_Network:
                 AsChannelFirstd(keys="image"),
                 AsChannelFirstd(keys="label"),
                 Lambdad(
-                    func=use_needle_label_only,
+                    func=use_one_label_only,
                     keys='label',
                 ),
                 ARGUS_RandSpatialCropSlicesd(
@@ -132,7 +143,7 @@ class ARGUS_Needle_Network:
                 AsChannelFirstd(keys="image"),
                 AsChannelFirstd(keys="label"),
                 Lambdad(
-                    func=use_needle_label_only,
+                    func=use_one_label_only,
                     keys='label',
                 ),
                 ARGUS_RandSpatialCropSlicesd(
@@ -155,7 +166,7 @@ class ARGUS_Needle_Network:
                 AsChannelFirstd(keys="image"),
                 AsChannelFirstd(keys="label"),
                 Lambdad(
-                    func=use_needle_label_only,
+                    func=use_one_label_only,
                     keys='label',
                 ),
                 ARGUS_RandSpatialCropSlicesd(
