@@ -3,17 +3,27 @@ import sys
 import torch.multiprocessing.spawn as spawn
 
 from ARGUS_Needle_Network import ARGUS_Needle_Network
+from ARGUS_Needle_Network import do_needle
 
 
 def run_train_process(proc_id, nnet, vfold_num, run_num, devices):
     print("      ---Starting run", run_num+proc_id)
-    std_out_filename = (
-        "ARGUS_Needle_Network-vf"
-        + str(vfold_num)
-        + "-r"
-        + str(run_num + proc_id)
-        + ".out.txt"
-    )
+    if do_needle:
+        std_out_filename = (
+            "ARGUS_Needle_Network-vf"
+            + str(vfold_num)
+            + "-r"
+            + str(run_num + proc_id)
+            + ".out.txt"
+        )
+    else:
+        std_out_filename = (
+            "ARGUS_Artery_Network-vf"
+            + str(vfold_num)
+            + "-r"
+            + str(run_num + proc_id)
+            + ".out.txt"
+        )
     sys.stdout = open(std_out_filename, "w")
     nnet.train_vfold(run_num + proc_id, devices[proc_id])
     sys.stdout.close()
