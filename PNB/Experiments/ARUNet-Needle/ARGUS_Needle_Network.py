@@ -56,6 +56,7 @@ import pint
 Ureg = pint.UnitRegistry()
 
 do_needle = False
+use_persistent_dataset = False
 
 def use_one_label_only(img):
     if do_needle:
@@ -67,20 +68,22 @@ class ARGUS_Needle_Network:
     def __init__(self):
         if do_needle:
             self.filename_base = "ARUNet-Needle-VFold-Training"
-        else:
-            self.filename_base = "ARUNet-Artery-VFold-Training"
-
-        self.num_classes = 2
-        self.class_blur = [2, 1]
-        self.class_min_size = [0, 100]
-        self.class_max_size = [0, 5000]
-        self.class_morph = [0, 1]
-        self.class_keep_only_largest=[False, False]
-
-        if do_needle:
+            self.class_blur = [2, 1]
+            self.class_min_size = [0, 100]
+            self.class_max_size = [0, 5000]
+            self.class_morph = [0, 1]
+            self.class_keep_only_largest=[False, False]
             self.max_epochs = 500
         else:
+            self.filename_base = "ARUNet-Artery-VFold-Training"
+            self.class_blur = [2, 5]
+            self.class_min_size = [0, 5000]
+            self.class_max_size = [0, 7500]
+            self.class_morph = [0, 5]
+            self.class_keep_only_largest=[False, True]
             self.max_epochs = 2500
+
+        self.num_classes = 2
 
         self.num_folds = 10
 
@@ -339,18 +342,28 @@ class ARGUS_Needle_Network:
             )
 
     def setup_training_vfold(self, vfold_num):
-        persistent_cache = pathlib.Path("./data_cache"+str(vfold_num), "persistent_cache")
-        persistent_cache.mkdir(parents=True, exist_ok=True)
-        
         self.vfold_num = vfold_num
 
-        train_ds = PersistentDataset(
-            data=self.train_files[self.vfold_num],
-            transform=self.train_transforms,
-            cache_dir=persistent_cache,
-            #cache_rate=self.cache_rate_train,
-            #num_workers=self.num_workers_train
-        )
+        if use_persistent_dataset:
+            if do_needle:
+                persistent_cache = pathlib.Path("./data_cache_needle_"+str(vfold_num), "persistent_cache")
+            else:
+                persistent_cache = pathlib.Path("./data_cache_artery_"+str(vfold_num), "persistent_cache")
+            persistent_cache.mkdir(parents=True, exist_ok=True)
+            train_ds = PersistentDataset(
+                data=self.train_files[self.vfold_num],
+                transform=self.train_transforms,
+                cache_dir=persistent_cache,
+            )
+        else:
+            train_ds = CacheDataset(
+                data=self.train_files[self.vfold_num],
+                transform=self.train_transforms,
+                cache_rate=self.cache_rate_train,
+                num_workers=self.num_workers_train
+            )
+        
+
         self.train_loader = DataLoader(
             train_ds,
             batch_size=self.batch_size_train,
@@ -360,14 +373,21 @@ class ARGUS_Needle_Network:
             pin_memory=True,
         )
 
-        val_ds = PersistentDataset(
-            data=self.val_files[self.vfold_num],
-            transform=self.val_transforms,
-            cache_dir=persistent_cache,
-            #cache_rate=self.cache_rate_val,
-            #num_workers=self.num_workers_val
+        if use_persistent_dataset:
+            val_ds = PersistentDataset(
+                data=self.val_files[self.vfold_num],
+                transform=self.val_transforms,
+                cache_dir=persistent_cache,
 
-        )
+            )
+        else:
+            val_ds = CacheDataset(
+                data=self.val_files[self.vfold_num],
+                transform=self.val_transforms,
+                cache_rate=self.cache_rate_val,
+                num_workers=self.num_workers_val
+
+            )
         self.val_loader = DataLoader(
             val_ds, 
             batch_size=self.batch_size_val, 
@@ -377,17 +397,26 @@ class ARGUS_Needle_Network:
         )
 
     def setup_testing_vfold(self, vfold_num):
-        persistent_cache = pathlib.Path("./data_cache"+str(vfold_num), "persistent_cache")
-        persistent_cache.mkdir(parents=True, exist_ok=True)
-        
         self.vfold_num = vfold_num
-        test_ds = PersistentDataset(
-            data=self.test_files[self.vfold_num],
-            transform=self.test_transforms,
-            cache_dir=persistent_cache,
-            #cache_rate=self.cache_rate_test,
-            #num_workers=self.num_workers_test
-        )
+
+        if use_persistent_dataset:
+            if do_needle:
+                persistent_cache = pathlib.Path("./data_cache_needle_"+str(vfold_num), "persistent_cache")
+            else:
+                persistent_cache = pathlib.Path("./data_cache_artery_"+str(vfold_num), "persistent_cache")
+            persistent_cache.mkdir(parents=True, exist_ok=True)
+            test_ds = PersistentDataset(
+                data=self.test_files[self.vfold_num],
+                transform=self.test_transforms,
+                cache_dir=persistent_cache,
+            )
+        else:
+            test_ds = CacheDataset(
+                data=self.test_files[self.vfold_num],
+                transform=self.test_transforms,
+                cache_rate=self.cache_rate_test,
+                num_workers=self.num_workers_test
+            )
         self.test_loader = DataLoader(
             test_ds, 
             batch_size=self.batch_size_test, 
