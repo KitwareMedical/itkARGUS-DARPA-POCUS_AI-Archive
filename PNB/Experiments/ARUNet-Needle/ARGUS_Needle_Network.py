@@ -73,7 +73,7 @@ class ARGUS_Needle_Network:
             self.class_max_size = [0, 5000]
             self.class_morph = [0, 1]
             self.class_keep_only_largest=[False, False]
-            self.max_epochs = 500
+            self.max_epochs = 1000
         else:
             self.filename_base = "ARUNet-Artery-VFold-Training"
             self.class_blur = [2, 5]
@@ -81,7 +81,7 @@ class ARGUS_Needle_Network:
             self.class_max_size = [0, 7500]
             self.class_morph = [0, 5]
             self.class_keep_only_largest=[False, True]
-            self.max_epochs = 2500
+            self.max_epochs = 1000
 
         self.num_classes = 2
 
