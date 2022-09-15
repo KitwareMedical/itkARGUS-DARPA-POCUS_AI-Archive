@@ -4,6 +4,7 @@ import os
 import itk
 from itk import TubeTK as tube
 import torch
+from scipy.ndimage import rotate
 
 def view_training_image(self, image_num=0):
     img_name = self.all_train_images[image_num]
@@ -38,13 +39,13 @@ def view_training_vfold_batch(self, batch_num=0):
                             num_channels + 1,
                             i * (num_channels + 1) + c + 1,
                         )
-                        plt.imshow(img[c, :, :])
+                        plt.imshow(rotate(img[c, :, :],270))
                     plt.subplot(
                         num_images,
                         num_channels + 1,
                         i * (num_channels + 1) + num_channels + 1,
                     )
-                    plt.imshow(lbl[0, :, :])
+                    plt.imshow(rotate(lbl[0, :, :],270))
                 break
 
 def view_metric_curves(self, vfold_num, run_id=0):
@@ -107,14 +108,16 @@ def view_testing_results_vfold(self, test_outputs, test_images, test_labels, mod
                 plt.subplot(2, num_subplots, subplot_num)
                 plt.title(f"image")
                 tmpV = test_images[0][img, c, :, :]
-                plt.imshow(tmpV, cmap="gray")
+                plt.axis('off')
+                plt.imshow(rotate(tmpV,270), cmap="gray")
                 subplot_num += 1
             plt.subplot(2, num_subplots, num_subplots)
             plt.title(f"label")
             tmpV = test_labels[0][img, 0, :, :]
             for c in range(self.num_classes):
                 tmpV[0, c] = c
-            plt.imshow(tmpV)
+            plt.axis('off')
+            plt.imshow(rotate(tmpV,270))
             subplot_num += 1
 
             # Indent by one plot
@@ -158,7 +161,8 @@ def view_testing_results_vfold(self, test_outputs, test_images, test_labels, mod
                     plt.subplot(2, num_subplots, subplot_num)
                     plt.title(f"Class " + str(c))
                     tmpV = prob[c]
-                    plt.imshow(tmpV, cmap="gray")
+                    plt.axis('off')
+                    plt.imshow(rotate(tmpV,270), cmap="gray")
                     subplot_num += 1
 
             prob_total = prob_total / num_runs
@@ -166,7 +170,8 @@ def view_testing_results_vfold(self, test_outputs, test_images, test_labels, mod
             plt.subplot(2, num_subplots, subplot_num)
             plt.title(f"Ensemble")
             tmpV = prob_total[self.class_artery, :, :]
-            plt.imshow(tmpV, cmap="gray")
+            plt.axis('off')
+            plt.imshow(rotate(tmpV,270), cmap="gray")
             subplot_num += 1
 
             class_array = np.argmax(prob_total, axis=0)
@@ -196,5 +201,13 @@ def view_testing_results_vfold(self, test_outputs, test_images, test_labels, mod
             tmpV = self.class_artery_array
             for c in range(self.num_classes):
                 tmpV[0, c] = c
-            plt.imshow(self.class_artery_array, cmap="gray")
+            plt.axis('off')
+            plt.imshow(rotate(self.class_artery_array,270))
             plt.show()
+            save_img = itk.GetImageFromArray(self.class_artery_array)
+            save_inference_results(self,
+                                class_image=save_img,
+                                fname=fname)
+
+def save_inference_results(self,class_image,fname):
+    itk.imwrite(class_image,os.path.join(self.result_files_savepath,fname.split('.nii.gz')[0] + '_result.nii.gz'),compression=True)
