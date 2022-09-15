@@ -64,23 +64,27 @@ class ARGUS_Needle_Network:
         if self.use_needle_settings:
             self.filename_base = "ARUNet-Needle-VFold-Training"
             self.results_dirname = "Results-Needle"
+            self.use_extended_inputs = True
+            self.net_in_channels = 12
             self.class_blur = [2, 1]
             self.class_min_size = [0, 200]
             self.class_max_size = [0, 5000]
             self.class_morph = [0, 0]
             self.class_keep_only_largest=[False, False]
             self.max_epochs = 1000
-            self.num_slices = 16
+            self.num_slices = 32
         else:
             self.filename_base = "ARUNet-Artery-VFold-Training"
             self.results_dirname = "Results-Artery"
+            self.use_extended_inputs = False
+            self.net_in_channels = 6
             self.class_blur = [2, 5]
             self.class_min_size = [0, 5000]
             self.class_max_size = [0, 7500]
             self.class_morph = [0, 5]
             self.class_keep_only_largest=[False, True]
             self.max_epochs = 1000
-            self.num_slices = 16
+            self.num_slices = 32
 
         self.num_classes = 2
 
@@ -88,8 +92,6 @@ class ARGUS_Needle_Network:
 
         self.net_dims = 2
 
-        # Mean, Std, RawFrame, gradx, grady, gradz
-        self.net_in_channels = 6
 
         self.net_channels = (16, 32, 64, 128, 32)
         self.net_strides = (2, 2, 2, 2)
@@ -128,7 +130,7 @@ class ARGUS_Needle_Network:
                     axis=0,
                     reduce_to_statistics=[True, False],
                     require_labeled=True,
-                    extended=False,
+                    extended=self.use_extended_inputs,
                     include_center_slice=True,
                     include_gradient=True,
                     keys=["image", "label"],
@@ -152,7 +154,7 @@ class ARGUS_Needle_Network:
                     center_slice=-self.num_slices / 2 - 1,
                     axis=0,
                     reduce_to_statistics=[True, False],
-                    extended=False,
+                    extended=self.use_extended_inputs,
                     include_center_slice=True,
                     include_gradient=True,
                     keys=["image", "label"],
@@ -175,7 +177,7 @@ class ARGUS_Needle_Network:
                     center_slice=-self.num_slices / 2 - 1,
                     axis=0,
                     reduce_to_statistics=[True, False],
-                    extended=False,
+                    extended=self.use_extended_inputs,
                     include_center_slice=True,
                     include_gradient=True,
                     keys=["image", "label"],
@@ -591,6 +593,7 @@ class ARGUS_Needle_Network:
         test_outputs_total = []
         test_images_total = []
         test_labels_total = []
+        test_filenames_total = []
 
         if os.path.exists(model_file):
             model = UNet(
@@ -606,8 +609,10 @@ class ARGUS_Needle_Network:
             model.load_state_dict(torch.load(model_file, map_location=device))
             model.eval()
 
+            test_filenames_total = [ os.path.basename( test_file["image"] )
+                                    for test_file in list(self.test_files[self.vfold_num][:]) ]
             with torch.no_grad():
-                for b, test_data in enumerate(self.test_loader):
+                for batch_num, test_data in enumerate(self.test_loader):
                     roi_size = (self.size_x, self.size_y)
                     test_outputs = sliding_window_inference(
                         test_data["image"].to(device),
@@ -615,24 +620,24 @@ class ARGUS_Needle_Network:
                         self.batch_size_test,
                         model,
                     ).cpu()
-                    if b == 0:
-                        test_outputs_total = test_outputs
+                    if batch_num == 0:
                         test_images_total = test_data["image"]
                         test_labels_total = test_data["label"]
+                        test_outputs_total = test_outputs
                     else:
-                        test_outputs_total = np.concatenate(
-                            (test_outputs_total, test_outputs), axis=0
-                        )
                         test_images_total = np.concatenate(
                             (test_images_total, test_data["image"]), axis=0
                         )
                         test_labels_total = np.concatenate(
                             (test_labels_total, test_data["label"]), axis=0
                         )
+                        test_outputs_total = np.concatenate(
+                            (test_outputs_total, test_outputs), axis=0
+                        )
         else:
             print("ERROR: Model file not found:", model_file, "!!")
 
-        return test_outputs_total, test_images_total, test_labels_total
+        return test_filenames_total, test_images_total, test_labels_total, test_outputs_total
 
     def clean_probabilities(self, run_output, use_blur=True):
         if use_blur:
@@ -651,20 +656,37 @@ class ARGUS_Needle_Network:
         prob = (prob - pmin) / prange
         for c in range(1,self.num_classes):
             class_array = np.argmax(prob, axis=0)
+            class_array[:self.class_morph[c]*2,:] = 0
+            class_array[:,:self.class_morph[c]*2] = 0
+            class_array[-self.class_morph[c]*2:,:] = 0
+            class_array[:,-self.class_morph[c]*2:] = 0
             count = np.count_nonzero(class_array == c)
             done = False
-            while not done:
+            op_iter = 0
+            op_iter_max = 40
+            while not done and op_iter < op_iter_max:
                 done = True
-                while count < self.class_min_size[c]:
+                while count < self.class_min_size[c] and op_iter < op_iter_max:
                     prob[c] = prob[c] * 1.05
                     class_array = np.argmax(prob, axis=0)
+                    class_array[:self.class_morph[c]*2,:] = 0
+                    class_array[:,:self.class_morph[c]*2] = 0
+                    class_array[-self.class_morph[c]*2:,:] = 0
+                    class_array[:,-self.class_morph[c]*2:] = 0
                     count = np.count_nonzero(class_array == c)
+                    op_iter += 1
                     done = False
-                while count > self.class_max_size[c]:
+                while count > self.class_max_size[c] and op_iter < op_iter_max:
                     prob[c] = prob[c] * 0.95
                     class_array = np.argmax(prob, axis=0)
+                    class_array[:self.class_morph[c]*2,:] = 0
+                    class_array[:,:self.class_morph[c]*2] = 0
+                    class_array[-self.class_morph[c]*2:,:] = 0
+                    class_array[:,-self.class_morph[c]*2:] = 0
                     count = np.count_nonzero(class_array == c)
+                    op_iter += 1
                     done = False
+        print("Iterations to optimize prior =", op_iter)
         denom = np.sum(prob, axis=0)
         denom = np.where(denom == 0, 1, denom)
         prob =  prob / denom
@@ -673,10 +695,10 @@ class ARGUS_Needle_Network:
         
     def classify_probabilities(self, prob):
         class_array = np.argmax(prob, axis=0)
-        class_array[:3,:] = 0
-        class_array[:,:3] = 0
-        class_array[-3:,:] = 0
-        class_array[:,-3:] = 0
+        class_array[:self.class_morph[1]*2,:] = 0
+        class_array[:,:self.class_morph[1]*2] = 0
+        class_array[-self.class_morph[1]*2:,:] = 0
+        class_array[:,-self.class_morph[1]*2:] = 0
         class_image = itk.GetImageFromArray(
             class_array.astype(np.float32))
         
@@ -711,30 +733,37 @@ class ARGUS_Needle_Network:
         return class_array
  
     def classify_vfold(self, model_type="best", run_ids=[0], device_num=0):
-        test_outputs = []
-        for r in run_ids:
-            outs, imgs, lbls = self.test_vfold(model_type, r, device_num)
-            test_outputs.append(outs)
+        test_filenames = []
+        test_inputs = []
+        test_ideal_outputs = []
+        test_run_outputs = []
+        for run_num,run_id in enumerate(run_ids):
+            filenames, imgs, lbls, outs = self.test_vfold(model_type, run_id, device_num)
+            if run_num == 0:
+                test_filenames = filenames
+                test_inputs = imgs
+                test_ideal_outputs = lbls
+            test_run_outputs.append(outs)
             
-        num_runs = len(test_outputs)
-        num_images = len(test_outputs[0])
+        num_runs = len(test_run_outputs)
+        num_images = len(test_run_outputs[0])
         
-        prob_shape = test_outputs[0][0].shape
+        prob_shape = test_run_outputs[0][0].shape
         
-        labelmaps = []
+        test_ensemble_outputs = []
         prob = np.empty(prob_shape)
         for image_num in range(num_images):
             prob_total = np.zeros(prob_shape)
             for run_num in range(num_runs):
-                run_output = test_outputs[run_num][image_num]
+                run_output = test_run_outputs[run_num][image_num]
                 prob = self.clean_probabilities(run_output)
                 prob_total += prob
             prob_total /= num_runs
             prob = self.clean_probabilities(prob_total, use_blur=False)
             class_array = self.classify_probabilities(prob_total)
-            labelmaps.append(class_array)
+            test_ensemble_outputs.append(class_array)
                 
-        return labelmaps
+        return test_filenames, test_inputs, test_ideal_outputs, test_ensemble_outputs
     
     def view_training_image(self, image_num=0):
         img_name = self.all_train_images[image_num]
