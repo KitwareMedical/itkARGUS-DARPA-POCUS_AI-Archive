@@ -58,7 +58,7 @@ Ureg = pint.UnitRegistry()
 class ARGUS_Needle_Network:
     def __init__(self, use_needle_settings):
         self.use_needle_settings = use_needle_settings
-        
+
         self.use_persistent_dataset = False
 
         if self.use_needle_settings:
@@ -67,9 +67,9 @@ class ARGUS_Needle_Network:
             self.use_extended_inputs = True
             self.net_in_channels = 12
             self.class_blur = [2, 1]
-            self.class_min_size = [0, 200]
+            self.class_min_size = [0, 400]
             self.class_max_size = [0, 5000]
-            self.class_morph = [0, 0]
+            self.class_morph = [0, 1]
             self.class_keep_only_largest=[False, False]
             self.max_epochs = 1000
             self.num_slices = 32
@@ -85,6 +85,8 @@ class ARGUS_Needle_Network:
             self.class_keep_only_largest=[False, True]
             self.max_epochs = 1000
             self.num_slices = 32
+
+        self.testing_slice = -self.num_slices
 
         self.num_classes = 2
 
@@ -151,7 +153,7 @@ class ARGUS_Needle_Network:
                 ),
                 ARGUS_RandSpatialCropSlicesd(
                     num_slices=[self.num_slices, 1],
-                    center_slice=-self.num_slices / 2 - 1,
+                    center_slice=self.testing_slice,
                     axis=0,
                     reduce_to_statistics=[True, False],
                     extended=self.use_extended_inputs,
@@ -174,7 +176,7 @@ class ARGUS_Needle_Network:
                 ),
                 ARGUS_RandSpatialCropSlicesd(
                     num_slices=[self.num_slices, 1],
-                    center_slice=-self.num_slices / 2 - 1,
+                    center_slice=self.testing_slice,
                     axis=0,
                     reduce_to_statistics=[True, False],
                     extended=self.use_extended_inputs,
@@ -368,7 +370,7 @@ class ARGUS_Needle_Network:
                 cache_rate=self.cache_rate_train,
                 num_workers=self.num_workers_train
             )
-        
+
 
         self.train_loader = DataLoader(
             train_ds,
@@ -395,8 +397,8 @@ class ARGUS_Needle_Network:
 
             )
         self.val_loader = DataLoader(
-            val_ds, 
-            batch_size=self.batch_size_val, 
+            val_ds,
+            batch_size=self.batch_size_val,
             num_workers=self.num_workers_val,
             collate_fn=list_data_collate,
             pin_memory=True,
@@ -424,8 +426,8 @@ class ARGUS_Needle_Network:
                 num_workers=self.num_workers_test
             )
         self.test_loader = DataLoader(
-            test_ds, 
-            batch_size=self.batch_size_test, 
+            test_ds,
+            batch_size=self.batch_size_test,
             num_workers=self.num_workers_test,
             collate_fn=list_data_collate,
             pin_memory=True,
@@ -690,9 +692,9 @@ class ARGUS_Needle_Network:
         denom = np.sum(prob, axis=0)
         denom = np.where(denom == 0, 1, denom)
         prob =  prob / denom
-        
+
         return prob
-        
+
     def classify_probabilities(self, prob):
         class_array = np.argmax(prob, axis=0)
         class_array[:self.class_morph[1]*2,:] = 0
@@ -701,7 +703,7 @@ class ARGUS_Needle_Network:
         class_array[:,-self.class_morph[1]*2:] = 0
         class_image = itk.GetImageFromArray(
             class_array.astype(np.float32))
-        
+
         #itk.imwrite(
             #itk.GetImageFromArray(prob_total.astype(np.float32)),
             #"prob_total_f" + str(self.vfold_num) +
@@ -709,15 +711,19 @@ class ARGUS_Needle_Network:
         #itk.imwrite(class_image,
             #"class_image_init_f" + str(self.vfold_num) +
             #"i" + str(image_num) + ".mha")
-                
+
         for c in range(1,self.num_classes):
             imMathClassCleanup = tube.ImageMath.New(class_image)
             if self.class_morph[c] > 0:
                 imMathClassCleanup.Dilate(self.class_morph[c], c, 0)
                 imMathClassCleanup.Erode(self.class_morph[c], c, 0)
+                class_array[:2*self.class_morph[1],:] = 0
+                class_array[:,:2*self.class_morph[1]] = 0
+                class_array[-2*self.class_morph[1]:,:] = 0
+                class_array[:,-2*self.class_morph[1]:] = 0
             imMathClassCleanup.Threshold(c, c, 1, 0)
             class_clean_image = imMathClassCleanup.GetOutputUChar()
- 
+
             if self.class_keep_only_largest[c]:
                 seg = itk.itkARGUS.SegmentConnectedComponents.New(
                     Input=class_clean_image
@@ -725,13 +731,13 @@ class ARGUS_Needle_Network:
                 seg.SetKeepOnlyLargestComponent(True)
                 seg.Update()
                 class_clean_image = seg.GetOutput()
-                    
+
             class_clean_array = itk.GetArrayFromImage(class_clean_image)
             class_array = np.where(class_array == c, 0, class_array)
             class_array = np.where(class_clean_array != 0, c, class_array)
-            
+
         return class_array
- 
+
     def classify_vfold(self, model_type="best", run_ids=[0], device_num=0):
         test_filenames = []
         test_inputs = []
@@ -744,12 +750,12 @@ class ARGUS_Needle_Network:
                 test_inputs = imgs
                 test_ideal_outputs = lbls
             test_run_outputs.append(outs)
-            
+
         num_runs = len(test_run_outputs)
         num_images = len(test_run_outputs[0])
-        
+
         prob_shape = test_run_outputs[0][0].shape
-        
+
         test_ensemble_outputs = []
         prob = np.empty(prob_shape)
         for image_num in range(num_images):
@@ -762,9 +768,9 @@ class ARGUS_Needle_Network:
             prob = self.clean_probabilities(prob_total, use_blur=False)
             class_array = self.classify_probabilities(prob_total)
             test_ensemble_outputs.append(class_array)
-                
+
         return test_filenames, test_inputs, test_ideal_outputs, test_ensemble_outputs
-    
+
     def view_training_image(self, image_num=0):
         img_name = self.all_train_images[image_num]
         print(img_name)
@@ -836,7 +842,7 @@ class ARGUS_Needle_Network:
             metric_file = model_filename_base + "val_dice_" + str(vfold_num) + ".npy"
             if os.path.exists(metric_file):
                 metric_values = np.load(metric_file)
-    
+
                 plt.subplot(1, 2, 2)
                 plt.title("Val Mean Dice")
                 x = [2 * (i + 1) for i in range(len(metric_values))]
@@ -844,10 +850,10 @@ class ARGUS_Needle_Network:
                 plt.xlabel("epoch")
                 plt.plot(x, y)
                 plt.ylim([0.0, 0.8])
-    
+
             else:
                 print("ERROR: Cannot read metric file:", loss_file)
-                
+
             plt.show()
         else:
             print("ERROR: Cannot read metric file:", loss_file)
@@ -870,7 +876,7 @@ class ARGUS_Needle_Network:
                 self.net_in_channels + 1,
                 self.num_classes + self.num_classes + 2
         )
-        
+
         for image_num in range(len(test_images)):
             fname = os.path.basename(
                 self.test_files[self.vfold_num][image_num]["image"]
@@ -894,7 +900,7 @@ class ARGUS_Needle_Network:
             plt.axis('off')
             plt.imshow(rotate(tmpV,270))
             subplot_num += 1
- 
+
             # run probabilities
             prob_shape = test_outputs[0][0].shape
             prob_total = np.zeros(prob_shape)
@@ -912,7 +918,7 @@ class ARGUS_Needle_Network:
                     plt.imshow(rotate(tmpV,270), cmap="gray")
                     subplot_num += 1
             prob_total /= num_runs
-            
+
             # ensemble probabilities
             prob = self.clean_probabilities(prob_total, use_blur=False)
             subplot_num = (num_runs+1)*num_subplots - self.num_classes
@@ -923,13 +929,13 @@ class ARGUS_Needle_Network:
                 plt.axis('off')
                 plt.imshow(rotate(tmpV,270), cmap="gray")
                 subplot_num += 1
- 
+
             # ensemble classifications
             class_array = self.classify_probabilities(prob)
-                
+
             #itk.imwrite(
                 #itk.GetImageFromArray(class_array.astype(np.float32)),
-                #"class_image_final_f" + str(self.vfold_num) + 
+                #"class_image_final_f" + str(self.vfold_num) +
                 #"i" + str(image_num) + ".mha" )
             plt.subplot(num_runs+1, num_subplots, subplot_num)
             plt.title(f"Label")
@@ -939,7 +945,7 @@ class ARGUS_Needle_Network:
             plt.axis('off')
             plt.imshow(rotate(tmpV,270))
             plt.show()
-            
+
             class_image = itk.GetImageFromArray(
                 class_array.astype(np.float32))
             itk.imwrite(class_image,

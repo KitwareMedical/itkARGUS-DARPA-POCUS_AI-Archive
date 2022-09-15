@@ -3,10 +3,9 @@ import sys
 import torch.multiprocessing.spawn as spawn
 
 from ARGUS_Needle_Network import ARGUS_Needle_Network
-from ARGUS_Needle_Network import do_needle
 
 
-def run_train_process(proc_id, nnet, vfold_num, run_num, devices):
+def run_train_process(proc_id, nnet, vfold_num, run_num, devices, do_needle):
     print("      ---Starting run", run_num+proc_id)
     if do_needle:
         std_out_filename = (
@@ -30,9 +29,9 @@ def run_train_process(proc_id, nnet, vfold_num, run_num, devices):
 
 
 def train_parallel_runs(
-    img_dir, anno_dir, run_ids=[0], vfold_ids=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9], devices=[0, 1]
+    img_dir, anno_dir, run_ids=[0], vfold_ids=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9], devices=[0, 1], do_needle=True
 ):
-    nnet = ARGUS_Needle_Network()
+    nnet = ARGUS_Needle_Network(use_needle_settings=do_needle)
     nnet.setup_vfold_files(img_dir, anno_dir)
 
     num_runs = len(run_ids)
@@ -45,7 +44,7 @@ def train_parallel_runs(
                 print("   *****Starting runs", run_ids[run_num], "-", run_ids[run_num + len(devices)])
                 spawn(
                     run_train_process,
-                    (nnet, vfold_num, run_ids[run_num], devices),
+                    (nnet, vfold_num, run_ids[run_num], devices, do_needle),
                     nprocs=len(devices),
                     join=True,
                     daemon=False,
@@ -57,7 +56,7 @@ def train_parallel_runs(
                 )
                 spawn(
                     run_train_process,
-                    (nnet, vfold_num, run_ids[run_num], devices),
+                    (nnet, vfold_num, run_ids[run_num], devices, do_needle),
                     nprocs=num_procs,
                     join=True,
                     daemon=False,
