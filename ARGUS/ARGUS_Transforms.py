@@ -109,102 +109,80 @@ class ARGUS_RandSpatialCropSlices(RandomizableTransform, Transform):
         def make_slices(smin, smax, _start, _end):
             tlist = list(_start)
             tlist[self.axis] = smin
-            _start = tuple(tlist)
+            new_start = tuple(tlist)
         
             tlist = list(_end)
             tlist[self.axis] = smax
-            _end = tuple(tlist)
+            new_end = tuple(tlist)
 
             slices = [slice(int(s), int(e))
-                       for s, e in zip(_start, _end)]
-            return _start, _end, slices
+                       for s, e in zip(new_start, new_end)]
+            return new_start, new_end, slices
 
         _size = img.shape
         _start = np.zeros((len(_size)), dtype=np.int32)
         _end = _size
 
         if self._roi_center_slice < 0:
-            self._roi_center_slice = img.shape[self.axis] + self._roi_center_slice
+            self._roi_center_slice = ( 
+                img.shape[self.axis] + self._roi_center_slice )
         
-        self._roi_start, self._roi_end, slices = make_slices(
+        self._roi_start, self._roi_end, slices_all = make_slices(
                 self._roi_center_slice - self.boundary,
                 self._roi_center_slice - self.boundary + self.num_slices,
-                _start, _end)
+                _start, _end )
 
-        arr = img[tuple(slices)]
+        arr = img[tuple(slices_all)]
 
-        if self.reduce_to_statistics:
-            num_stats = 2
-            if self.extended:
-                num_stats += 2
-            if self.include_center_slice:
-                num_stats += 1
-            if self.include_mean_abs_diff:
-                num_stats += 1
-            if self.include_skewness:
-                num_stats += 1
-            if self.include_kurtosis:
-                num_stats += 1
-            if self.include_gradient:
-                num_stats += len(img.shape)
+        if not self.reduce_to_statistics:
+            return arr
 
-            out_img_shape = list(img.shape)
-            if self.axis != 0:
-                out_img_shape[:self.axis] = out_img_shape[1:self.axis+1]
-            out_img_shape[0] = num_stats
-            out_img = np.empty(tuple(out_img_shape))
+        num_stats = 2
+        if self.include_center_slice:
+            num_stats += 1
+        if self.include_mean_abs_diff:
+            num_stats += 1
+        if self.include_skewness:
+            num_stats += 1
+        if self.include_kurtosis:
+            num_stats += 1
+        if self.include_gradient:
+            num_stats += len(img.shape)
+        if self.extended:
+            num_stats *= 2
 
-            out_img_slice = 0
+        out_img_shape = list(img.shape)
+        if self.axis != 0:
+            out_img_shape[:self.axis] = out_img_shape[1:self.axis+1]
+        out_img_shape[0] = num_stats
+        out_img = np.empty(tuple(out_img_shape))
+
+        out_img_slice = 0
+        if not self.extended:
             np.mean(arr,axis=self.axis,out=out_img[out_img_slice])
             out_img_slice += 1
             np.std(arr,axis=self.axis,out=out_img[out_img_slice])
             out_img_slice += 1
 
-            if self.extended:
-                _size = img.shape
-                _start = np.zeros((len(_size)), dtype=np.int32)
-                _end = _size
-                r = self.num_slices / 2.4
-                roffset = r * 0.3
-
-                r0_min = 0
-                r0_max = r 
-                r0_min,r0_max,slices = make_slices(r0_min,r0_max,_start,_end)
-                outstd0 = np.std(arr[tuple(slices)],axis=self.axis)
-
-                r1_min = r - roffset
-                r1_max = 2 * r + roffset
-                r1_min,r1_max,slices = make_slices(r1_min,r1_max,_start,_end)
-                outstd1 = np.std(arr[tuple(slices)],axis=self.axis)
-
-                r2_min = self.num_slices - r
-                r2_max = self.num_slices
-                r2_min,r2_max,slices = make_slices(r2_min,r2_max,_start,_end)
-                outstd2 = np.std(arr[tuple(slices)],axis=self.axis)
-
-                outstdMin = np.minimum(outstd0,outstd1)
-                np.minimum(outstdMin, outstd2, out=out_img[out_img_slice])
-                out_img_slice += 1
-
-                outstdMax = np.maximum(outstd0,outstd1)
-                np.maximum(outstdMax, outstd2, out=out_img[out_img_slice])
-                out_img_slice += 1
-
             if self.include_center_slice:
                 r_min = self.num_slices // 2
                 r_max = r_min + 1
-                r_min,r_max,slices = make_slices(r_min,r_max,_start,_end)
-                out_img[out_img_slice] = arr[tuple(slices)]
+                r_min,r_max,tmp_slices = make_slices(r_min,r_max,
+                                                     _start,_end)
+                out_img[out_img_slice] = arr[tuple(tmp_slices)]
                 out_img_slice += 1
             if self.include_mean_abs_diff:
-                framediff = np.absolute(np.diff(arr,axis=self.axis))
-                np.mean(framediff,axis=self.axis,out=out_img[out_img_slice])
+                np.mean(np.absolute(np.diff(arr,axis=self.axis)),
+                        axis=self.axis,
+                        out=out_img[out_img_slice])
                 out_img_slice += 1
             if self.include_skewness:
-                out_img[out_img_slice] = sp.stats.skew(arr,axis=self.axis)
+                out_img[out_img_slice] = sp.stats.skew(arr,
+                                                       axis=self.axis)
                 out_img_slice += 1
             if self.include_kurtosis:
-                out_img[out_img_slice] = sp.stats.kurtosis(arr,axis=self.axis)
+                out_img[out_img_slice] = sp.stats.kurtosis(arr,
+                                                           axis=self.axis)
                 out_img_slice += 1
             if self.include_gradient:
                 gradlist = np.gradient(arr)
@@ -212,9 +190,103 @@ class ARGUS_RandSpatialCropSlices(RandomizableTransform, Transform):
                     np.mean(gradlist[d],axis=self.axis,
                         out=out_img[out_img_slice])
                     out_img_slice += 1
-            return out_img
+        else:
+            ext_img_shape = out_img_shape
+            ext_img_shape[0] = 3
+            ext_img = np.empty(tuple(ext_img_shape))
 
-        return arr
+            ext_unit = self.num_slices / 7
+            ext_num_slices = 3 * ext_unit
+            _start = np.zeros((len(arr.shape)), dtype=np.int32)
+            _end = arr.shape
+
+            r_min = np.zeros((3))
+
+            r_min[0] = 0
+            r_max = r_min[0] + ext_num_slices
+            _, _, r_slices = make_slices(r_min[0],r_max,_start,_end)
+            slices = [r_slices]
+
+            r_min[1] = 2*ext_unit
+            r_max = r_min[1] + ext_num_slices
+            _, _, r_slices = make_slices(r_min[1],r_max,_start,_end)
+            slices.append(r_slices)
+
+            r_min[2] = 4*ext_unit
+            r_max = r_min[2] + ext_num_slices
+            _, _, r_slices = make_slices(r_min[2],r_max,_start,_end)
+            slices.append(r_slices)
+
+            # Mean
+            for i in range(len(slices)):
+                np.mean(arr[tuple(slices[i])],axis=self.axis,out=ext_img[i])
+            np.amax(ext_img,axis=0,out=out_img[out_img_slice])
+            out_img_slice += 1
+            np.amin(ext_img,axis=0,out=out_img[out_img_slice])
+            out_img_slice += 1
+
+            # Std Dev
+            for i in range(len(slices)):
+                np.std(arr[tuple(slices[i])],axis=self.axis,out=ext_img[i])
+            np.amax(ext_img,axis=0,out=out_img[out_img_slice])
+            out_img_slice += 1
+            np.amin(ext_img,axis=0,out=out_img[out_img_slice])
+            out_img_slice += 1
+
+            if self.include_center_slice:
+                for i in range(len(slices)):
+                    r_max = r_min[i] + 1
+                    _,_,tmp_slices = make_slices(r_min[i],r_max,_start,_end)
+                    ext_img[i] = arr[tuple(tmp_slices)]
+                np.amax(ext_img,axis=0,out=out_img[out_img_slice])
+                out_img_slice += 1
+                np.amin(ext_img,axis=0,out=out_img[out_img_slice])
+                out_img_slice += 1
+
+            if self.include_mean_abs_diff:
+                tmp_arr = np.absolute(np.diff(arr,axis=self.axis))
+                for i in range(len(slices)):
+                    np.mean(tmp_arr[tuple(slices[i])],
+                            axis=self.axis,
+                            out=ext_img[i])
+                np.amax(ext_img,axis=0,out=out_img[out_img_slice])
+                out_img_slice += 1
+                np.amin(ext_img,axis=0,out=out_img[out_img_slice])
+                out_img_slice += 1
+
+            if self.include_skewness:
+                for i in range(len(slices)):
+                    ext_img[i] = sp.stats.skew(arr[tuple(slices[i])],
+                                               axis=self.axis)
+                np.amax(ext_img,axis=0,out=out_img[out_img_slice])
+                out_img_slice += 1
+                np.amin(ext_img,axis=0,out=out_img[out_img_slice])
+                out_img_slice += 1
+
+            if self.include_kurtosis:
+                for i in range(len(slices)):
+                    ext_img[i] = sp.stats.kurtosis(arr[tuple(slices[i])],
+                                               axis=self.axis)
+                np.amax(ext_img,axis=0,out=out_img[out_img_slice])
+                out_img_slice += 1
+                np.amin(ext_img,axis=0,out=out_img[out_img_slice])
+                out_img_slice += 1
+
+            if self.include_gradient:
+                gradlist = np.gradient(arr)
+                for d in range(len(gradlist)):
+                    for i in range(len(slices)):
+                        np.mean(gradlist[d][tuple(slices[i])],
+                                axis=self.axis,
+                                out=ext_img[i])
+                    np.amax(ext_img,axis=0,out=out_img[out_img_slice])
+                    out_img_slice += 1
+                    np.amin(ext_img,axis=0,out=out_img[out_img_slice])
+                    out_img_slice += 1
+            
+
+        return out_img
+
 
 
 class ARGUS_RandSpatialCropSlicesd(RandomizableTransform, MapTransform, InvertibleTransform):
