@@ -343,11 +343,10 @@ class ARGUS_Needle_Network:
                     )
                 ]
             )
-            print(
-                len(self.train_files[i]),
-                len(self.val_files[i]),
-                len(self.test_files[i]),
-            )
+            print( "**** VFold =", i )
+            print( "   TRAIN", tr_folds)
+            print( "   VAL", va_folds)
+            print( "   TEST", te_folds)
 
     def setup_training_vfold(self, vfold_num):
         self.vfold_num = vfold_num
@@ -861,14 +860,18 @@ class ARGUS_Needle_Network:
     def view_testing_results_vfold(self, model_type="best", run_ids=[0], device_num=0):
         print("VFOLD =", self.vfold_num, "of", self.num_folds - 1)
 
-        test_outputs = []
-        test_images = []
-        test_labels = []
-        for r in run_ids:
-            outs, imgs, lbls = self.test_vfold(model_type, r, device_num)
-            test_outputs.append(outs)
-            test_images = imgs
-            test_labels = lbls
+        test_inputs_image_filenames = []
+        test_inputs_images = []
+        test_ideal_outputs = []
+        test_net_outputs = []
+        for run_num,run_id in enumerate(run_ids):
+            run_input_image_filenames, run_input_images, run_ideal_outputs, run_net_outputs = self.test_vfold(
+                model_type, run_id, device_num)
+            test_net_outputs.append(run_net_outputs)
+            if run_num == 0:
+                test_input_image_filenames = run_input_image_filenames
+                test_input_images = run_input_images
+                test_ideal_outputs = run_ideal_outputs
 
         num_runs = len(run_ids)
 
@@ -877,24 +880,22 @@ class ARGUS_Needle_Network:
                 self.num_classes + self.num_classes + 2
         )
 
-        for image_num in range(len(test_images)):
-            fname = os.path.basename(
-                self.test_files[self.vfold_num][image_num]["image"]
-            )
+        for image_num in range(len(test_input_images)):
+            fname = os.path.basename( test_input_image_filenames[image_num] )
             print("Image:", fname)
 
-            plt.figure("Testing", (30,20))
+            plt.figure("Testing", (30,12))
             subplot_num = 1
             for c in range(self.net_in_channels):
                 plt.subplot(num_runs+1, num_subplots, subplot_num)
                 plt.title(f"F"+str(c))
-                tmpV = test_images[image_num, c, :, :]
+                tmpV = test_input_images[image_num, c, :, :]
                 plt.axis('off')
                 plt.imshow(rotate(tmpV,270), cmap="gray")
                 subplot_num += 1
             plt.subplot(num_runs+1, num_subplots, num_subplots)
             plt.title(f"L")
-            tmpV = test_labels[image_num, 0, :, :]
+            tmpV = test_ideal_outputs[image_num, 0, :, :]
             for c in range(self.num_classes):
                 tmpV[0, c] = c
             plt.axis('off')
@@ -902,11 +903,11 @@ class ARGUS_Needle_Network:
             subplot_num += 1
 
             # run probabilities
-            prob_shape = test_outputs[0][0].shape
+            prob_shape = test_net_outputs[0][0].shape
             prob_total = np.zeros(prob_shape)
             run_output = np.empty(prob_shape)
             for run_num in range(num_runs):
-                run_output = test_outputs[run_num][image_num]
+                run_output = test_net_outputs[run_num][image_num]
                 prob = self.clean_probabilities(run_output)
                 prob_total += prob
                 subplot_num = num_subplots*(run_num+1) + 2
