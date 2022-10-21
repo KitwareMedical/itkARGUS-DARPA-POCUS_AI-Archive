@@ -92,6 +92,11 @@ def view_testing_results_vfold(self, test_outputs, test_images, test_labels, mod
 
     class_prior = np.ones(self.num_classes)
 
+    if self.target_data == "ONSD":
+        target_class = self.class_nerve
+    else:
+        target_class = self.class_artery
+
     with torch.no_grad():
         for img in range(0,test_outputs[0].shape[0]):
             fname = os.path.basename(
@@ -137,21 +142,21 @@ def view_testing_results_vfold(self, test_outputs, test_images, test_labels, mod
                 pmax = prob.max()
                 prange = pmax - pmin
                 prob = (prob - pmin) / prange
-                prob[self.class_artery] = prob[self.class_artery] * class_prior[self.class_artery]
+                prob[target_class] = prob[target_class] * class_prior[target_class]
                 class_array = np.argmax(prob, axis=0)
                 done = False
                 while not done:
                     done = True
                     count = np.count_nonzero(class_array > 0)
-                    while count < self.class_min_size[self.class_artery]:
-                        prob[self.class_artery] = prob[self.class_artery] * 1.05
+                    while count < self.class_min_size[target_class]:
+                        prob[target_class] = prob[target_class] * 1.05
                         class_array = np.argmax(prob, axis=0)
-                        count = np.count_nonzero(class_array == self.class_artery)
+                        count = np.count_nonzero(class_array == target_class)
                         done = False
-                    while count > self.class_max_size[self.class_artery]:
-                        prob[self.class_artery] = prob[self.class_artery] * 0.95
+                    while count > self.class_max_size[target_class]:
+                        prob[target_class] = prob[target_class] * 0.95
                         class_array = np.argmax(prob, axis=0)
-                        count = np.count_nonzero(class_array == self.class_artery)
+                        count = np.count_nonzero(class_array == target_class)
                         done = False
                 denom = np.sum(prob, axis=0)
                 denom = np.where(denom == 0, 1, denom)
@@ -169,7 +174,7 @@ def view_testing_results_vfold(self, test_outputs, test_images, test_labels, mod
             subplot_num = num_subplots * 2 - 1
             plt.subplot(2, num_subplots, subplot_num)
             plt.title(f"Ensemble")
-            tmpV = prob_total[self.class_artery, :, :]
+            tmpV = prob_total[target_class, :, :]
             plt.axis('off')
             plt.imshow(rotate(tmpV,270), cmap="gray")
             subplot_num += 1
@@ -177,37 +182,39 @@ def view_testing_results_vfold(self, test_outputs, test_images, test_labels, mod
             class_array = np.argmax(prob_total, axis=0)
             class_image = itk.GetImageFromArray(class_array.astype(np.float32))
             imMathClassCleanup = tube.ImageMath.New(class_image)
-            imMathClassCleanup.Erode(self.erosion_size, self.class_artery, 0)
-            imMathClassCleanup.Dilate(self.dilation_size, self.class_artery, 0)
+            imMathClassCleanup.Erode(self.erosion_size, target_class, 0)
+            imMathClassCleanup.Dilate(self.dilation_size, target_class, 0)
             class_image = imMathClassCleanup.GetOutputUChar()
 
-            imMathClassCleanup.Threshold(self.class_artery, self.class_artery, 1, 0)
-            self.class_artery_image = imMathClassCleanup.GetOutputUChar()
+            imMathClassCleanup.Threshold(target_class, target_class, 1, 0)
+            self.target_class_image = imMathClassCleanup.GetOutputUChar()
 
             seg = itk.itkARGUS.SegmentConnectedComponents.New(
-                Input=self.class_artery_image
+                Input=self.target_class_image
             )
             seg.SetKeepOnlyLargestComponent(True)
             seg.Update()
-            self.class_artery_image = seg.GetOutput()
-            self.class_artery_array = itk.GetArrayFromImage(self.class_artery_image)
+            self.target_class_image = seg.GetOutput()
+            self.target_class_array = itk.GetArrayFromImage(self.target_class_image)
 
-            class_array = np.where(class_array == self.class_artery, 0, class_array)
+            class_array = np.where(class_array == target_class, 0, class_array)
             class_array = np.where(
-                self.class_artery_array == 1, self.class_artery, class_array
+                self.target_class_array == 1, target_class, class_array
             )
             plt.subplot(2, num_subplots, subplot_num)
             plt.title(f"Artery")
-            tmpV = self.class_artery_array
+            tmpV = self.target_class_array
             for c in range(self.num_classes):
                 tmpV[0, c] = c
             plt.axis('off')
-            plt.imshow(rotate(self.class_artery_array,270))
+            plt.imshow(rotate(self.target_class_array,270))
             plt.show()
-            save_img = itk.GetImageFromArray(self.class_artery_array)
+            save_img = itk.GetImageFromArray(self.target_class_array)
             save_inference_results(self,
                                 class_image=save_img,
                                 fname=fname)
 
 def save_inference_results(self,class_image,fname):
+    if not os.path.exists(self.result_files_savepath):
+        os.makedirs(self.result_files_savepath)
     itk.imwrite(class_image,os.path.join(self.result_files_savepath,fname.split('.nii.gz')[0] + '_result.nii.gz'),compression=True)
