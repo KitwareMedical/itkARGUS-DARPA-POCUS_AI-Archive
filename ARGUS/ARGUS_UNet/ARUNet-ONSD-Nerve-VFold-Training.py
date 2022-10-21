@@ -17,15 +17,21 @@ def main():
     annotations_folder = "/data/barry.ravichandran/repos/AnatomicRecon-POCUS-AI/ONSD/Data_ONSD/Annotations/CLEANED/Resized/"
     
     p_prefix = [
-        ' 158',
+        ' 239',
+        ' 36',
+        ' 40',
+        ' 50',
         ' 64',
-        ' 139',
+        ' 66',
         ' 87',
+        ' 106',
         ' 117',
+        ' 139',
+        ' 158',
+        ' 165',
+        ' 107',
         ' 130',
-        ' 205',
-        ' 209',
-        ' 213'
+        ' 146',
     ]
     n_prefix = [
         ' 23',
@@ -35,7 +41,11 @@ def main():
         ' 163',
         ' 191',
         ' 228',
-        ' 250'
+        ' 250',
+        ' 205',
+        ' 209',
+        ' 213',
+        ' 215',
     ]
    
     myNetwork = ARUNet_Nerve_Network()

@@ -23,15 +23,17 @@ from ARGUS_Transforms import ARGUS_RandSpatialCropSlicesd  # NOQA
 class ARUNet_Nerve_Network:
     
     def __init__(self):
-        self.filename_base = "ARUNet-ONSD-Nerve-VFold-Training-320x480"
+        self.target_data = "ONSD"
+        self.filename_base = "ARUNet-ONSD-Nerve-VFold-Training-320x480-32Videos"
         self.img_file_extension = "*_cropM.nii.gz"
         self.label_file_extension = "*.overlay.nii.gz"
+        self.result_files_savepath = "/data/barry.ravichandran/repos/AnatomicRecon-POCUS-AI/ARGUS/ARGUS_UNet/Results/ARUNet-ONSD-Nerve-VFold-Training-320x480-32Videos"
 
         self.num_classes = 3
 
-        self.max_epochs = 2500
+        self.max_epochs = 1500
 
-        self.num_folds = 8
+        self.num_folds = 15
 
         self.net_dims = 2
 
@@ -42,8 +44,8 @@ class ARUNet_Nerve_Network:
         self.net_strides=(2, 2, 2, 2)
 
         self.cache_rate_train = 1.0
-        self.num_workers_train = 4
-        self.batch_size_train = 8
+        self.num_workers_train = 8
+        self.batch_size_train = 4
         
         self.cache_rate_val = 1.0
         self.num_workers_val = 2
