@@ -39,7 +39,7 @@ def setup_vfold_files(self, img_dir, anno_dir, p_prefix, n_prefix):
         num_p = 1
         num_n = 1
         if i > self.num_folds - 2:
-            if i % 2 == 0:
+            if i % 2 == 0 and p_count + 2 < len(p_prefix):
                 num_p = 2
                 num_n = 1
             else:
@@ -130,9 +130,10 @@ def setup_vfold_files(self, img_dir, anno_dir, p_prefix, n_prefix):
             ]
         )
         print(
-            len(self.train_files[i]),
-            len(self.val_files[i]),
-            len(self.test_files[i]),
+            len(self.train_files[i]), " | ",
+            len(self.val_files[i]), " | ",
+            len(self.test_files[i]), " | ",
+            len(self.train_files[i]) + len(self.val_files[i]) + len(self.test_files[i])
         )
 
 def setup_training_vfold(self, vfold_num):
