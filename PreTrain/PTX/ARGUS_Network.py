@@ -13,6 +13,7 @@ from monai.transforms import (
     Lambdad,
     LoadImaged,
     RandFlipd,
+    RandRotated,
     RandSpatialCropd,
     RandZoomd,
     Resized,
@@ -79,10 +80,13 @@ class ARGUS_Network:
         self.use_persistent_cache = bool(config[network_name]['use_persistent_cache'])
         
         self.class_blur = [float(x) for x in json.loads(config[network_name]['class_blur'])]
-        self.class_min_size = [float(x) for x in json.loads(config[network_name]['class_min_size'])]
-        self.class_max_size = [float(x) for x in json.loads(config[network_name]['class_max_size'])]
-        self.class_keep_only_largest = [float(x) for x in json.loads(config[network_name]['class_morph'])]
-        self.class_morph = [float(x) for x in json.loads(config[network_name]['class_morph'])]
+        self.class_min_size = [int(x) for x in json.loads(config[network_name]['class_min_size'])]
+        self.class_max_size = [int(x) for x in json.loads(config[network_name]['class_max_size'])]
+        self.class_keep_only_largest = [int(x) for x in json.loads(config[network_name]['class_keep_only_largest'])]
+        print(self.class_keep_only_largest)
+        print(self.class_blur)
+        print(self.class_min_size)
+        self.class_morph = [int(x) for x in json.loads(config[network_name]['class_morph'])]
         
         self.size_x = int(config[network_name]['size_x'])
         self.size_y = int(config[network_name]['size_y'])
@@ -126,6 +130,10 @@ class ARGUS_Network:
                     mode=['bilinear','nearest-exact'],
                     keys=["image", "label"],
                 ),
+                RandRotated(prob=0.2,
+                    range_z=0.15,
+                    keep_size=True,
+                    keys=['image', 'label']),
                 ARGUS_RandSpatialCropSlicesd(
                     num_slices=[self.num_slices, 1],
                     axis=0,
@@ -136,6 +144,12 @@ class ARGUS_Network:
                     keys=["image", "label"],
                 ),
                 RandFlipd(prob=0.5, spatial_axis=0, keys=["image", "label"]),
+                RandZoomd(prob=0.5, 
+                    min_zoom=1.0,
+                    max_zoom=1.1,
+                    keep_size=True,
+                    mode=['bilinear', 'nearest-exact'],
+                    keys=['image', 'label']),
                 ToTensord(keys=["image", "label"], dtype=torch.float),
             ]
         )
@@ -694,7 +708,7 @@ class ARGUS_Network:
             imMathClassCleanup.Threshold(c, c, 1, 0)
             class_clean_image = imMathClassCleanup.GetOutputUChar()
 
-            if self.class_keep_only_largest[c]:
+            if self.class_keep_only_largest[c]==1:
                 seg = itk.itkARGUS.SegmentConnectedComponents.New(
                     Input=class_clean_image
                 )
@@ -808,7 +822,7 @@ class ARGUS_Network:
             y = epoch_loss_values
             plt.xlabel("epoch")
             plt.plot(x, y)
-            plt.ylim([0.0, 0.8])
+            plt.ylim([0.0, 1.0])
 
             metric_file = model_filename_base + "val_dice_" + str(vfold_num) + ".npy"
             if os.path.exists(metric_file):
@@ -820,7 +834,7 @@ class ARGUS_Network:
                 y = metric_values
                 plt.xlabel("epoch")
                 plt.plot(x, y)
-                plt.ylim([0.0, 0.8])
+                plt.ylim([0.0, 1.0])
 
             else:
                 print("ERROR: Cannot read metric file:", loss_file)
