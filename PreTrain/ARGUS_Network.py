@@ -37,7 +37,9 @@ import torch
 import os
 import json
 from glob import glob
-import ubelt as ub
+
+import random
+
 import pathlib
 
 import numpy as np
@@ -48,7 +50,7 @@ import itk
 from itk import TubeTK as tube
 
 import site
-site.addsitedir("../../ARGUS")
+site.addsitedir("../ARGUS")
 
 from ARGUS_Transforms import ARGUS_RandSpatialCropSlicesd
 
@@ -66,10 +68,16 @@ class ARGUS_Network:
         self.image_dirname = config[network_name]['image_dirname']
         self.label_dirname = config[network_name]['label_dirname']
         
+        self.train_data_portion = float(config[network_name]['train_data_portion'])
+        self.test_data_portion = float(config[network_name]['test_data_portion'])
+        
         self.num_folds = int(config[network_name]['num_folds'])
+        self.randomize_folds = bool(config[network_name]['randomize_folds'])
         if self.num_folds < 4:
             self.num_folds = 1
-        self.train_all_data = bool(config[network_name]['train_all_data'])
+        self.refold_interval = int(config[network_name]['refold_interval'])
+        
+        self.validation_interval = int(config[network_name]['validation_interval'])
         
         self.pos_prefix = json.loads(config[network_name]['pos_prefix'])
         self.neg_prefix = json.loads(config[network_name]['neg_prefix'])
@@ -108,7 +116,6 @@ class ARGUS_Network:
         self.num_workers_train = 6
         self.batch_size_train = 12
 
-        self.val_interval = 10
         self.cache_rate_val = 1
         self.num_workers_val = 4
         self.batch_size_val = 2
@@ -228,6 +235,9 @@ class ARGUS_Network:
         neg_extra_case = num_neg - (neg_fold_size * self.num_folds)
         pos_count = 0
         neg_count = 0
+        if self.randomize_folds==True:
+            random.shuffle(self.pos_prefix)
+            random.shuffle(self.neg_prefix)
         for i in range(self.num_folds):
             pos_fsize = pos_fold_size
             if i<pos_extra_case:
@@ -247,7 +257,7 @@ class ARGUS_Network:
             fold_prefix.append(fprefix)
 
         for i in range(self.num_folds):
-            print(f"V-Fold-Prefix[{i}] = {fold_prefix[i]}")
+            print(f"VFold-Prefix[{i}] = {fold_prefix[i]}")
 
         self.train_files = []
         self.val_files = []
@@ -255,32 +265,48 @@ class ARGUS_Network:
 
         for i in range(self.num_folds):
             tr_folds = []
-            te_folds = []
             va_folds = []
+            te_folds = []
             if self.num_folds == 1:
-                if self.train_all_data == True:
+                if self.train_data_portion == 1.0:
                     tr_folds = fold_prefix[0]
-                    va_folds = fold_prefix[0]
                     te_folds = fold_prefix[0]
+                    va_folds = fold_prefix[0]
                 else:
                     num_pre = len(fold_prefix[0])
-                    num_tr = int(num_pre * 0.8)
-                    num_te_va = (num_pre - num_tr) // 2
+                    num_tr = int(num_pre * self.train_data_portion)
+                    num_te = int(num_pre * self.test_data_portion)
+                    if num_te < 1 and num_tr > 2:
+                        num_tr -= 1
+                        num_te = 1
+                    num_va = int(num_pre - num_tr - num_te)
+                    if num_va < 1 and num_tr > 2:
+                        num_tr -= 1
+                        num_va = 1
                     tr_folds = list(fold_prefix[0][0:num_tr])
-                    va_folds = list(fold_prefix[0][num_tr:num_tr+num_te_va])
-                    te_folds = list(fold_prefix[0][-num_te_va-1:])
+                    va_folds = list(fold_prefix[0][num_tr:num_tr+num_va])
+                    te_folds = list(fold_prefix[0][num_tr+num_va:])
             else:
-                for f in range(i, i + self.num_folds-3):
+                num_tr = int(self.num_folds * self.train_data_portion)
+                num_te = int(self.num_folds * self.test_data_portion)
+                if num_te < 1 and num_tr > 2:
+                    num_tr -= 1
+                    num_te = 1
+                num_va = int(self.num_folds - num_tr - num_te)
+                if num_va < 1 and num_tr > 2:
+                    num_tr -= 1
+                    num_va = 1
+                num_tr += self.num_folds - num_tr - num_te - num_va
+                
+                for f in range(i, i + num_tr):
                     tr_folds.append(fold_prefix[f % self.num_folds])
                 tr_folds = list(np.concatenate(tr_folds).flat)
-                for f in range(i + self.num_folds - 3, i + self.num_folds - 1):
+                for f in range(i + num_tr, i + num_tr + num_va):
                     va_folds.append(fold_prefix[f % self.num_folds])
                 va_folds = list(np.concatenate(va_folds).flat)
-                te_folds = list(
-                    np.concatenate(
-                        fold_prefix[(i + self.num_folds - 1) % self.num_folds]
-                    ).flat
-                )
+                for f in range(i + num_tr + num_va, i + num_tr + num_va + num_te):
+                    te_folds.append(fold_prefix[f % self.num_folds])
+                te_folds = list(np.concatenate(te_folds).flat)
             self.train_files.append(
                 [
                     {"image": img, "label": seg}
@@ -488,7 +514,7 @@ class ARGUS_Network:
                 flush=True,
             )
 
-            if (epoch + 1) % self.val_interval == 0:
+            if (epoch + 1) % self.validation_interval == 0:
                 model.eval()
                 with torch.no_grad():
                     for val_data in self.val_loader:
@@ -516,7 +542,7 @@ class ARGUS_Network:
 
                     metric_values.append(metric)
                     if epoch > 100:
-                        mean_metric = np.mean(metric_values[-self.val_interval:])
+                        mean_metric = np.mean(metric_values[-self.validation_interval:])
                         if mean_metric > best_metric:
                             best_metric = mean_metric
                             best_metric_epoch = epoch + 1
@@ -554,6 +580,8 @@ class ARGUS_Network:
                         + ".npy",
                         metric_values,
                     )
+            if self.randomize_folds and (epoch + 1) % self.refold_interval == 0:
+                setup_training_vfold(self.vfold_num)
 
     def test_vfold(self, model_type="best", run_id=0, device_num=0):
         model_filename_base = (
