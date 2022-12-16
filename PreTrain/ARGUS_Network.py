@@ -91,9 +91,6 @@ class ARGUS_Network:
         self.class_min_size = [int(x) for x in json.loads(config[network_name]['class_min_size'])]
         self.class_max_size = [int(x) for x in json.loads(config[network_name]['class_max_size'])]
         self.class_keep_only_largest = [int(x) for x in json.loads(config[network_name]['class_keep_only_largest'])]
-        print(self.class_keep_only_largest)
-        print(self.class_blur)
-        print(self.class_min_size)
         self.class_morph = [int(x) for x in json.loads(config[network_name]['class_morph'])]
         
         self.size_x = int(config[network_name]['size_x'])
@@ -542,7 +539,10 @@ class ARGUS_Network:
 
                     metric_values.append(metric)
                     if epoch > 100:
-                        mean_metric = np.mean(metric_values[-self.validation_interval:])
+                        metric_window = 5
+                        if self.randomize_folds==True:
+                            metric_window = int((2 * metric_window * self.refold_interval) // self.validation_interval)
+                        mean_metric = np.mean(metric_values[-metric_window:])
                         if mean_metric > best_metric:
                             best_metric = mean_metric
                             best_metric_epoch = epoch + 1
@@ -581,7 +581,8 @@ class ARGUS_Network:
                         metric_values,
                     )
             if self.randomize_folds and (epoch + 1) % self.refold_interval == 0:
-                setup_training_vfold(self.vfold_num)
+                self.setup_vfold_files()
+                self.setup_training_vfold(self.vfold_num)
 
     def test_vfold(self, model_type="best", run_id=0, device_num=0):
         model_filename_base = (
