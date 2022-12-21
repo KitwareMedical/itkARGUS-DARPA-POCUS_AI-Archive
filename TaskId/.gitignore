@@ -2,4 +2,5 @@ cufile*
 Data_TaskId_Net
 save
 runs
-best_metric*pth
+Results*
+data_cache_*
