@@ -164,6 +164,7 @@ class ARGUS_taskid:
             print(f"{pre} : num images = {len(class_files)}")
         self.all_train_images = [i for imglist in self.class_train_images for i in imglist]
         self.all_train_labels = [i for lbllist in self.class_train_labels for i in lbllist]
+        print( f"Total num images = {len(self.all_train_images)}" )
         
         num_images = len(self.all_train_images)
         
@@ -206,7 +207,7 @@ class ARGUS_taskid:
                     if num_te < 1 and num_tr > 2:
                         num_tr -= 1
                         num_te = 1
-                    num_va = int(num_pre - num_tr - num_te)
+                    num_va = max(0, int(num_pre - num_tr - num_te))
                     if num_va < 1 and num_tr > 2:
                         num_tr -= 1
                         num_va = 1
@@ -219,11 +220,12 @@ class ARGUS_taskid:
                 if num_te < 1 and num_tr > 2:
                     num_tr -= 1
                     num_te = 1
-                num_va = int(self.num_folds - num_tr - num_te)
+                num_va = max(0, int(self.num_folds - num_tr - num_te))
                 if num_va < 1 and num_tr > 2:
                     num_tr -= 1
                     num_va = 1
-                num_tr += self.num_folds - num_tr - num_te - num_va
+                extra = max(0, self.num_folds - num_tr - num_te - num_va)
+                num_tr += extra
                 
                 for f in range(i, i + num_tr):
                     tr_folds.extend(fold_data[f % self.num_folds])
@@ -332,7 +334,7 @@ class ARGUS_taskid:
             + self.results_filename_base
             + "-"
             + str(self.num_slices)
-            + "s-VFold-Run"
+            + "s-" + self.network_name + "-Run"
             + str(run_id)
         )
         if not os.path.exists(model_filename_base):
@@ -455,7 +457,7 @@ class ARGUS_taskid:
             + self.results_filename_base
             + "-"
             + str(self.num_slices)
-            + "s-VFold-Run"
+            + "s-" + self.network_name + "-Run"
             + str(run_id)
             + "/"
         )
@@ -494,7 +496,7 @@ class ARGUS_taskid:
                 for batch_num, test_data in enumerate(self.test_loader):
                     test_inputs = test_data["image"].to(device)
                     test_labels = test_data["label"].to(device)
-                    test_outputs = model(test_inputs).cpu()
+                    test_outputs = model(test_inputs)
                     out_labels = test_outputs.argmax(dim=1)
                     
                     value = torch.eq(out_labels, test_labels)
@@ -504,7 +506,7 @@ class ARGUS_taskid:
                     if batch_num == 0:
                         test_images_total = test_data["image"]
                         test_labels_total = test_data["label"]
-                        test_outputs_total = out_labels
+                        test_outputs_total = test_outputs
                     else:
                         test_images_total = np.concatenate(
                             (test_images_total, test_data["image"]), axis=0
@@ -517,13 +519,29 @@ class ARGUS_taskid:
                         )
                         
                 metric = num_correct / metric_count
-                metric_values.append(metric)
-                    
+                print( f"VFold {self.vfold_num}: Accuracy = {metric}" )
+                
         else:
             print("ERROR: Model file not found:", model_file, "!!")
 
         return test_filenames_total, test_images_total, test_labels_total, test_outputs_total
-
+    
+    def clean_probabilities(self, run_output):
+        prob = run_output.copy()
+        pmin = prob.min()
+        pmax = prob.max()
+        prange = pmax - pmin
+        prob = (prob - pmin) / prange
+        prob = run_output.copy()
+        denom = np.sum(run_output, axis=0)
+        denom = np.where(denom == 0, 1, denom)
+        prob =  prob / denom
+        return run_output
+    
+    def classify_probabilities(self, run_output):
+        class_num = np.argmax(run_output, axis=0)
+        return class_num
+    
     def classify_vfold(self, model_type="best", run_ids=[0], device_num=0):
         test_filenames = []
         test_inputs = []
@@ -662,32 +680,19 @@ class ARGUS_taskid:
 
         num_runs = len(run_ids)
 
-        num_subplots = max(
-                self.net_in_channels + 1,
-                self.num_classes + self.num_classes + 2
-        )
-
         for image_num in range(len(test_input_images)):
             fname = os.path.basename( test_input_image_filenames[image_num] )
             print("Image:", fname)
 
-            plt.figure("Testing", (30,12))
-            subplot_num = 1
+            plt.figure("Testing")
             for c in range(self.net_in_channels):
-                plt.subplot(num_runs+1, num_subplots, subplot_num)
+                plt.subplot(1, self.net_in_channels, c+1)
                 plt.title(f"F"+str(c))
                 tmpV = test_input_images[image_num, c, :, :]
                 plt.axis('off')
                 plt.imshow(rotate(tmpV,270), cmap="gray")
-                subplot_num += 1
-            plt.subplot(num_runs+1, num_subplots, num_subplots)
-            plt.title(f"L")
-            tmpV = test_ideal_outputs[image_num, 0, :, :]
-            for c in range(self.num_classes):
-                tmpV[0, c] = c
-            plt.axis('off')
-            plt.imshow(rotate(tmpV,270))
-            subplot_num += 1
+            plt.show()
+            print( "   Ideal output =", test_ideal_outputs[image_num] )
 
             # run probabilities
             prob_shape = test_net_outputs[0][0].shape
@@ -697,26 +702,12 @@ class ARGUS_taskid:
                 run_output = test_net_outputs[run_num][image_num]
                 prob = self.clean_probabilities(run_output)
                 prob_total += prob
-                subplot_num = num_subplots*(run_num+1) + 2
-                for c in range(self.num_classes):
-                    plt.subplot(num_runs+1, num_subplots, subplot_num)
-                    plt.title(f"R" + str(run_num) + " C" + str(c))
-                    tmpV = prob[c]
-                    plt.axis('off')
-                    plt.imshow(rotate(tmpV,270), cmap="gray")
-                    subplot_num += 1
+                print( f"   Run output ({run_num}) = {run_output}" )
             prob_total /= num_runs
 
             # ensemble probabilities
-            prob = self.clean_probabilities(prob_total, use_blur=False)
-            subplot_num = (num_runs+1)*num_subplots - self.num_classes
-            for c in range(self.num_classes):
-                plt.subplot(num_runs+1, num_subplots, subplot_num)
-                plt.title(f"E"+str(c))
-                tmpV = prob[c]
-                plt.axis('off')
-                plt.imshow(rotate(tmpV,270), cmap="gray")
-                subplot_num += 1
+            prob = self.clean_probabilities(prob_total)
+            print( f"   Ensemble output = {prob}" )
 
             # ensemble classifications
             class_array = self.classify_probabilities(prob)
@@ -725,17 +716,9 @@ class ARGUS_taskid:
                 #itk.GetImageFromArray(class_array.astype(np.float32)),
                 #"class_image_final_f" + str(self.vfold_num) +
                 #"i" + str(image_num) + ".mha" )
-            plt.subplot(num_runs+1, num_subplots, subplot_num)
-            plt.title(f"Label")
-            tmpV = class_array
-            for c in range(self.num_classes):
-                tmpV[0, c] = c
-            plt.axis('off')
-            plt.imshow(rotate(tmpV,270))
-            plt.show()
+            print( f"   Final output = {class_array}" )
+            print( "" )
 
-            class_image = itk.GetImageFromArray(
-                class_array.astype(np.float32))
-            itk.imwrite(class_image,
-                        "./" + self.results_dirname + "/" +
-                        fname[:-6] + "out.mha" )
+            #itk.imwrite(class_image,
+                        #"./" + self.results_dirname + "/" +
+                        #fname[:-6] + "out.mha" )
