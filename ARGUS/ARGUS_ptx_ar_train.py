@@ -6,9 +6,8 @@ from ARGUS_linearization_ptx import ARGUS_linearization_ptx
 
 class ARGUS_ptx_ar_train(ARGUS_segmentation_train):
     
-    def __init__(self, network_name="vfold", device_num=0):
+    def __init__(self, config_file_name="ARGUS_ptx_ar.cfg", network_name="final", device_num=0):
         
-        config_file_name = "ARGUS_ptx_ar.cfg"
         super().__init__(config_file_name, network_name, device_num)
         
         self.linearized_video = []

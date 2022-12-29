@@ -55,8 +55,7 @@ class ARGUS_segmentation_inference:
         self.class_blur = [float(x) for x in json.loads(config[network_name]['class_blur'])]
         self.class_min_size = [int(x) for x in json.loads(config[network_name]['class_min_size'])]
         self.class_max_size = [int(x) for x in json.loads(config[network_name]['class_max_size'])]
-        tmp_class_keep_only_largest = [int(x) for x in json.loads(config[network_name]['class_keep_only_largest'])]
-        self.class_keep_only_largest = np.where(tmp_class_keep_only_largest==1, True, False)
+        self.class_keep_only_largest = [bool(x) for x in json.loads(config[network_name]['class_keep_only_largest'])]
         self.class_morph = [int(x) for x in json.loads(config[network_name]['class_morph'])]
 
         self.model = [UNet(
