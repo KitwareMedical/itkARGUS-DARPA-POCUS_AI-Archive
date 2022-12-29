@@ -121,7 +121,6 @@ class ARGUS_arnet:
         self.num_workers_test = 1
         self.batch_size_test = 1
 
-
         self.all_train_images = []
         self.all_train_labels = []
 
