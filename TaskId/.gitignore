@@ -4,3 +4,4 @@ save
 runs
 Results*
 data_cache_*
+*.log
