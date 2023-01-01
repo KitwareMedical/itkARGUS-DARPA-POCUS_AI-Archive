@@ -1,4 +1,4 @@
 Data_PTX_Net
 Results
-cufile.log
+*.log
 data_cache_*
