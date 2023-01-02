@@ -54,12 +54,13 @@ class ARGUS_segmentation_train(ARGUS_segmentation_inference):
         config = configparser.ConfigParser()
         config.read(config_file_name)
 
-        self.image_dirname = config[network_name]['image_dirname']
+        self.image_dirname = json.loads(config[network_name]['image_dirname'])
         self.image_filesuffix = config[network_name]['image_filesuffix']
-        self.label_dirname = config[network_name]['label_dirname']
+        self.label_dirname = json.loads(config[network_name]['label_dirname'])
         self.label_filesuffix = config[network_name]['label_filesuffix']
         
         self.train_data_portion = float(config[network_name]['train_data_portion'])
+        self.validation_data_portion = float(config[network_name]['validation_data_portion'])
         self.test_data_portion = float(config[network_name]['test_data_portion'])
         
         self.num_folds = int(config[network_name]['num_folds'])
@@ -177,8 +178,12 @@ class ARGUS_segmentation_train(ARGUS_segmentation_inference):
         )
 
     def setup_vfold_files(self):
-        self.all_train_images = sorted(glob(os.path.join(self.image_dirname, self.image_filesuffix)))
-        self.all_train_labels = sorted(glob(os.path.join(self.label_dirname, self.image_filesuffix)))
+        self.all_train_images = []
+        for dirname in self.image_dirname:
+            self.all_train_images = self.all_train_images + sorted(glob(os.path.join(dirname, self.image_filesuffix)))
+        self.all_train_labels = []
+        for dirname in self.label_dirname:
+            self.all_train_labels = self.all_train_labels + sorted(glob(os.path.join(dirname, self.label_filesuffix)))
 
         num_images = len(self.all_train_images)
         print("Num images / labels =", num_images, len(self.all_train_labels))
@@ -269,25 +274,28 @@ class ARGUS_segmentation_train(ARGUS_segmentation_inference):
                 else:
                     num_pre = len(fold_prefix[0])
                     num_tr = int(num_pre * self.train_data_portion)
+                    num_va = int(num_pre * self.validation_data_portion)
                     num_te = int(num_pre * self.test_data_portion)
-                    if num_te < 1 and num_tr > 2:
+                    if self.test_data_portion > 0 and num_te < 1 and num_tr > 2:
                         num_tr -= 1
                         num_te = 1
-                    num_va = int(num_pre - num_tr - num_te)
-                    if num_va < 1 and num_tr > 2:
+                    if self.validation_data_portion > 0 and num_va < 1 and num_tr > 2:
                         num_tr -= 1
                         num_va = 1
                     tr_folds = list(fold_prefix[0][0:num_tr])
-                    va_folds = list(fold_prefix[0][num_tr:num_tr+num_va])
-                    te_folds = list(fold_prefix[0][num_tr+num_va:])
+                    if num_va>0:
+                        va_folds = list(fold_prefix[0][num_tr:num_tr+num_va])
+                    if num_te>0:
+                        te_folds = list(fold_prefix[0][num_tr+num_va:])
             else:
                 num_tr = int(self.num_folds * self.train_data_portion)
+                num_va = int(self.num_folds * self.validation_data_portion)
                 num_te = int(self.num_folds * self.test_data_portion)
-                if num_te < 1 and num_tr > 2:
+                if self.test_data_portion > 0 and num_te < 1 and num_tr > 2:
                     num_tr -= 1
                     num_te = 1
                 num_va = int(self.num_folds - num_tr - num_te)
-                if num_va < 1 and num_tr > 2:
+                if self.validation_data_portion > 0 and num_va < 1 and num_tr > 2:
                     num_tr -= 1
                     num_va = 1
                 num_tr += self.num_folds - num_tr - num_te - num_va
@@ -295,12 +303,14 @@ class ARGUS_segmentation_train(ARGUS_segmentation_inference):
                 for f in range(i, i + num_tr):
                     tr_folds.append(fold_prefix[f % self.num_folds])
                 tr_folds = list(np.concatenate(tr_folds).flat)
-                for f in range(i + num_tr, i + num_tr + num_va):
-                    va_folds.append(fold_prefix[f % self.num_folds])
-                va_folds = list(np.concatenate(va_folds).flat)
-                for f in range(i + num_tr + num_va, i + num_tr + num_va + num_te):
-                    te_folds.append(fold_prefix[f % self.num_folds])
-                te_folds = list(np.concatenate(te_folds).flat)
+                if num_va > 0:
+                    for f in range(i + num_tr, i + num_tr + num_va):
+                        va_folds.append(fold_prefix[f % self.num_folds])
+                    va_folds = list(np.concatenate(va_folds).flat)
+                if num_te > 0:
+                    for f in range(i + num_tr + num_va, i + num_tr + num_va + num_te):
+                        te_folds.append(fold_prefix[f % self.num_folds])
+                    te_folds = list(np.concatenate(te_folds).flat)
             self.train_files.append(
                 [
                     {"image": img, "label": seg}
@@ -318,40 +328,42 @@ class ARGUS_segmentation_train(ARGUS_segmentation_inference):
                     )
                 ]
             )
-            self.val_files.append(
-                [
-                    {"image": img, "label": seg}
-                    for img, seg in zip(
-                        [
-                            im
-                            for im in self.all_train_images
-                            if any(pref in im for pref in va_folds)
-                        ],
-                        [
-                            se
-                            for se in self.all_train_labels
-                            if any(pref in se for pref in va_folds)
-                        ],
-                    )
-                ]
-            )
-            self.test_files.append(
-                [
-                    {"image": img, "label": seg}
-                    for img, seg in zip(
-                        [
-                            im
-                            for im in self.all_train_images
-                            if any(pref in im for pref in te_folds)
-                        ],
-                        [
-                            se
-                            for se in self.all_train_labels
-                            if any(pref in se for pref in te_folds)
-                        ],
-                    )
-                ]
-            )
+            if len(va_folds) > 0:
+                self.val_files.append(
+                    [
+                        {"image": img, "label": seg}
+                        for img, seg in zip(
+                            [
+                                im
+                                for im in self.all_train_images
+                                if any(pref in im for pref in va_folds)
+                            ],
+                            [
+                                se
+                                for se in self.all_train_labels
+                                if any(pref in se for pref in va_folds)
+                            ],
+                        )
+                    ]
+                )
+            if len(te_folds) > 0:
+                self.test_files.append(
+                    [
+                        {"image": img, "label": seg}
+                        for img, seg in zip(
+                            [
+                                im
+                                for im in self.all_train_images
+                                if any(pref in im for pref in te_folds)
+                            ],
+                            [
+                                se
+                                for se in self.all_train_labels
+                                if any(pref in se for pref in te_folds)
+                            ],
+                        )
+                    ]
+                )
             #print( "**** VFold =", i )
             #print( "   TRAIN", self.train_files[i])
             #print( "   VAL", self.val_files[i])
@@ -387,55 +399,57 @@ class ARGUS_segmentation_train(ARGUS_segmentation_inference):
             pin_memory=True,
         )
 
-        if self.use_persistent_cache:
-            val_ds = PersistentDataset(
-                data=self.val_files[self.vfold_num],
-                transform=self.val_transforms,
-                cache_dir=persistent_cache,
-
+        if len(self.val_files) > self.vfold_num and len(self.val_files[self.vfold_num]) > 0:
+            if self.use_persistent_cache:
+                val_ds = PersistentDataset(
+                    data=self.val_files[self.vfold_num],
+                    transform=self.val_transforms,
+                    cache_dir=persistent_cache,
+    
+                )
+            else:
+                val_ds = CacheDataset(
+                    data=self.val_files[self.vfold_num],
+                    transform=self.val_transforms,
+                    cache_rate=self.cache_rate_val,
+                    num_workers=self.num_workers_val
+    
+                )
+            self.val_loader = DataLoader(
+                val_ds,
+                batch_size=self.batch_size_val,
+                num_workers=self.num_workers_val,
+                collate_fn=list_data_collate,
+                pin_memory=True,
             )
-        else:
-            val_ds = CacheDataset(
-                data=self.val_files[self.vfold_num],
-                transform=self.val_transforms,
-                cache_rate=self.cache_rate_val,
-                num_workers=self.num_workers_val
-
-            )
-        self.val_loader = DataLoader(
-            val_ds,
-            batch_size=self.batch_size_val,
-            num_workers=self.num_workers_val,
-            collate_fn=list_data_collate,
-            pin_memory=True,
-        )
 
     def setup_testing_vfold(self, vfold_num):
         self.vfold_num = vfold_num
 
-        if self.use_persistent_cache:
-            persistent_cache = pathlib.Path("./data_cache_"+self.network_name+str(vfold_num),
-                    "persistent_cache")
-            persistent_cache.mkdir(parents=True, exist_ok=True)
-            test_ds = PersistentDataset(
-                data=self.test_files[self.vfold_num],
-                transform=self.test_transforms,
-                cache_dir=persistent_cache,
+        if len(self.test_files) > self.vfold_num and len(self.test_files[self.vfold_num]) > 0:
+            if self.use_persistent_cache:
+                persistent_cache = pathlib.Path("./data_cache_"+self.network_name+str(vfold_num),
+                        "persistent_cache")
+                persistent_cache.mkdir(parents=True, exist_ok=True)
+                test_ds = PersistentDataset(
+                    data=self.test_files[self.vfold_num],
+                    transform=self.test_transforms,
+                    cache_dir=persistent_cache,
+                )
+            else:
+                test_ds = CacheDataset(
+                    data=self.test_files[self.vfold_num],
+                    transform=self.test_transforms,
+                    cache_rate=self.cache_rate_test,
+                    num_workers=self.num_workers_test
+                )
+            self.test_loader = DataLoader(
+                test_ds,
+                batch_size=self.batch_size_test,
+                num_workers=self.num_workers_test,
+                collate_fn=list_data_collate,
+                pin_memory=True,
             )
-        else:
-            test_ds = CacheDataset(
-                data=self.test_files[self.vfold_num],
-                transform=self.test_transforms,
-                cache_rate=self.cache_rate_test,
-                num_workers=self.num_workers_test
-            )
-        self.test_loader = DataLoader(
-            test_ds,
-            batch_size=self.batch_size_test,
-            num_workers=self.num_workers_test,
-            collate_fn=list_data_collate,
-            pin_memory=True,
-        )
 
     def train_vfold(self, run_id=0):
         model_filename_base = os.path.join(
@@ -493,7 +507,7 @@ class ARGUS_segmentation_train(ARGUS_segmentation_inference):
                 flush=True,
             )
 
-            if (epoch + 1) % self.validation_interval == 0:
+            if self.validation_interval > 0 and (epoch + 1) % self.validation_interval == 0:
                 self.model[run_id].eval()
                 with torch.no_grad():
                     for val_data in self.val_loader:
@@ -642,9 +656,10 @@ class ARGUS_segmentation_train(ARGUS_segmentation_inference):
 
     def view_training_image(self, image_num=0):
         img_name = self.all_train_images[image_num]
-        print(img_name)
         img = itk.imread(img_name)
-        lbl = itk.imread(self.all_train_labels[image_num])
+        lbl_name = self.all_train_labels[image_num]
+        lbl = itk.imread(lbl_name)
+        print(str(image_num), img_name, lbl_name)
         num_plots = 5
         num_slices = img.shape[0]
         step_slices = num_slices / num_plots
