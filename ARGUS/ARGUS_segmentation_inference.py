@@ -66,7 +66,7 @@ class ARGUS_segmentation_inference:
             strides=self.net_layer_strides,
             num_res_units=self.net_num_residual_units,
             norm=Norm.BATCH,
-            ).to(self.device)]*self.num_models
+        ).to(self.device)] * self.num_models
         
         self.SpatialResize =  Resize(
             spatial_size=[self.size_y,self.size_x],
@@ -83,23 +83,41 @@ class ARGUS_segmentation_inference:
             extended=self.reduce_to_statistics,
             include_center_slice=self.reduce_to_statistics,
             include_gradient=self.reduce_to_statistics,
-            axis=2)
+            axis=0)
         
         self.ConvertToTensor = ToTensor()
+        
+    def init_model(self, model_num):
+        self.model[model_num] = UNet(
+            dimensions=self.net_in_dims,
+            in_channels=self.net_in_channels,
+            out_channels=self.num_classes,
+            channels=self.net_layer_channels,
+            strides=self.net_layer_strides,
+            num_res_units=self.net_num_residual_units,
+            norm=Norm.BATCH,
+            ).to(self.device)
         
     def load_model(self, model_num, filename):
         self.model[model_num].load_state_dict(torch.load(filename, map_location=self.device))
         self.model[model_num].eval()
 
-    def preprocess(vid):
+    def preprocess(self, vid):
         ar_input_array = np.empty([1, 1,
-                               self.num_channels, vid.shape[0], vid.shape[1]])
+                               self.net_in_channels, vid.shape[1], vid.shape[2]])
 
-        input_array = self.SaptialResize(vid)
+        tmp_testing_slice = self.testing_slice
+        if tmp_testing_slice < 0:
+            tmp_testing_slice = vid.shape[0]+tmp_testing_slice-1
+        min_slice = max(0,tmp_testing_slice-self.num_slices//2-1)
+        max_slice = min(vid.shape[0],tmp_testing_slice+self.num_slices//2+2)
+        vid_roi = vid[min_slice:max_slice,:,:]
+        input_array = self.SpatialResize(vid_roi)
         
         input_array_scaled = self.IntensityScale(input_array)
         
-        ar_input_array[0, 0] = self.ARGUS_preprocess(input_array_scaled)
+        self.ARGUS_preprocess.center_slice = self.num_slices//2
+        ar_input_array[0, 0] = np.rot90( self.ARGUS_preprocess(input_array_scaled), k=1, axes=(1,2))
         
         self.input_tensor = self.ConvertToTensor(ar_input_array.astype(np.float32))
 
@@ -109,7 +127,8 @@ class ARGUS_segmentation_inference:
             for c in range(self.num_classes):
                 itkProb = itk.GetImageFromArray(run_output[c])
                 imMathProb = tube.ImageMath.New(itkProb)
-                imMathProb.Blur(self.class_blur[c])
+                if self.class_blur[c] > 0:
+                    imMathProb.Blur(self.class_blur[c])
                 itkProb = imMathProb.GetOutput()
                 prob[c] = itk.GetArrayFromImage(itkProb)
         else:
@@ -200,15 +219,15 @@ class ARGUS_segmentation_inference:
 
         return class_array
     
-    def inference():
+    def inference(self):
         roi_size = (self.size_x, self.size_y)
         prob_size = (self.num_classes, self.size_x, self.size_y)
         prob_total = np.zeros(prob_size)
         with torch.no_grad():
             for m in range(self.num_models):
                 test_outputs = sliding_window_inference(
-                    self.input_tensor.to(self.device), roi_size, 1, self.model[model_num])
-                prob = self.clean_probabilities(test_outputs)
+                    self.input_tensor[0].to(self.device), roi_size, 1, self.model[m])
+                prob = self.clean_probabilities(test_outputs[0].cpu())
                 prob_total += prob
         prob_total /= self.num_models
         prob = self.clean_probabilities(prob_total, use_blur=False)

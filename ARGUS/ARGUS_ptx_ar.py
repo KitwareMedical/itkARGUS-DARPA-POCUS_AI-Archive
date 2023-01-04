@@ -15,4 +15,5 @@ class ARGUS_ptx_ar(ARGUS_segmentation_inference):
     
     def preprocess(self, vid):
         self.linearized_video = self.linearize.process(vid)
-        super(ARGUS_train_ptx_ar, self).preprocess(self.linearized_video)
+        print(self.linearized_video.shape)
+        super().preprocess(self.linearized_video)

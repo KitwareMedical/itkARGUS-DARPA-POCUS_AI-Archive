@@ -97,7 +97,7 @@ class ARGUS_linearization_ptx():
             vid = itk.GetArrayFromImage(resample.GetOutput())
         return vid
     
-    def process(self, vid ):
+    def process(self, vid):
         depth,zoom,offsetX,offsetY = self.get_depth_and_zoom(vid[0])
         filename = path.join(path.dirname(__file__), 'linearization_maps_ptx', f'linear_map_depth{str(depth)}.npy')
         mapping = np.load(filename)
