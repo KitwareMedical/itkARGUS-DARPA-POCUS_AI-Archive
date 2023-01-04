@@ -66,7 +66,7 @@ class ARGUS_segmentation_inference:
             strides=self.net_layer_strides,
             num_res_units=self.net_num_residual_units,
             norm=Norm.BATCH,
-            ).to(self.device)]*self.num_models
+        ).to(self.device)] * self.num_models
         
         self.SpatialResize =  Resize(
             spatial_size=[self.size_y,self.size_x],
@@ -111,12 +111,10 @@ class ARGUS_segmentation_inference:
             tmp_testing_slice = vid.shape[0]+tmp_testing_slice-1
         min_slice = max(0,tmp_testing_slice-self.num_slices//2-1)
         max_slice = min(vid.shape[0],tmp_testing_slice+self.num_slices//2+2)
-        print(min_slice, max_slice)
         vid_roi = vid[min_slice:max_slice,:,:]
         input_array = self.SpatialResize(vid_roi)
         
         input_array_scaled = self.IntensityScale(input_array)
-        print("input array scales shape =", input_array_scaled.shape)
         
         self.ARGUS_preprocess.center_slice = self.num_slices//2
         ar_input_array[0, 0] = np.rot90( self.ARGUS_preprocess(input_array_scaled), k=1, axes=(1,2))
@@ -229,7 +227,6 @@ class ARGUS_segmentation_inference:
             for m in range(self.num_models):
                 test_outputs = sliding_window_inference(
                     self.input_tensor[0].to(self.device), roi_size, 1, self.model[m])
-                print(test_outputs.cpu().shape)
                 prob = self.clean_probabilities(test_outputs[0].cpu())
                 prob_total += prob
         prob_total /= self.num_models

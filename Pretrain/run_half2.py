@@ -12,7 +12,7 @@ nnet.setup_vfold_files()
 set_determinism(seed=None)
 
 run_num = 2
-for vfn in range(3,nnet.num_folds):
+for vfn in range(nnet.num_folds):
     nnet.init_model(run_num)
     nnet.setup_training_vfold(vfn)
     nnet.train_vfold(run_num)

@@ -22,6 +22,7 @@ from monai.metrics import DiceMetric
 from monai.losses import DiceLoss
 from monai.inferers import sliding_window_inference
 from monai.data import PersistentDataset, CacheDataset, DataLoader, Dataset, decollate_batch, list_data_collate
+
 import torch
 
 import configparser
@@ -227,6 +228,10 @@ class ARGUS_segmentation_train(ARGUS_segmentation_inference):
         num_neg = len(self.neg_prefix)
         print( f"Num pos / Num neg = {num_pos} / {num_neg}" )
         
+        if self.randomize_folds==True:
+            random.shuffle(self.pos_prefix)
+            random.shuffle(self.neg_prefix)
+            
         fold_prefix = []
         pos_fold_size = num_pos // self.num_folds
         neg_fold_size = num_neg // self.num_folds
@@ -234,9 +239,6 @@ class ARGUS_segmentation_train(ARGUS_segmentation_inference):
         neg_extra_case = num_neg - (neg_fold_size * self.num_folds)
         pos_count = 0
         neg_count = 0
-        if self.randomize_folds==True:
-            random.shuffle(self.pos_prefix)
-            random.shuffle(self.neg_prefix)
         for i in range(self.num_folds):
             pos_fsize = pos_fold_size
             if i<pos_extra_case:
@@ -294,7 +296,6 @@ class ARGUS_segmentation_train(ARGUS_segmentation_inference):
                 if self.test_data_portion > 0 and num_te < 1 and num_tr > 2:
                     num_tr -= 1
                     num_te = 1
-                num_va = int(self.num_folds - num_tr - num_te)
                 if self.validation_data_portion > 0 and num_va < 1 and num_tr > 2:
                     num_tr -= 1
                     num_va = 1
@@ -405,7 +406,6 @@ class ARGUS_segmentation_train(ARGUS_segmentation_inference):
                     data=self.val_files[self.vfold_num],
                     transform=self.val_transforms,
                     cache_dir=persistent_cache,
-    
                 )
             else:
                 val_ds = CacheDataset(
@@ -413,7 +413,6 @@ class ARGUS_segmentation_train(ARGUS_segmentation_inference):
                     transform=self.val_transforms,
                     cache_rate=self.cache_rate_val,
                     num_workers=self.num_workers_val
-    
                 )
             self.val_loader = DataLoader(
                 val_ds,
@@ -654,6 +653,12 @@ class ARGUS_segmentation_train(ARGUS_segmentation_inference):
 
         return test_filenames, test_inputs, test_ideal_outputs, test_ensemble_outputs
 
+    def verify_vfold(self):
+        batch = monai.utils.misc.first(self.train_loader)
+        im = batch["image"]
+        label = batch["label"]
+        print(type(im), im.shape, label, label.shape)
+        
     def view_training_image(self, image_num=0):
         img_name = self.all_train_images[image_num]
         img = itk.imread(img_name)
@@ -733,7 +738,7 @@ class ARGUS_segmentation_train(ARGUS_segmentation_inference):
                 plt.ylim([0.0, 1.0])
 
             else:
-                print("ERROR: Cannot read metric file:", loss_file)
+                print("ERROR: Cannot read metric file:", metric_file)
 
             plt.show()
         else:
