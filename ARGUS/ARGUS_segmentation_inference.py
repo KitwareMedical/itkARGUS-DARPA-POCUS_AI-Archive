@@ -169,7 +169,7 @@ class ARGUS_segmentation_inference:
                     count = np.count_nonzero(class_array == c)
                     op_iter += 1
                     done = False
-        print("Iterations to optimize prior =", op_iter)
+        #print("Iterations to optimize prior =", op_iter)
         denom = np.sum(prob, axis=0)
         denom = np.where(denom == 0, 1, denom)
         prob =  prob / denom

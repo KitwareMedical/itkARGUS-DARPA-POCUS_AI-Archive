@@ -8,7 +8,7 @@ itkResampleImageUsingMapFilter = itk.itkARGUS.ResampleImageUsingMapFilter
 # Estimate Zoom and Depth
 ####
 
-class ARGUS_linearization_ptx():
+class ARGUS_preprocess_ptx():
     
     def get_ruler_points(self, im):
         """ Find points along ruler on left side of image """

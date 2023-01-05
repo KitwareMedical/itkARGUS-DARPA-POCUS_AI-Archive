@@ -2,7 +2,7 @@ import site
 site.addsitedir("../ARGUS")
 
 from ARGUS_segmentation_train import ARGUS_segmentation_train
-from ARGUS_linearization_ptx import ARGUS_linearization_ptx
+from ARGUS_preprocess_ptx import ARGUS_preprocess_ptx
 
 class ARGUS_ptx_ar_train(ARGUS_segmentation_train):
     
@@ -10,19 +10,19 @@ class ARGUS_ptx_ar_train(ARGUS_segmentation_train):
         
         super().__init__(config_file_name, network_name, device_num)
         
-        self.linearized_video = []
-        self.linearize = ARGUS_linearization_ptx()
+        self.preprocessed_ptx_video = []
+        self.preprocess_ptx = ARGUS_preprocess_ptx()
     
     def preprocess(self, vid):
-        self.linearized_video = self.linearize.process(vid)
-        super(ARGUS_train_ptx_ar, self).preprocess(self.linearized_video)
+        self.preprocessed_ptx_video = self.preprocess_ptx.process(vid)
+        super(ARGUS_train_ptx_ar, self).preprocess_ptx(self.preprocessed_ptx_video)
         
     def preprocess_training(self, vid):
-        self.linearized_video = self.linearize.process(vid)
+        self.preprocess_ptx_video = self.preprocess_ptx.process(vid)
         
         ar_input_array = np.empty([1, 1, self.num_channels, vid.shape[0], vid.shape[1]])
 
-        input_array = self.SaptialResize(self.linearized_video)
+        input_array = self.SaptialResize(self.preprocessed_ptx_video)
         
         input_array_scaled = self.IntensityScale(input_array)
         
