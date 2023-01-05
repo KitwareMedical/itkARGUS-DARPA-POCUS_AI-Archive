@@ -459,15 +459,12 @@ class ARGUS_segmentation_train(ARGUS_segmentation_inference):
         if not os.path.exists(model_filename_base):
             os.makedirs(model_filename_base)
 
-        loss_function = DiceLoss(to_onehot_y=True, softmax=True)
         optimizer = torch.optim.Adam(self.model[run_id].parameters(), 1e-4)
+        loss_function = DiceLoss(to_onehot_y=True, softmax=True)
         dice_metric = DiceMetric(include_background=False, reduction="mean")
 
         post_pred = Compose(
-            [
-                EnsureType(),
-                AsDiscrete(argmax=True, to_onehot=self.num_classes),
-            ]
+            [EnsureType(), AsDiscrete(argmax=True, to_onehot=self.num_classes)]
         )
         post_label = Compose(
             [EnsureType(), AsDiscrete(to_onehot=self.num_classes)]
@@ -569,7 +566,9 @@ class ARGUS_segmentation_train(ARGUS_segmentation_inference):
                 self.setup_vfold_files()
                 self.setup_training_vfold(self.vfold_num)
 
-    def test_vfold(self, model_type="best", run_id=0):
+    def test_vfold(self, model_type="best", run_id=0, model_vfold=-1):
+        if model_vfold == -1:
+            model_vfold = self.vfold_num
         model_filename_base = os.path.join(
             ".",
             self.results_dirname,
@@ -578,29 +577,50 @@ class ARGUS_segmentation_train(ARGUS_segmentation_inference):
 
         model_file = os.path.join(
             model_filename_base,
-            model_type + "_model_" + str(self.vfold_num) + ".pth"
+            model_type + "_model_" + str(model_vfold) + ".pth"
         )
 
         test_outputs_total = []
         test_images_total = []
         test_labels_total = []
         test_filenames_total = []
+        metric_total = 0
 
         if os.path.exists(model_file):
             self.model[run_id].load_state_dict(torch.load(model_file, map_location=self.device))
             self.model[run_id].eval()
 
+            post_pred = Compose(
+                [EnsureType(), AsDiscrete(argmax=True, to_onehot=self.num_classes)]
+            )
+            post_label = Compose(
+                [EnsureType(), AsDiscrete(to_onehot=self.num_classes)]
+            )
+            dice_metric = DiceMetric(include_background=False, reduction="mean")
+            metric_total = 0
+            metric_count = 0
             test_filenames_total = [ os.path.basename( test_file["image"] )
                                     for test_file in list(self.test_files[self.vfold_num][:]) ]
             with torch.no_grad():
                 for batch_num, test_data in enumerate(self.test_loader):
                     roi_size = (self.size_x, self.size_y)
+                    test_inputs, test_labels = (test_data["image"], test_data["label"])
+                    test_inputs = test_inputs.to(self.device)
                     test_outputs = sliding_window_inference(
-                        test_data["image"].to(self.device),
+                        test_inputs,
                         roi_size,
                         self.batch_size_test,
                         self.model[run_id],
                     ).cpu()
+                    # val_outputs = self.model[run_id](val_inputs)
+                    tmp_outputs = [
+                        post_pred(i) for i in decollate_batch(test_outputs)
+                    ]
+                    tmp_labels = [
+                        post_label(i) for i in decollate_batch(test_labels)
+                    ]
+                    # compute metric for current iteration
+                    dice_metric(y_pred=tmp_outputs, y=tmp_labels)
                     if batch_num == 0:
                         test_images_total = test_data["image"]
                         test_labels_total = test_data["label"]
@@ -615,18 +635,26 @@ class ARGUS_segmentation_train(ARGUS_segmentation_inference):
                         test_outputs_total = np.concatenate(
                             (test_outputs_total, test_outputs), axis=0
                         )
+                metric = dice_metric.aggregate().item()
+                dice_metric.reset()
+                metric_total += metric
+                metric_count += 1
+            metric_total /= metric_count
         else:
             print("ERROR: Model file not found:", model_file, "!!")
 
-        return test_filenames_total, test_images_total, test_labels_total, test_outputs_total
+        return test_filenames_total, test_images_total, test_labels_total, test_outputs_total,metric_total
 
-    def classify_vfold(self, model_type="best", run_ids=[0]):
+    def classify_vfold(self, model_type="best", run_ids=[0], model_vfold=-1):
+        if model_vfold == -1:
+            model_vfold = self.vfold_num
+            
         test_filenames = []
         test_inputs = []
         test_ideal_outputs = []
         test_run_outputs = []
         for run_num,run_id in enumerate(run_ids):
-            filenames, imgs, lbls, outs = self.test_vfold(model_type, run_id)
+            filenames, imgs, lbls, outs, metric = self.test_vfold(model_type, run_id, model_vfold)
             if run_num == 0:
                 test_filenames = filenames
                 test_inputs = imgs
@@ -744,50 +772,60 @@ class ARGUS_segmentation_train(ARGUS_segmentation_inference):
         else:
             print("ERROR: Cannot read metric file:", loss_file)
 
-    def view_testing_results_vfold(self, model_type="best", run_ids=[0]):
+    def view_testing_results_vfold(self, model_type="best", run_ids=[0], model_vfold=-1, summary_only=False):
         print("VFOLD =", self.vfold_num, "of", self.num_folds - 1)
+        if model_vfold == -1:
+            model_vfold = self.vfold_num
+        else:
+            print("   Using model from vfold", model_vfold)
 
         test_inputs_image_filenames = []
         test_inputs_images = []
         test_ideal_outputs = []
         test_net_outputs = []
+        test_metric = 0
+        test_metric_count = 0
         for run_num,run_id in enumerate(run_ids):
-            run_input_image_filenames, run_input_images, run_ideal_outputs, run_net_outputs = self.test_vfold(
-                model_type, run_id)
+            run_input_image_filenames, run_input_images, run_ideal_outputs, run_net_outputs, run_metric = self.test_vfold(
+                model_type, run_id, model_vfold)
+            test_metric += run_metric
+            test_metric_count += 1
             test_net_outputs.append(run_net_outputs)
             if run_num == 0:
                 test_input_image_filenames = run_input_image_filenames
                 test_input_images = run_input_images
                 test_ideal_outputs = run_ideal_outputs
+        test_metric /= test_metric_count
 
         num_runs = len(run_ids)
 
-        num_subplots = max(
+        if not summary_only:
+            num_subplots = max(
                 self.net_in_channels + 1,
                 self.num_classes + self.num_classes + 2
-        )
+            )
 
         for image_num in range(len(test_input_images)):
             fname = os.path.basename( test_input_image_filenames[image_num] )
-            print("Image:", fname)
-
-            plt.figure("Testing", (30,12))
-            subplot_num = 1
-            for c in range(self.net_in_channels):
-                plt.subplot(num_runs+1, num_subplots, subplot_num)
-                plt.title(f"F"+str(c))
-                tmpV = test_input_images[image_num, c, :, :]
+            if not summary_only:
+                print("Image:", fname)
+                plt.figure("Testing", (30,12))
+                subplot_num = 1
+                for c in range(self.net_in_channels):
+                    plt.subplot(num_runs+1, num_subplots, subplot_num)
+                    plt.title(f"F"+str(c))
+                    tmpV = test_input_images[image_num, c, :, :]
+                    plt.axis('off')
+                    plt.imshow(rotate(tmpV,270), cmap="gray")
+                    subplot_num += 1
+                plt.subplot(num_runs+1, num_subplots, num_subplots)
+                plt.title(f"L")
+                tmpV = test_ideal_outputs[image_num, 0, :, :]
+                for c in range(self.num_classes):
+                    tmpV[0, c] = c
                 plt.axis('off')
-                plt.imshow(rotate(tmpV,270), cmap="gray")
+                plt.imshow(rotate(tmpV,270))
                 subplot_num += 1
-            plt.subplot(num_runs+1, num_subplots, num_subplots)
-            plt.title(f"L")
-            tmpV = test_ideal_outputs[image_num, 0, :, :]
-            for c in range(self.num_classes):
-                tmpV[0, c] = c
-            plt.axis('off')
-            plt.imshow(rotate(tmpV,270))
-            subplot_num += 1
 
             # run probabilities
             prob_shape = test_net_outputs[0][0].shape
@@ -797,26 +835,28 @@ class ARGUS_segmentation_train(ARGUS_segmentation_inference):
                 run_output = test_net_outputs[run_num][image_num]
                 prob = self.clean_probabilities(run_output)
                 prob_total += prob
-                subplot_num = num_subplots*(run_num+1) + 2
-                for c in range(self.num_classes):
-                    plt.subplot(num_runs+1, num_subplots, subplot_num)
-                    plt.title(f"R" + str(run_num) + " C" + str(c))
-                    tmpV = prob[c]
-                    plt.axis('off')
-                    plt.imshow(rotate(tmpV,270), cmap="gray")
-                    subplot_num += 1
+                if not summary_only:
+                    subplot_num = num_subplots*(run_num+1) + 2
+                    for c in range(self.num_classes):
+                        plt.subplot(num_runs+1, num_subplots, subplot_num)
+                        plt.title(f"R" + str(run_num) + " C" + str(c))
+                        tmpV = prob[c]
+                        plt.axis('off')
+                        plt.imshow(rotate(tmpV,270), cmap="gray")
+                        subplot_num += 1
             prob_total /= num_runs
 
             # ensemble probabilities
             prob = self.clean_probabilities(prob_total, use_blur=False)
-            subplot_num = (num_runs+1)*num_subplots - self.num_classes
-            for c in range(self.num_classes):
-                plt.subplot(num_runs+1, num_subplots, subplot_num)
-                plt.title(f"E"+str(c))
-                tmpV = prob[c]
-                plt.axis('off')
-                plt.imshow(rotate(tmpV,270), cmap="gray")
-                subplot_num += 1
+            if not summary_only:
+                subplot_num = (num_runs+1)*num_subplots - self.num_classes
+                for c in range(self.num_classes):
+                    plt.subplot(num_runs+1, num_subplots, subplot_num)
+                    plt.title(f"E"+str(c))
+                    tmpV = prob[c]
+                    plt.axis('off')
+                    plt.imshow(rotate(tmpV,270), cmap="gray")
+                    subplot_num += 1
 
             # ensemble classifications
             class_array = self.classify_probabilities(prob)
@@ -825,18 +865,20 @@ class ARGUS_segmentation_train(ARGUS_segmentation_inference):
                 #itk.GetImageFromArray(class_array.astype(np.float32)),
                 #"class_image_final_f" + str(self.vfold_num) +
                 #"i" + str(image_num) + ".mha" )
-            plt.subplot(num_runs+1, num_subplots, subplot_num)
-            plt.title(f"Label")
-            tmpV = class_array
-            for c in range(self.num_classes):
-                tmpV[0, c] = c
-            plt.axis('off')
-            plt.imshow(rotate(tmpV,270))
-            plt.show()
+            if not summary_only:
+                plt.subplot(num_runs+1, num_subplots, subplot_num)
+                plt.title(f"Label")
+                tmpV = class_array
+                for c in range(self.num_classes):
+                    tmpV[0, c] = c
+                plt.axis('off')
+                plt.imshow(rotate(tmpV,270))
+                plt.show()
 
-            class_image = itk.GetImageFromArray(
-                class_array.astype(np.float32))
-            itk.imwrite(class_image, os.path.join(
-                ".",
-                self.results_dirname,
-                os.path.splitext(fname)[0]+".out.mha" ))
+                class_image = itk.GetImageFromArray(
+                    class_array.astype(np.float32))
+                itk.imwrite(class_image, os.path.join(
+                    ".",
+                    self.results_dirname,
+                    os.path.splitext(fname)[0]+".out.mha" ))
+        print( "  Test Mean Dice Score = ", test_metric )

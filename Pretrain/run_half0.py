@@ -3,13 +3,8 @@ site.addsitedir("../ARGUS")
 
 from ARGUS_segmentation_train import ARGUS_segmentation_train
 
-from monai.utils.misc import set_determinism
-set_determinism()
-
 nnet = ARGUS_segmentation_train("ARGUS_pretrain_half_ar.cfg", "vfold", device_num=0)
 nnet.setup_vfold_files()
-
-set_determinism(seed=None)
 
 run_num = 0
 for vfn in range(nnet.num_folds):

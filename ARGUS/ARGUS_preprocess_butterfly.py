@@ -9,6 +9,12 @@ from itk import TubeTK as tube
 
 class ARGUS_preprocess_butterfly():
 
+    def __init__(self):
+        ImageFloat = itk.Image[itk.F,3]
+        self.Crop = tube.CropImage[ImageFloat,ImageFloat].New()
+        self.Change = itk.ChangeInformationImageFilter[ImageFloat].New()
+        self.Resample = tube.ResampleImage[ImageFloat].New()
+        
     def get_ruler_points(self, img):
         """ Find points along ruler on right side of image """
         y_min = 40
@@ -49,8 +55,8 @@ class ARGUS_preprocess_butterfly():
         return tic_num,tic_min,tic_max,tic_diff
 
     def process(self, vid):
-        tic_num,tic_min,tic_max,tic_diff = self.get_roi(img)
-    
+        tic_num,tic_min,tic_max,tic_diff = self.get_roi(vid)
+
         pixels_per_unit = 40.92
         scale = tic_diff / pixels_per_unit
         center_x = int((780-120)/2+120)
@@ -60,23 +66,34 @@ class ARGUS_preprocess_butterfly():
         crop_min_y = int(tic_min+tic_diff)
         crop_max_y = int(tic_max-tic_diff)
         crop_min_z = 0
-        crop_max_z = img.shape[0]
-        Crop = tube.CropImage.New(img)
-        Crop.SetMin([crop_min_x,crop_min_y,crop_min_z])
-        Crop.SetMax([crop_max_x,crop_max_y,crop_max_z])
-        Crop.Update()
-        tmp_crop_img = Crop.GetOutput()
-    
+        crop_max_z = vid.shape[0]
+        self.Crop.SetInput(vid)
+        self.Crop.SetMin([crop_min_x,crop_min_y,crop_min_z])
+        self.Crop.SetMax([crop_max_x,crop_max_y,crop_max_z])
+        self.Crop.Update()
+        tmp_crop_img = self.Crop.GetOutput()
+
         pixel_spacing = 2/pixels_per_unit
         spacing = [pixel_spacing,pixel_spacing,pixel_spacing]
         origin = [4,0,0]
-        Change = itk.ChangeInformationImageFilter.New(tmp_crop_img)
-        Change.SetOutputSpacing(spacing)
-        Change.ChangeSpacingOn()
-        Change.SetOutputOrigin(origin)
-        Change.ChangeOriginOn()
-        Change.UpdateOutputInformation()
-        Change.Update()
-        new_img = Change.GetOutput()
-    
-        return new_img
+        self.Change.SetInput(tmp_crop_img)
+        self.Change.SetOutputSpacing(spacing)
+        self.Change.ChangeSpacingOn()
+        self.Change.SetOutputOrigin(origin)
+        self.Change.ChangeOriginOn()
+        self.Change.UpdateOutputInformation()
+        self.Change.Update()
+        tmp_new_img = self.Change.GetOutput()
+
+        #for Spacing and Size to use the same axis ordering, don't use img.shape\n",
+        sz = list(tmp_new_img.GetLargestPossibleRegion().GetSize())
+        sp = list(tmp_new_img.GetSpacing())
+        sp[0] = sz[0]/320.25*sp[0]
+        sp[1] = sz[1]/320.25*sp[1]
+        self.Resample.SetInput(tmp_new_img)
+        self.Resample.SetInterpolator("NearestNeighbor")
+        self.Resample.SetSpacing(sp)
+        self.Resample.Update()
+        img = self.Resample.GetOutput()
+
+        return img

@@ -102,11 +102,14 @@ class ARGUS_segmentation_inference:
         self.model[model_num].load_state_dict(torch.load(filename, map_location=self.device))
         self.model[model_num].eval()
 
-    def preprocess(self, vid):
+    def preprocess(self, vid, slice_num=None, scale_data=True, rotate_data=True):
         ar_input_array = np.empty([1, 1,
-                               self.net_in_channels, vid.shape[1], vid.shape[2]])
+                               self.net_in_channels, self.size_x, self.size_y])
 
-        tmp_testing_slice = self.testing_slice
+        if slice_num != None:
+            tmp_testing_slice = slice_num
+        else:
+            tmp_testing_slice = self.testing_slice
         if tmp_testing_slice < 0:
             tmp_testing_slice = vid.shape[0]+tmp_testing_slice-1
         min_slice = max(0,tmp_testing_slice-self.num_slices//2-1)
@@ -114,13 +117,19 @@ class ARGUS_segmentation_inference:
         vid_roi = vid[min_slice:max_slice,:,:]
         input_array = self.SpatialResize(vid_roi)
         
-        input_array_scaled = self.IntensityScale(input_array)
+        if scale_data:
+            input_array = self.IntensityScale(input_array)
         
+        if rotate_data:
+            input_array = np.rot90( input_array, k=1, axes=(1,2))
+            
         self.ARGUS_preprocess.center_slice = self.num_slices//2
-        ar_input_array[0, 0] = np.rot90( self.ARGUS_preprocess(input_array_scaled), k=1, axes=(1,2))
+        input_array = self.ARGUS_preprocess(input_array)
         
+        ar_input_array[0,0] = input_array
+            
         self.input_tensor = self.ConvertToTensor(ar_input_array.astype(np.float32))
-
+        
     def clean_probabilities(self, run_output, use_blur=True):
         if use_blur:
             prob = np.empty(run_output.shape)
@@ -169,7 +178,7 @@ class ARGUS_segmentation_inference:
                     count = np.count_nonzero(class_array == c)
                     op_iter += 1
                     done = False
-        print("Iterations to optimize prior =", op_iter)
+        #print("Iterations to optimize prior =", op_iter)
         denom = np.sum(prob, axis=0)
         denom = np.where(denom == 0, 1, denom)
         prob =  prob / denom

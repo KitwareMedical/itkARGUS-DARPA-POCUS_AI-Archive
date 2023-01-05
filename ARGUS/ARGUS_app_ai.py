@@ -55,11 +55,11 @@ class ARGUS_app_ai:
 
                 with time_this("ROI Preprocess:"):
                     if taskid == 0:  #PTX
-                        # self.ptx.roi_preprocess()
+                        # self.ptx.roi_generate_roi()
                     elif taskid == 1: # PNB
-                        # self.pnb.roi_preprocess()
+                        # self.pnb.roi_generate_roi()
                     elif taskid == 2: # ONSD
-                        # self.onsd.roi_preprocess()
+                        # self.onsd.roi_generate_roi()
                     elif taskid == 3: # ETT
                         # Nothing to do
 
