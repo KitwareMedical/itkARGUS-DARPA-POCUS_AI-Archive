@@ -2,7 +2,7 @@ import site
 site.addsitedir("../ARGUS")
 
 from ARGUS_segmentation_train import ARGUS_segmentation_train
-from ARGUS_preprocess_ptx import ARGUS_preprocess_ptx
+from ARGUS_preprocess_sonosite import ARGUS_preprocess_sonosite
 
 class ARGUS_ptx_ar_train(ARGUS_segmentation_train):
     
@@ -10,19 +10,21 @@ class ARGUS_ptx_ar_train(ARGUS_segmentation_train):
         
         super().__init__(config_file_name, network_name, device_num)
         
-        self.preprocessed_ptx_video = []
-        self.preprocess_ptx = ARGUS_preprocess_ptx()
+        self.preprocessed_sonosite_video = []
+        self.preprocess_sonosite = ARGUS_preprocess_sonosite()
     
-    def preprocess(self, vid):
-        self.preprocessed_ptx_video = self.preprocess_ptx.process(vid)
-        super(ARGUS_train_ptx_ar, self).preprocess_ptx(self.preprocessed_ptx_video)
+    def preprocess(self, vid, slice_num=None, crop_data=True, scale_data=True, rotate_data=True):
+        if crop_data:
+            self.preprocessed_sonosite_video = self.preprocess_sonosite.process(vid)
+        else:
+            self.preprocessed_sonosite_video = vid
+        super().preprocess(self.preprocessed_sonosite_video, slice_num, scale_data, rotate_data)
         
     def preprocess_training(self, vid):
-        self.preprocess_ptx_video = self.preprocess_ptx.process(vid)
+        self.preprocess_sonosite_video = self.preprocess_sonosite.process(vid)
         
-        ar_input_array = np.empty([1, 1, self.num_channels, vid.shape[0], vid.shape[1]])
-
-        input_array = self.SaptialResize(self.preprocessed_ptx_video)
+        # Should do this using ITK methods to preserve spacing, origin, etc
+        input_array = self.SaptialResize(self.preprocessed_sonosite_video)
         
         input_array_scaled = self.IntensityScale(input_array)
         

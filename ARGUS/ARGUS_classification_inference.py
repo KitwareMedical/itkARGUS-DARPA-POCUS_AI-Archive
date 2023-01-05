@@ -44,7 +44,7 @@ class ARGUS_classification_inference:
 
         self.num_classes  = int(config[network_name]['num_classes'])
         
-        self.roi_class  = int(config[network_name]['roi_class'])
+        self.ar_roi_class  = int(config[network_name]['ar_roi_class'])
         
         self.num_slices = int(config[network_name]['num_slices'])
         self.size_x = int(config[network_name]['size_x'])
@@ -99,60 +99,42 @@ class ARGUS_classification_inference:
         self.model[model_num].load_state_dict(torch.load(filename, map_location=self.device))
         self.model[model_num].eval()
         
-    def preprocess_using_ar_data(self, input_array, ar_labels):
+    def generate_roi(self, ar_input, ar_labels):
         roi_min_x = 0
-        roi_max_x = input_array.shape[1]-1
-        while( np.count_nonzero(ar_labels[:, roi_min_x, :]==self.roi_class)==0
+        roi_max_x = ar_labels.shape[1]-1
+        while( np.count_nonzero(ar_labels[:, roi_min_x]==self.ar_roi_class)==0
                and roi_min_x<roi_max_x ):
             roi_min_x += 1
-        while( np.count_nonzero(ar_labels[:, roi_max_x, :]==self.roi_class)==0
+        while( np.count_nonzero(ar_labels[:, roi_max_x]==self.ar_roi_class)==0
                and roi_max_x>roi_min_x):
             roi_max_x -= 1
         roi_mid_x = (roi_min_x + roi_max_x)//2
         roi_min_x = max(roi_mid_x-self.size_x//2, 0)
-        roi_max_x = min(roi_min_x+self.size_x, image.shape[1]-1)
+        roi_max_x = min(roi_min_x+self.size_x, ar_labels.shape[1]-1)
         roi_min_x = roi_max_x-self.size_x
         
         roi_min_y = 0
-        roi_max_y = input_array.shape[2]-1
-        while( np.count_nonzero(ar_labels[:, :, roi_min_y]==self.roi_class)==0
+        roi_max_y = ar_labels.shape[0]-1
+        while( np.count_nonzero(ar_labels[roi_min_y, :]==self.ar_roi_class)==0
                and roi_min_y<roi_max_y ):
             roi_min_y += 1
-        while( np.count_nonzero(ar_labels[:, :, roi_max_y]==self.roi_class)==0
+        while( np.count_nonzero(ar_labels[roi_max_y, :]==self.ar_roi_class)==0
                and roi_max_y>roi_min_y):
             roi_max_y -= 1
+        print(roi_min_y, roi_max_y)
         roi_mid_y = (roi_min_y + roi_max_y)//2
         roi_min_y = max(roi_mid_y-self.size_y//2, 0)
-        roi_max_y = min(roi_min_y+self.size_y, image.shape[2]-1)
+        roi_max_y = min(roi_min_y+self.size_y, ar_labels.shape[0]-1)
         roi_min_y = roi_max_y-self.size_y
+        print(roi_min_y, roi_max_y)
     
-        roi_input_array = input_array[:, roi_min_x:roi_max_x, roi_min_y:roi_max_y]
+        roi_input_array = np.empty([1, 1,
+            self.net_in_channels, self.size_y, self.size_x])
+        roi_input_array[0, 0] = ar_input[:, roi_min_y:roi_max_y, roi_min_x:roi_max_x]
         
         self.input_tensor = self.ConvertToTensor(roi_input_array.astype(np.float32))
         
         return self.input_tensor
-        
-    def preprocess(self, vid):
-        roi_input_array = np.empty([1, 1,
-            self.net_in_channels, vid.shape[1], vid.shape[2]])
-
-        tmp_testing_slice = self.testing_slice
-        if tmp_testing_slice < 0:
-            tmp_testing_slice = vid.shape[0]+tmp_testing_slice-1
-        min_slice = max(0,tmp_testing_slice-self.num_slices//2-1)
-        max_slice = min(vid.shape[0],tmp_testing_slice+self.num_slices//2+2)
-        print(min_slice, max_slice)
-        vid_roi = vid[min_slice:max_slice,:,:]
-        
-        input_array = self.SpatialResize(vid_roi)
-        
-        input_array_scaled = self.IntensityScale(input_array)
-        print("input array scales shape =", input_array_scaled.shape)
-        
-        self.ARGUS_preprocess.center_slice = self.num_slices//2
-        roi_input_array[0, 0] = self.ARGUS_preprocess(input_array_scaled).transpose([0,2,1])
-        
-        self.input_tensor = self.ConvertToTensor(roi_input_array.astype(np.float32))
         
     def clean_probabilities(self, run_output):
         prob = run_output.copy()

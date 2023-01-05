@@ -8,7 +8,7 @@ itkResampleImageUsingMapFilter = itk.itkARGUS.ResampleImageUsingMapFilter
 # Estimate Zoom and Depth
 ####
 
-class ARGUS_preprocess_ptx():
+class ARGUS_preprocess_sonosite():
     
     def get_ruler_points(self, im):
         """ Find points along ruler on left side of image """
@@ -99,7 +99,7 @@ class ARGUS_preprocess_ptx():
     
     def process(self, vid):
         depth,zoom,offsetX,offsetY = self.get_depth_and_zoom(vid[0])
-        filename = path.join(path.dirname(__file__), 'linearization_maps_ptx', f'linear_map_depth{str(depth)}.npy')
+        filename = path.join(path.dirname(__file__), 'linearization_maps_sonosite', f'linear_map_depth{str(depth)}.npy')
         mapping = np.load(filename)
     
         frame_size = np.shape(mapping)[:2]
@@ -125,7 +125,7 @@ class ARGUS_preprocess_ptx():
         return vid_linear
     
     def linearize_image(self, img, depth, zoom, offsetY, interpolate=True):
-        filename = path.join(path.dirname(__file__), 'linearization_maps_ptx', f'linear_map_depth{str(depth)}.npy')
+        filename = path.join(path.dirname(__file__), 'linearization_maps_sonosite', f'linear_map_depth{str(depth)}.npy')
         mapping = np.load(filename)
     
         frame_size = np.shape(mapping)[:2]
