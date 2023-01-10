@@ -15,15 +15,17 @@ class ARGUS_pnb_ar_train(ARGUS_segmentation_train):
     
     def preprocess(self, vid):
         self.preprocessed_pnb_video = self.preprocess_pnb.process(vid)
-        super(ARGUS_train_pnb_ar, self).preprocess_pnb(self.preprocessed_pnb_video)
+        super().preprocess(self.preprocessed_pnb_video)
         
     def preprocess_training(self, vid):
         self.preprocess_pnb_video = self.preprocess_pnb.process(vid)
         
-        ar_input_array = np.empty([1, 1, self.num_channels, vid.shape[0], vid.shape[1]])
+        ar_input_array = np.empty([1, 1, self.num_channels, self.size_x, self.size_y])
 
         input_array = self.SaptialResize(self.preprocessed_pnb_video)
         
         input_array_scaled = self.IntensityScale(input_array)
         
-        return input_array_scaled
+        ar_input_array[0,0] = input_array_scaled
+
+        return ar_input_array
