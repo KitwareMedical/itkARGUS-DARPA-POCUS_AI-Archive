@@ -1,11 +1,11 @@
 import site
 site.addsitedir("../ARGUS")
 
-from ARGUS_segmentation_train import ARGUS_segmentation_train
+from ARGUS_ptx_ar_train import ARGUS_ptx_ar_train
 
-nnet = ARGUS_segmentation_train("ARGUS_pretrain_half_ar.cfg", "vfold", device_num=0)
-nnet.image_dirname = ["Data_Pretrain/images_ptx"]
-nnet.label_dirname = ["Data_Pretrain/labels_ptx"]
+nnet = ARGUS_ptx_ar_train("../ARGUS/ARGUS_ptx_ar.cfg", "vfold", device_num=1)
+nnet.image_dirname = ["Data_PTX/images"]
+nnet.label_dirname = ["Data_PTX/labels"]
 num_folds = nnet.num_folds
 nnet.num_folds = 1
 nnet.randomize_folds = False

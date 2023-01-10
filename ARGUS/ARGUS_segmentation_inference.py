@@ -68,21 +68,40 @@ class ARGUS_segmentation_inference:
             norm=Norm.BATCH,
         ).to(self.device)] * self.num_models
         
-        self.SpatialResize =  Resize(
-            spatial_size=[self.size_y,self.size_x],
-            mode='bilinear')
+        # Preload these definitions
+        ImageF = itk.Image[itk.F, 3]
+        ImageSS = itk.Image[itk.SS, 3]
+        crop = tube.CropImage[ImageF,ImageF].New()
+        crop = tube.CropImage[ImageSS,ImageSS].New()
+        resample = tube.ResampleImage[ImageF].New()
+        resample = tube.ResampleImage[ImageSS].New()
+        permute = itk.PermuteAxesImageFilter[ImageF].New()
+        permute = itk.PermuteAxesImageFilter[ImageSS].New()
         
-        self.IntensityScale = ScaleIntensityRange(
-            a_min=0, a_max=255,
-            b_min=0.0, b_max=1.0)
+        self.ImageMath3F = tube.ImageMath[ImageF].New()
         
-        self.ARGUS_preprocess = ARGUS_RandSpatialCropSlices(
+        ImageF2 = itk.Image[itk.F, 2]
+        self.ImageMathF2 = tube.ImageMath[ImageF2].New()
+        
+        ImageS2 = itk.Image[itk.SS, 2]
+        self.ImageMathS2 = tube.ImageMath[ImageS2].New()
+        
+        self.ARGUS_Preprocess = ARGUS_RandSpatialCropSlices(
             num_slices=self.num_slices,
             center_slice=self.testing_slice,
             reduce_to_statistics=self.reduce_to_statistics,
             extended=self.reduce_to_statistics,
             include_center_slice=self.reduce_to_statistics,
             include_gradient=self.reduce_to_statistics,
+            axis=0)
+        
+        self.ARGUS_PreprocessLabel = ARGUS_RandSpatialCropSlices(
+            num_slices=1,
+            center_slice=self.testing_slice,
+            reduce_to_statistics=False,
+            extended=False,
+            include_center_slice=True,
+            include_gradient=False,
             axis=0)
         
         self.ConvertToTensor = ToTensor()
@@ -102,43 +121,109 @@ class ARGUS_segmentation_inference:
         self.model[model_num].load_state_dict(torch.load(filename, map_location=self.device))
         self.model[model_num].eval()
 
-    def preprocess(self, vid, slice_num=None, scale_data=True, rotate_data=True):
-        ar_input_array = np.empty([1, 1,
-                               self.net_in_channels, self.size_x, self.size_y])
-
+    def preprocess(self, vid_img, lbl_img=None, slice_num=None, scale_data=True, rotate_data=True):
+        ImageF = itk.Image[itk.F, 3]
+        ImageSS = itk.Image[itk.SS, 3]
+        
+        img_size = vid_img.GetLargestPossibleRegion().GetSize()
+        
         if slice_num != None:
             tmp_testing_slice = slice_num
         else:
             tmp_testing_slice = self.testing_slice
         if tmp_testing_slice < 0:
-            tmp_testing_slice = vid.shape[0]+tmp_testing_slice-1
+            tmp_testing_slice = img_size[2]+tmp_testing_slice-1
         min_slice = max(0,tmp_testing_slice-self.num_slices//2-1)
-        max_slice = min(vid.shape[0],tmp_testing_slice+self.num_slices//2+2)
-        vid_roi = vid[min_slice:max_slice,:,:]
-        input_array = self.SpatialResize(vid_roi)
+        max_slice = min(img_size[2],tmp_testing_slice+self.num_slices//2+2)
+        
+        min_index = [0, 0, min_slice]
+        max_index = [img_size[0], img_size[1], max_slice]
+        crop = tube.CropImage[ImageF,ImageF].New()
+        crop.SetInput(vid_img)
+        crop.SetMin(min_index)
+        crop.SetMax(max_index)
+        crop.Update()
+        vid_roi_img = crop.GetOutput()
+        if lbl_img != None:
+            min_index = [0, 0, tmp_testing_slice]
+            max_index = [img_size[0], img_size[1], tmp_testing_slice+1]
+            crop = tube.CropImage[ImageSS,ImageSS].New()
+            crop.SetInput(lbl_img)
+            crop.SetMin(min_index)
+            crop.SetMax(max_index)
+            crop.Update()
+            lbl_roi_img = crop.GetOutput()
+            #lbl[tmp_testing_slice:tmp_testing_slice+1,:,:]
+        else:
+            lbl_roi_img = None
+        
+        resample = tube.ResampleImage[ImageF].New()
+        resample.SetInput(vid_roi_img)
+        size = [self.size_x, self.size_y, self.num_slices]
+        resample.SetSize(size)
+        resample.Update()
+        vid_roi_img = resample.GetOutput()
+        if lbl_img != None:
+            resample = tube.ResampleImage[ImageSS].New()
+            resample.SetInput(lbl_roi_img)
+            size = [self.size_x, self.size_y, 1]
+            resample.SetSize(size)
+            resample.Update()
+            lbl_roi_img = resample.GetOutput()
         
         if scale_data:
-            input_array = self.IntensityScale(input_array)
-        
+            self.ImageMath.SetInput(vid_roi_img)
+            self.ImageMath.IntensityWindow(0,255,0,1)
+            vid_roi_img = self.ImageMath.GetOutput()
+
         if rotate_data:
-            input_array = np.rot90( input_array, k=1, axes=(1,2))
-            
-        self.ARGUS_preprocess.center_slice = self.num_slices//2
-        input_array = self.ARGUS_preprocess(input_array)
+            permute = itk.PermuteAxesImageFilter[ImageF].New()
+            permute.SetInput(vid_roi_img)
+            order = [1,0,2]
+            permute.SetOrder(order)
+            permute.Update()
+            vid_roi_img = permute.GetOutput()
+            if lbl_img != None:
+                permute = itk.PermuteAxesImageFilter[ImageSS].New()
+                permute.SetInput(lbl_roi_img)
+                order = [1,0,2]
+                permute.SetOrder(order)
+                permute.Update()
+                lbl_roi_img = permute.GetOutput()
+                
+        vid_roi_array = itk.GetArrayFromImage(vid_roi_img)
+        self.ARGUS_Preprocess.center_slice = self.num_slices//2
+        roi_array = self.ARGUS_Preprocess(vid_roi_array)
         
-        ar_input_array[0,0] = input_array
+        lbl_array = itk.GetArrayFromImage(lbl_roi_img)[0]
+        
+        ar_input_array = np.empty([1,
+                                   1,
+                                   self.net_in_channels,
+                                   self.size_x,
+                                   self.size_y])
+        ar_input_array[0,0] = roi_array
+        
+        ar_lbl_array = np.zeros([1, 1, self.size_x, self.size_y])
+        if lbl_img != None:
+            ar_lbl_array[0,0] = lbl_array
             
+        self.input_image = vid_roi_img
+        self.input_array = roi_array
+        self.label_array = lbl_array
+        
         self.input_tensor = self.ConvertToTensor(ar_input_array.astype(np.float32))
+        self.label_tensor = self.ConvertToTensor(ar_lbl_array.astype(np.short))
         
-    def clean_probabilities(self, run_output, use_blur=True):
+    def clean_probabilities_array(self, run_output, use_blur=True):
         if use_blur:
             prob = np.empty(run_output.shape)
             for c in range(self.num_classes):
                 itkProb = itk.GetImageFromArray(run_output[c])
-                imMathProb = tube.ImageMath.New(itkProb)
+                self.ImageMathF2.SetInput(itkProb)
                 if self.class_blur[c] > 0:
-                    imMathProb.Blur(self.class_blur[c])
-                itkProb = imMathProb.GetOutput()
+                    self.ImageMathF2.Blur(self.class_blur[c])
+                itkProb = self.ImageMathF2.GetOutput()
                 prob[c] = itk.GetArrayFromImage(itkProb)
         else:
             prob = run_output.copy()
@@ -185,14 +270,14 @@ class ARGUS_segmentation_inference:
 
         return prob
 
-    def classify_probabilities(self, prob):
+    def classify_probabilities_array(self, prob):
         class_array = np.argmax(prob, axis=0)
         class_array[:self.class_morph[1]*2,:] = 0
         class_array[:,:self.class_morph[1]*2] = 0
         class_array[-self.class_morph[1]*2:,:] = 0
         class_array[:,-self.class_morph[1]*2:] = 0
         class_image = itk.GetImageFromArray(
-            class_array.astype(np.float32))
+            class_array.astype(np.short))
 
         #itk.imwrite(
             #itk.GetImageFromArray(prob_total.astype(np.float32)),
@@ -203,16 +288,16 @@ class ARGUS_segmentation_inference:
             #"i" + str(image_num) + ".mha")
 
         for c in range(1,self.num_classes):
-            imMathClassCleanup = tube.ImageMath.New(class_image)
+            self.ImageMathS2.SetInput(class_image)
             if self.class_morph[c] > 0:
-                imMathClassCleanup.Dilate(self.class_morph[c], c, 0)
-                imMathClassCleanup.Erode(self.class_morph[c], c, 0)
+                self.ImageMathS2.Dilate(self.class_morph[c], c, 0)
+                self.ImageMathS2.Erode(self.class_morph[c], c, 0)
                 class_array[:2*self.class_morph[1],:] = 0
                 class_array[:,:2*self.class_morph[1]] = 0
                 class_array[-2*self.class_morph[1]:,:] = 0
                 class_array[:,-2*self.class_morph[1]:] = 0
-            imMathClassCleanup.Threshold(c, c, 1, 0)
-            class_clean_image = imMathClassCleanup.GetOutputUChar()
+            self.ImageMathS2.Threshold(c, c, 1, 0)
+            class_clean_image = self.ImageMathS2.GetOutputShort()
 
             if self.class_keep_only_largest[c]==1:
                 seg = itk.itkARGUS.SegmentConnectedComponents.New(
@@ -226,7 +311,7 @@ class ARGUS_segmentation_inference:
             class_array = np.where(class_array == c, 0, class_array)
             class_array = np.where(class_clean_array != 0, c, class_array)
 
-        return class_array
+        return class_array.astype(np.short)
     
     def inference(self):
         roi_size = (self.size_x, self.size_y)
@@ -236,10 +321,11 @@ class ARGUS_segmentation_inference:
             for m in range(self.num_models):
                 test_outputs = sliding_window_inference(
                     self.input_tensor[0].to(self.device), roi_size, 1, self.model[m])
-                prob = self.clean_probabilities(test_outputs[0].cpu())
+                prob = self.clean_probabilities_array(test_outputs[0].cpu())
                 prob_total += prob
         prob_total /= self.num_models
-        prob = self.clean_probabilities(prob_total, use_blur=False)
-        class_array = self.classify_probabilities(prob_total)
-    
-        return class_array
+        self.prob_array = self.clean_probabilities_array(prob_total, use_blur=False)
+        
+        self.class_array = self.classify_probabilities_array(self.prob_array)
+        
+        return self.class_array

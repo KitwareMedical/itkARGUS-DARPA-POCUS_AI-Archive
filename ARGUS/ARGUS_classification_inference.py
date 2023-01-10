@@ -24,7 +24,6 @@ from monai.transforms import (
     AsDiscrete,
     Compose,
     Resize,
-    ScaleIntensityRange,
     ToTensor,
 )
 
@@ -69,14 +68,6 @@ class ARGUS_classification_inference:
             out_channels=self.num_classes,
         ).to(self.device)] * self.num_models
         
-        self.SpatialResize =  Resize(
-            spatial_size=[self.size_y,self.size_x],
-            mode='bilinear')
-            
-        self.IntensityScale = ScaleIntensityRange(
-            a_min=0, a_max=255,
-            b_min=0.0, b_max=1.0)
-        
         self.ARGUS_preprocess = ARGUS_RandSpatialCropSlices(
             num_slices=self.num_slices,
             center_slice=self.testing_slice,
@@ -99,14 +90,17 @@ class ARGUS_classification_inference:
         self.model[model_num].load_state_dict(torch.load(filename, map_location=self.device))
         self.model[model_num].eval()
         
-    def generate_roi(self, ar_input, ar_labels):
+    def generate_roi(self, ar_image, ar_array, ar_labels):
+        print(ar_labels.shape)
+        print(ar_labels.shape[1])
+        print(ar_labels.shape[0])
         roi_min_x = 0
         roi_max_x = ar_labels.shape[1]-1
         while( np.count_nonzero(ar_labels[:, roi_min_x]==self.ar_roi_class)==0
-               and roi_min_x<roi_max_x ):
+               and roi_min_x<roi_max_x-1):
             roi_min_x += 1
         while( np.count_nonzero(ar_labels[:, roi_max_x]==self.ar_roi_class)==0
-               and roi_max_x>roi_min_x):
+               and roi_max_x>roi_min_x+1):
             roi_max_x -= 1
         roi_mid_x = (roi_min_x + roi_max_x)//2
         roi_min_x = max(roi_mid_x-self.size_x//2, 0)
@@ -116,25 +110,37 @@ class ARGUS_classification_inference:
         roi_min_y = 0
         roi_max_y = ar_labels.shape[0]-1
         while( np.count_nonzero(ar_labels[roi_min_y, :]==self.ar_roi_class)==0
-               and roi_min_y<roi_max_y ):
+               and roi_min_y<roi_max_y-1):
             roi_min_y += 1
         while( np.count_nonzero(ar_labels[roi_max_y, :]==self.ar_roi_class)==0
-               and roi_max_y>roi_min_y):
+               and roi_max_y>roi_min_y+1):
             roi_max_y -= 1
-        print(roi_min_y, roi_max_y)
         roi_mid_y = (roi_min_y + roi_max_y)//2
         roi_min_y = max(roi_mid_y-self.size_y//2, 0)
         roi_max_y = min(roi_min_y+self.size_y, ar_labels.shape[0]-1)
         roi_min_y = roi_max_y-self.size_y
-        print(roi_min_y, roi_max_y)
     
+        ar_image_size = ar_image.GetLargestPossibleRegion().GetSize()
+        print(ar_image_size)
+        print(roi_min_x, roi_min_y, 0)
+        print(roi_max_x, roi_max_y, ar_image_size[2])
+        crop = tube.CropImage.New(Input=ar_image)
+        crop.SetMin([roi_min_x, roi_min_y, 0])
+        crop.SetMax([roi_max_x, roi_max_y, ar_image_size[2]])
+        crop.Update()
+        self.input_image = crop.GetOutput()
+        
+        self.input_array = ar_array[:, roi_min_y:roi_max_y, roi_min_x:roi_max_x]
         roi_input_array = np.empty([1, 1,
             self.net_in_channels, self.size_y, self.size_x])
-        roi_input_array[0, 0] = ar_input[:, roi_min_y:roi_max_y, roi_min_x:roi_max_x]
+        roi_input_array[0, 0] = self.input_array
         
-        self.input_tensor = self.ConvertToTensor(roi_input_array.astype(np.float32))
+        self.label_array = ar_labels[roi_min_y:roi_max_y, roi_min_x:roi_max_x]
+        roi_label_array = np.empty([1, 1, self.size_y, self.size_x])
+        roi_label_array[0, 0] = self.label_array
         
-        return self.input_tensor
+        self.input_tensor = self.ConvertToTensor(roi_input_array)
+        self.label_tensor = self.ConvertToTensor(roi_label_array)
         
     def clean_probabilities(self, run_output):
         prob = run_output.copy()

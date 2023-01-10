@@ -13,12 +13,12 @@ class ARGUS_ptx_ar_train(ARGUS_segmentation_train):
         self.preprocessed_sonosite_video = []
         self.preprocess_sonosite = ARGUS_preprocess_sonosite()
     
-    def preprocess(self, vid, slice_num=None, crop_data=True, scale_data=True, rotate_data=True):
+    def preprocess(self, vid, lbl_img=None, slice_num=None, crop_data=True, scale_data=True, rotate_data=True):
         if crop_data:
             self.preprocessed_sonosite_video = self.preprocess_sonosite.process(vid)
         else:
             self.preprocessed_sonosite_video = vid
-        super().preprocess(self.preprocessed_sonosite_video, slice_num, scale_data, rotate_data)
+        super().preprocess(self.preprocessed_sonosite_video, lbl_img=lbl_img, slice_num=slice_num, scale_data=scale_data, rotate_data=rotate_data)
         
     def preprocess_training(self, vid):
         self.preprocess_sonosite_video = self.preprocess_sonosite.process(vid)

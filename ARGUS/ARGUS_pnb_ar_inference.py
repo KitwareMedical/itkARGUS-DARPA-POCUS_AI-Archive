@@ -11,6 +11,9 @@ class ARGUS_pnb_ar_inference(ARGUS_segmentation_inference):
         self.preprocessed_pnb_video = []
         self.preprocess_pnb = ARGUS_preprocess_butterfly()
         
-    def preprocess(self, vid):
-        self.preprocessed_pnb_video = self.preprocess_pnb.process(vid)
-        super().preprocess(self.preprocessed_pnb_video)
+    def preprocess(self, vid, lbl=None, slice_num=None, crop_data=True, scale_data=True, rotate_data=True):
+        if crop_data:
+            self.preprocessed_pnb_video = self.preprocess_pnb.process(vid)
+        else:
+            self.preprocessed_pnb_video = vid
+        super().preprocess(self.preprocessed_pnb_video, lbl, slice_num, crop_data, scale_data, rotate_data)
