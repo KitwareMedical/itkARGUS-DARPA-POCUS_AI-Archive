@@ -79,6 +79,8 @@ class ARGUS_classification_train(ARGUS_classification_inference):
         self.use_persistent_cache = bool(config[network_name]['use_persistent_cache'])
         
         self.max_epochs = int(config[network_name]['max_epochs'])
+        
+        self.already_preprocessed = bool(config[network_name]['already_preprocessed'])
 
         self.cache_rate_train = 1
         self.num_workers_train = 6
@@ -95,84 +97,112 @@ class ARGUS_classification_train(ARGUS_classification_inference):
         self.all_train_images = []
         self.all_train_labels = []
 
-        self.train_transforms = Compose(
-            [
-                LoadImaged(keys=["image"]),
-                AsChannelFirstd(keys=["image"]),
-                Resized(
-                    spatial_size=[self.size_y,self.size_x],
-                    mode=['bilinear'],
-                    keys=["image"],
-                ),
-                RandRotated(prob=0.2,
-                    range_z=0.15,
-                    keep_size=True,
-                    keys=['image'],
-                ),
-                ARGUS_RandSpatialCropSlicesd(
-                    num_slices=self.num_slices,
-                    axis=0,
-                    reduce_to_statistics=self.reduce_to_statistics,
-                    extended=self.reduce_to_statistics,
-                    include_center_slice=self.reduce_to_statistics,
-                    include_gradient=self.reduce_to_statistics,
-                    keys=["image"],
-                ),
-                RandFlipd(prob=0.5, spatial_axis=0, keys=["image"]),
-                RandZoomd(prob=0.5, 
-                    min_zoom=1.0,
-                    max_zoom=1.1,
-                    keep_size=True,
-                    mode=['bilinear'],
-                    keys=['image'],
-                ),ToTensord(keys=["image"], dtype=torch.float),
-            ]
-        )
-
-        self.val_transforms = Compose(
-            [
-                LoadImaged(keys=["image"]),
-                AsChannelFirstd(keys=["image"]),
-                Resized(
-                    spatial_size=[self.size_y,self.size_x],
-                    mode=['bilinear'],
-                    keys=["image"],
-                ),
-                ARGUS_RandSpatialCropSlicesd(
-                    num_slices=[self.num_slices],
-                    axis=0,
-                    reduce_to_statistics=self.reduce_to_statistics,
-                    extended=self.reduce_to_statistics,
-                    include_center_slice=self.reduce_to_statistics,
-                    include_gradient=self.reduce_to_statistics,
-                    keys=["image"],
-                ),
-                ToTensord(keys=["image"], dtype=torch.float),
-            ]
-        )
-
-        self.test_transforms = Compose(
-            [
-                LoadImaged(keys=["image"]),
-                AsChannelFirstd(keys=["image"]),
-                Resized(
-                    spatial_size=[self.size_y,self.size_x],
-                    mode=['bilinear'],
-                    keys=["image"],
-                ),
-                ARGUS_RandSpatialCropSlicesd(
-                    num_slices=[self.num_slices],
-                    center_slice=self.testing_slice,
-                    axis=0,
-                    reduce_to_statistics=self.reduce_to_statistics,
-                    extended=self.reduce_to_statistics,
-                    include_center_slice=self.reduce_to_statistics,
-                    include_gradient=self.reduce_to_statistics,
-                    keys=["image"],
-                ),
-                ToTensord(keys=["image"], dtype=torch.float),
-            ]
-        )
+        if self.already_preprocessed:
+            self.train_transforms = Compose(
+                [
+                    LoadImaged(keys=["image"]),
+                    AsChannelFirstd(keys=["image"]),
+                    RandFlipd(prob=0.5, spatial_axis=1, keys=["image"]),
+                    RandZoomd(prob=0.5, 
+                        min_zoom=1.0,
+                        max_zoom=1.1,
+                        keep_size=True,
+                        mode=['bilinear'],
+                        keys=['image'],
+                    ),ToTensord(keys=["image"], dtype=torch.float),
+                ]
+            )
+            self.val_transforms = Compose(
+                [
+                    LoadImaged(keys=["image"]),
+                    AsChannelFirstd(keys=["image"]),
+                    ToTensord(keys=["image"], dtype=torch.float),
+                ]
+            )
+            self.test_transforms = Compose(
+                [
+                    LoadImaged(keys=["image"]),
+                    AsChannelFirstd(keys=["image"]),
+                    ToTensord(keys=["image"], dtype=torch.float),
+                ]
+            )
+        else:
+            self.train_transforms = Compose(
+                [
+                    LoadImaged(keys=["image"]),
+                    AsChannelFirstd(keys=["image"]),
+                    Resized(
+                        spatial_size=[self.size_y,self.size_x],
+                        mode=['bilinear'],
+                        keys=["image"],
+                    ),
+                    RandRotated(prob=0.2,
+                        range_z=0.15,
+                        keep_size=True,
+                        keys=['image'],
+                    ),
+                    ARGUS_RandSpatialCropSlicesd(
+                        num_slices=self.num_slices,
+                        axis=0,
+                        reduce_to_statistics=self.reduce_to_statistics,
+                        extended=self.reduce_to_statistics,
+                        include_center_slice=self.reduce_to_statistics,
+                        include_gradient=self.reduce_to_statistics,
+                        keys=["image"],
+                    ),
+                    RandFlipd(prob=0.5, spatial_axis=0, keys=["image"]),
+                    RandZoomd(prob=0.5, 
+                        min_zoom=1.0,
+                        max_zoom=1.1,
+                        keep_size=True,
+                        mode=['bilinear'],
+                        keys=['image'],
+                    ),ToTensord(keys=["image"], dtype=torch.float),
+                ]
+            )
+            self.val_transforms = Compose(
+                [
+                    LoadImaged(keys=["image"]),
+                    AsChannelFirstd(keys=["image"]),
+                    Resized(
+                        spatial_size=[self.size_y,self.size_x],
+                        mode=['bilinear'],
+                        keys=["image"],
+                    ),
+                    ARGUS_RandSpatialCropSlicesd(
+                        num_slices=[self.num_slices],
+                        axis=0,
+                        reduce_to_statistics=self.reduce_to_statistics,
+                        extended=self.reduce_to_statistics,
+                        include_center_slice=self.reduce_to_statistics,
+                        include_gradient=self.reduce_to_statistics,
+                        keys=["image"],
+                    ),
+                    ToTensord(keys=["image"], dtype=torch.float),
+                ]
+            )
+            self.test_transforms = Compose(
+                [
+                    LoadImaged(keys=["image"]),
+                    AsChannelFirstd(keys=["image"]),
+                    Resized(
+                        spatial_size=[self.size_y,self.size_x],
+                        mode=['bilinear'],
+                        keys=["image"],
+                    ),
+                    ARGUS_RandSpatialCropSlicesd(
+                        num_slices=[self.num_slices],
+                        center_slice=self.testing_slice,
+                        axis=0,
+                        reduce_to_statistics=self.reduce_to_statistics,
+                        extended=self.reduce_to_statistics,
+                        include_center_slice=self.reduce_to_statistics,
+                        include_gradient=self.reduce_to_statistics,
+                        keys=["image"],
+                    ),
+                    ToTensord(keys=["image"], dtype=torch.float),
+                ]
+            )
 
     def setup_vfold_files(self):
         all_train_images = []
@@ -181,7 +211,7 @@ class ARGUS_classification_train(ARGUS_classification_inference):
         self.class_train_images = []
         self.class_train_labels = []
         for i,pre in enumerate(self.class_fileprefix):
-            class_files = [x for x in all_train_images if pre in x]
+            class_files = [x for x in all_train_images if pre in os.path.basename(x)[:len(pre)]]
             class_labels = [i] * len(class_files)
             self.class_train_images.append(class_files)
             self.class_train_labels.append(class_labels)
@@ -429,9 +459,11 @@ class ARGUS_classification_train(ARGUS_classification_inference):
                             maxv = max(val_outputs2[i])
                             maxv2 = max([x for x in val_outputs2[i] if x < maxv])
                             denom = maxv2-minv
+                            if denom == 0:
+                                denom = 1
                             metric_value += (val_outputs2[i,val_labels[i]] - minv)/denom
-                    metric = metric_value / metric_count
                     correct = num_correct / metric_count
+                    metric = (metric_value / metric_count) * correct
 
                     metric_values.append(metric)
                     
@@ -575,7 +607,10 @@ class ARGUS_classification_train(ARGUS_classification_inference):
         print(img_name)
         img = itk.imread(img_name)
         lbl = self.all_train_labels[image_num]
-        num_plots = 5
+        if img.shape[0]>12:
+            num_plots = 5
+        else:
+            num_plots = img.shape[0]
         num_slices = img.shape[0]
         step_slices = num_slices / num_plots
         plt.figure(figsize=[20, 10])

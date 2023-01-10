@@ -81,7 +81,7 @@ class ARGUS_classification_inference:
 
     def init_model(self, model_num):
         self.model[model_num] = monai.networks.nets.DenseNet121(
-            spatial_dims=self.net_dims,
+            spatial_dims=self.net_in_dims,
             in_channels=self.net_in_channels,
             out_channels=self.num_classes,
         ).to(self.device)
@@ -91,9 +91,6 @@ class ARGUS_classification_inference:
         self.model[model_num].eval()
         
     def generate_roi(self, ar_image, ar_array, ar_labels):
-        print(ar_labels.shape)
-        print(ar_labels.shape[1])
-        print(ar_labels.shape[0])
         roi_min_x = 0
         roi_max_x = ar_labels.shape[1]-1
         while( np.count_nonzero(ar_labels[:, roi_min_x]==self.ar_roi_class)==0
@@ -121,9 +118,6 @@ class ARGUS_classification_inference:
         roi_min_y = roi_max_y-self.size_y
     
         ar_image_size = ar_image.GetLargestPossibleRegion().GetSize()
-        print(ar_image_size)
-        print(roi_min_x, roi_min_y, 0)
-        print(roi_max_x, roi_max_y, ar_image_size[2])
         crop = tube.CropImage.New(Input=ar_image)
         crop.SetMin([roi_min_x, roi_min_y, 0])
         crop.SetMax([roi_max_x, roi_max_y, ar_image_size[2]])
