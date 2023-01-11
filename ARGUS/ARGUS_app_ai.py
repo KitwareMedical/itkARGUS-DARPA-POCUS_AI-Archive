@@ -4,18 +4,18 @@ import itk
 
 from ARGUS_Timing import *
 from ARGUS_IO import *
-from ARGUS_taskid import ARGUS_taskid
-#from ARGUS_ptx import ARGUS_ptx
+from ARGUS_app_taskid import ARGUS_app_taskid
+from ARGUS_app_ptx import ARGUS_app_ptx
 #from ARGUS_pnb import ARGUS_pnb
 #from ARGUS_onsd import ARGUS_onsd
 #from ARGUS_ett import ARGUS_ett
 
 class ARGUS_app_ai:
-    def __init__(self, device_name='cpu', model_dir='Models'):
-        device = torch.device(device_name)
+    def __init__(self):
+        device = torch.device('cpu')
 
-        self.taskid = ARGUS_taskid(device, model_dir)
-        #self.ptx = ARGUS_ptx(model_dir)
+        self.taskid = ARGUS_app_taskid(device_num)
+        self.ptx = ARGUS_app_ptx(device_num)
         #self.pnb = ARGUS_pnb(model_dir)
         #self.onsd = ARGUS_onsd(model_dir)
         #self.ett = ARGUS_ett(model_dir)
@@ -25,16 +25,25 @@ class ARGUS_app_ai:
         if stats:
             time_this = stats.time
     
+        taskid = 0
+        taskid_confidence = [0,0,0,0]
+        taskname = [ "PTX", "PNB", "ONSD", "ETT" ]
+        
+        decision = 0
+        decision_confidence = [0, 0]
+        
         with time_this("all"):
             with time_this("Read Video"):
-                us_video = ARGUS_load_video(filename)
+                us_video_img = ARGUS_load_video(filename)
 
                 with time_this("Task Id"):
-                    taskid = self.taskid.get_taskid(us_video)
+                    self.taskid.preprocess(us_video_img)
+                    self.taskid.inference()
+                    taskid,taskid_confidence = self.taskid.decision(us_video_img)
 
                 with time_this("AR Preprocess"):
                     if taskid == 0:  #PTX
-                        # self.ptx.ar_preprocess(us_video)
+                        self.ptx.ar_preprocess(us_video)
                     elif taskid == 1: # PNB
                         # self.pnb.ar_preprocess(us_video)
                     elif taskid == 2: # ONSD
@@ -45,7 +54,7 @@ class ARGUS_app_ai:
             with time_this("Process Video"):
                 with time_this("AR Inference Time:"):
                     if taskid == 0:  #PTX
-                        # self.ptx.ar_inference()
+                        self.ptx.ar_inference()
                     elif taskid == 1: # PNB
                         # self.pnb.ar_inference()
                     elif taskid == 2: # ONSD
@@ -55,7 +64,7 @@ class ARGUS_app_ai:
 
                 with time_this("ROI Preprocess:"):
                     if taskid == 0:  #PTX
-                        # self.ptx.roi_generate_roi()
+                        self.ptx.roi_generate_roi()
                     elif taskid == 1: # PNB
                         # self.pnb.roi_generate_roi()
                     elif taskid == 2: # ONSD
@@ -65,7 +74,7 @@ class ARGUS_app_ai:
 
                 with time_this("ROI Inference Time:"):
                     if taskid == 0:  #PTX
-                        # self.ptx.roi_inference()
+                        self.ptx.roi_inference()
                     elif taskid == 1: # PNB
                         # self.pnb.roi_inference()
                     elif taskid == 2: # ONSD
@@ -75,28 +84,21 @@ class ARGUS_app_ai:
 
                 with time_this("Decision Time:"):
                     if taskid == 0:  #PTX
-                        # decision,pos_confidence,neg_confidence = self.ptx.decision()
+                        decision,decision_confidence = self.ptx.decision()
                     elif taskid == 1: # PNB
-                        # decision,pos_confidence,neg_confidence = self.pnb.decision()
+                        # decision,decision_confidence = self.pnb.decision()
                     elif taskid == 2: # ONSD
-                        # decision,pos_confidence,neg_confidence = self.onsd.decision()
+                        # decision,decision_confidence = self.onsd.decision()
                     elif taskid == 3: # ETT
-                        # decision,pos_confidence,neg_confidence = self.ett.decision()
-
-
-        if taskid == 0:  #PTX
-            taskname = "PTX"
-        elif taskid == 1: # PNB
-            taskname = "PNB"
-        elif taskid == 2: # ONSD
-            taskname = "ONSD"
-        elif taskid == 3: # ETT
-            taskname = "ETT"
-
+                        # decision,decision_confidence = self.ett.decision()
         return dict(
-            decision=decision,
+            decision = decision,
             # debug info
-            task_name=taskname,
-            pos_confidence=pos_confidence,
-            neg_confidence=neg_confidence,
+            task_name = taskname[taskid],
+            task_confidencePTX = taskid_confidence[0],
+            task_confidencePNB = taskid_confidence[1],
+            task_confidenceONSD = taskid_confidence[2],
+            task_confidenceETT = taskid_confidence[3],
+            pos_confidence = decision_confidence[0],
+            neg_confidence = decision_confidence[1],
         )
