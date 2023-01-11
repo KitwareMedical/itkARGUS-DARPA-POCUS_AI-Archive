@@ -172,9 +172,9 @@ class ARGUS_segmentation_inference:
             lbl_roi_img = resample.GetOutput()
         
         if scale_data:
-            self.ImageMath.SetInput(vid_roi_img)
-            self.ImageMath.IntensityWindow(0,255,0,1)
-            vid_roi_img = self.ImageMath.GetOutput()
+            self.ImageMath3F.SetInput(vid_roi_img)
+            self.ImageMath3F.IntensityWindow(0,255,0,1)
+            vid_roi_img = self.ImageMath3F.GetOutput()
 
         if rotate_data:
             permute = itk.PermuteAxesImageFilter[ImageF].New()
@@ -195,7 +195,10 @@ class ARGUS_segmentation_inference:
         self.ARGUS_Preprocess.center_slice = self.num_slices//2
         roi_array = self.ARGUS_Preprocess(vid_roi_array)
         
-        lbl_array = itk.GetArrayFromImage(lbl_roi_img)[0]
+        if lbl_img != None:
+            lbl_array = itk.GetArrayFromImage(lbl_roi_img)[0]
+        else:
+            lbl_array = np.zeros([self.size_x, self.size_y])
         
         ar_input_array = np.empty([1,
                                    1,
@@ -204,9 +207,8 @@ class ARGUS_segmentation_inference:
                                    self.size_y])
         ar_input_array[0,0] = roi_array
         
-        ar_lbl_array = np.zeros([1, 1, self.size_x, self.size_y])
-        if lbl_img != None:
-            ar_lbl_array[0,0] = lbl_array
+        ar_lbl_array = np.empty([1, 1, self.size_x, self.size_y])
+        ar_lbl_array[0,0] = lbl_array
             
         self.input_image = vid_roi_img
         self.input_array = roi_array

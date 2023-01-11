@@ -97,7 +97,9 @@ class ARGUS_preprocess_sonosite():
             vid = itk.GetArrayFromImage(resample.GetOutput())
         return vid
     
-    def process(self, vid):
+    def process(self, vid_img):
+        vid = itk.GetArrayFromImage(vid_img)
+        
         depth,zoom,offsetX,offsetY = self.get_depth_and_zoom(vid[0])
         filename = path.join(path.dirname(__file__), 'linearization_maps_sonosite', f'linear_map_depth{str(depth)}.npy')
         mapping = np.load(filename)
@@ -112,6 +114,7 @@ class ARGUS_preprocess_sonosite():
     
         self.unzoom_video(vid, zoom, offsetY)
     
+        spacing2D = [1, 1]
         ImageType = itk.Image[itk.F,2]
         linear_filter = itkResampleImageUsingMapFilter[ImageType,ImageType].New()
         linear_filter.SetOutputSize([frame_size[1],frame_size[0]])
@@ -122,7 +125,14 @@ class ARGUS_preprocess_sonosite():
             linear_filter.SetInput(itkimg)
             linear_filter.Update()
             vid_linear[i] = linear_filter.GetOutput()
-        return vid_linear
+            if i == 0:
+                spacing2D = linear_filter.GetOutput().GetSpacing()
+        
+        spacing3D = [spacing2D[0], spacing2D[1], 1]
+        vid_img = itk.GetImageFromArray(vid_linear.astype(np.float32))
+        vid_img.SetSpacing(spacing3D)
+        
+        return vid_img
     
     def linearize_image(self, img, depth, zoom, offsetY, interpolate=True):
         filename = path.join(path.dirname(__file__), 'linearization_maps_sonosite', f'linear_map_depth{str(depth)}.npy')
@@ -143,8 +153,7 @@ class ARGUS_preprocess_sonosite():
         linear_filter.SetSourceMapping(source_coords_list)
         linear_filter.SetKernels(kernels_list)
         linear_filter.SetInterpolate(interpolate)
-        itkimg = itk.GetImageFromArray(img.astype(np.float32))
-        linear_filter.SetInput(itkimg)
+        linear_filter.SetInput(img)
         linear_filter.Update()
         img_linear = linear_filter.GetOutput()
         return img_linear

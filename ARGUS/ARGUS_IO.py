@@ -1,3 +1,5 @@
+import itk
+
 import numpy as np
 
 import ffmpeg
@@ -23,7 +25,10 @@ def ARGUS_load_video(filename):
             if i == 0:
                 frames = np.empty((num_frames, frame.height, frame.width))
             frames[i] = frame.to_ndarray(format='gray')
-        return frames
+            
+        vid = itk.GetImageFromArray(frames)
+        
+        return vid
     finally:
         if container:
             container.close()
