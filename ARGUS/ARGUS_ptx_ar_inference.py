@@ -11,9 +11,9 @@ class ARGUS_ptx_ar_inference(ARGUS_segmentation_inference):
         self.preprocessed_sonosite_video = []
         self.preprocess_sonosite = ARGUS_preprocess_sonosite()
     
-    def preprocess(self, vid, lbl=None, slice_num=None, crop_data=True, scale_data=True, rotate_data=True):
+    def preprocess(self, vid_img, lbl=None, slice_num=None, crop_data=True, scale_data=True, rotate_data=True):
         if crop_data:
-            self.preprocessed_sonosite_video = self.preprocess_sonosite.process(vid)
+            self.preprocessed_sonosite_video = self.preprocess_sonosite.process(vid_img)
         else:
-            self.preprocessed_sonosite_video = vid
-        super().preprocess(self.preprocessed_sonosite_video, lbl, slice_num, crop_data, scale_data, rotate_data)
+            self.preprocessed_sonosite_video = vid_img
+        super().preprocess(self.preprocessed_sonosite_video, lbl, slice_num, scale_data, rotate_data)

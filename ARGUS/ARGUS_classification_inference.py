@@ -133,7 +133,7 @@ class ARGUS_classification_inference:
         roi_label_array = np.empty([1, 1, self.size_y, self.size_x])
         roi_label_array[0, 0] = self.label_array
         
-        self.input_tensor = self.ConvertToTensor(roi_input_array)
+        self.input_tensor = self.ConvertToTensor(roi_input_array.astype(np.float32))
         self.label_tensor = self.ConvertToTensor(roi_label_array)
         
     def clean_probabilities(self, run_output):
@@ -152,13 +152,13 @@ class ARGUS_classification_inference:
         return class_num
     
     def inference(self):
-        prob_total = np.zeros(prob_shape)
+        prob_total = np.zeros(self.num_classes)
         with torch.no_grad():
-            for run_num in range(num_runs):
-                run_output = model(self.input_tensor[0].to(self.device))
-                prob = self.clean_probabilities(run_output.cpu())
+            for run_num in range(self.num_models):
+                run_output = self.model[run_num](self.input_tensor[0].to(self.device))
+                prob = self.clean_probabilities(run_output[0].cpu().detach().numpy())
                 prob_total += prob
-        prob_total /= num_runs
+        prob_total /= self.num_models
         prob = self.clean_probabilities(prob_total)
         class_array = self.classify_probabilities(prob_total)
         return class_array, prob

@@ -881,4 +881,4 @@ class ARGUS_segmentation_train(ARGUS_segmentation_inference):
                     ".",
                     self.results_dirname,
                     os.path.splitext(fname)[0]+".out.mha" ))
-        print( "  Test Mean Dice Score = ", test_metric )
+        print( "  Test Mean Dice Score =", test_metric )

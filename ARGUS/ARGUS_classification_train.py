@@ -503,7 +503,9 @@ class ARGUS_classification_train(ARGUS_classification_inference):
                 self.setup_vfold_files()
                 self.setup_training_vfold(self.vfold_num)
 
-    def test_vfold(self, model_type="best", run_id=0):
+    def test_vfold(self, model_type="best", run_id=0, model_vfold=-1):
+        if model_vfold == -1:
+            model_vfold = self.vfold_num
         model_filename_base = os.path.join(
             ".",
             self.results_dirname,
@@ -512,7 +514,7 @@ class ARGUS_classification_train(ARGUS_classification_inference):
 
         model_file = os.path.join(
             model_filename_base,
-            model_type + "_model_" + str(self.vfold_num) + ".pth"
+            model_type + "_model_" + str(model_vfold) + ".pth"
         )
 
         test_outputs_total = []
@@ -528,6 +530,7 @@ class ARGUS_classification_train(ARGUS_classification_inference):
                                     for test_file in list(self.test_files[self.vfold_num][:]) ]
             
             num_correct = 0.0
+            metric = 0.0
             metric_count = 0
             with torch.no_grad():
                 for batch_num, test_data in enumerate(self.test_loader):
@@ -539,6 +542,10 @@ class ARGUS_classification_train(ARGUS_classification_inference):
                     value = torch.eq(out_labels, test_labels)
                     metric_count += len(value)
                     num_correct += value.sum().item()
+                    for i in range(len(out_labels)):
+                        maxv = max(test_outputs[i])
+                        maxv2 = max([x for x in test_outputs[i] if x < maxv])
+                        metric += test_outputs[i, out_labels[i]] - maxv2
 
                     if batch_num == 0:
                         test_images_total = test_data["image"]
@@ -555,21 +562,27 @@ class ARGUS_classification_train(ARGUS_classification_inference):
                             (test_outputs_total, test_outputs), axis=0
                         )
                         
-                metric = num_correct / metric_count
-                print( f"VFold {self.vfold_num}: Accuracy = {metric}" )
+                accuracy = num_correct / metric_count
+                metric = metric / metric_count
+                metric *= accuracy
+                print( f"   Accuracy = {accuracy}" )
+                print( f"   Confidence = {metric}" )
                 
         else:
             print("ERROR: Model file not found:", model_file, "!!")
 
-        return test_filenames_total, test_images_total, test_labels_total, test_outputs_total
+        return test_filenames_total, test_images_total, test_labels_total, test_outputs_total, metric
     
-    def classify_vfold(self, model_type="best", run_ids=[0]):
+    def classify_vfold(self, model_type="best", run_ids=[0], model_vfold=-1):
+        if model_vfold == -1:
+            model_vfold = self.vfold_num
+            
         test_filenames = []
         test_inputs = []
         test_ideal_outputs = []
         test_run_outputs = []
         for run_num,run_id in enumerate(run_ids):
-            filenames, imgs, lbls, outs = self.test_vfold(model_type, run_id)
+            filenames, imgs, lbls, outs = self.test_vfold(model_type, run_id, model_vfold)
             if run_num == 0:
                 test_filenames = filenames
                 test_inputs = imgs
@@ -681,37 +694,48 @@ class ARGUS_classification_train(ARGUS_classification_inference):
         else:
             print("ERROR: Cannot read metric file:", loss_file)
 
-    def view_testing_results_vfold(self, model_type="best", run_ids=[0]):
+    def view_testing_results_vfold(self, model_type="best", run_ids=[0], model_vfold=-1, summary_only=False):
         print("VFOLD =", self.vfold_num, "of", self.num_folds - 1)
+        if model_vfold == -1:
+            model_vfold = self.vfold_num
+        else:
+            print("   Using model from vfold", model_vfold)
 
         test_inputs_image_filenames = []
         test_inputs_images = []
         test_ideal_outputs = []
         test_net_outputs = []
+        confidence = 0.0
+        confidence_count = 0
         for run_num,run_id in enumerate(run_ids):
-            run_input_image_filenames, run_input_images, run_ideal_outputs, run_net_outputs = self.test_vfold(
-                model_type, run_id)
+            run_input_image_filenames, run_input_images, run_ideal_outputs, run_net_outputs, run_metric = self.test_vfold(
+                model_type, run_id, model_vfold)
             test_net_outputs.append(run_net_outputs)
+            confidence += run_metric
+            confidence_count += 1
             if run_num == 0:
                 test_input_image_filenames = run_input_image_filenames
                 test_input_images = run_input_images
                 test_ideal_outputs = run_ideal_outputs
-
+        confidence /= confidence_count
+        
         num_runs = len(run_ids)
 
+        test_metric = 0
+        test_metric_count = 0
         for image_num in range(len(test_input_images)):
             fname = os.path.basename( test_input_image_filenames[image_num] )
-            print("Image:", fname)
-
-            plt.figure("Testing")
-            for c in range(self.net_in_channels):
-                plt.subplot(1, self.net_in_channels, c+1)
-                plt.title(f"F"+str(c))
-                tmpV = test_input_images[image_num, c, :, :]
-                plt.axis('off')
-                plt.imshow(rotate(tmpV,270), cmap="gray")
-            plt.show()
-            print( "   Ideal output =", test_ideal_outputs[image_num] )
+            if not summary_only:
+                print("Image:", fname)
+                plt.figure("Testing")
+                for c in range(self.net_in_channels):
+                    plt.subplot(1, self.net_in_channels, c+1)
+                    plt.title(f"F"+str(c))
+                    tmpV = test_input_images[image_num, c, :, :]
+                    plt.axis('off')
+                    plt.imshow(rotate(tmpV,270), cmap="gray")
+                plt.show()
+                print( "   Ideal output =", test_ideal_outputs[image_num] )
 
             # run probabilities
             prob_shape = test_net_outputs[0][0].shape
@@ -721,23 +745,23 @@ class ARGUS_classification_train(ARGUS_classification_inference):
                 run_output = test_net_outputs[run_num][image_num]
                 prob = self.clean_probabilities(run_output)
                 prob_total += prob
-                print( f"   Run output ({run_num}) = {run_output}" )
+                if not summary_only:
+                    print( f"   Run output ({run_num}) = {run_output}" )
             prob_total /= num_runs
 
             # ensemble probabilities
             prob = self.clean_probabilities(prob_total)
-            print( f"   Ensemble output = {prob}" )
+            if not summary_only:
+                print( f"   Ensemble output = {prob}" )
 
             # ensemble classifications
             class_array = self.classify_probabilities(prob)
 
-            #itk.imwrite(
-                #itk.GetImageFromArray(class_array.astype(np.float32)),
-                #"class_image_final_f" + str(self.vfold_num) +
-                #"i" + str(image_num) + ".mha" )
-            print( f"   Final output = {class_array}" )
-            print( "" )
-
-            #itk.imwrite(class_image,
-                        #"./" + self.results_dirname + "/" +
-                        #fname[:-6] + "out.mha" )
+            if not summary_only:
+                print( f"   Final output = {class_array}" )
+                print( "" )
+            test_metric += abs(class_array - test_ideal_outputs[image_num])
+            test_metric_count += 1.0
+        test_metric /= test_metric_count
+        print("   Accuracy =", 1.0 - test_metric)
+        print( f"   Confidence = {confidence}" )
