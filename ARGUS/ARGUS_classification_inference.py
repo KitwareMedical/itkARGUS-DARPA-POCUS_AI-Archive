@@ -20,9 +20,6 @@ import torch
 
 import monai
 from monai.transforms import (
-    AsChannelFirstd,
-    AsDiscrete,
-    Compose,
     Resize,
     ToTensor,
 )
@@ -44,6 +41,9 @@ class ARGUS_classification_inference:
         self.num_classes  = int(config[network_name]['num_classes'])
         
         self.ar_roi_class  = int(config[network_name]['ar_roi_class'])
+        self.ar_roi_use_spacing  = int(config[network_name]['ar_roi_use_spacing'])
+        self.ar_roi_spacing_x  = float(config[network_name]['ar_roi_spacing_x'])
+        self.ar_roi_spacing_y  = float(config[network_name]['ar_roi_spacing_y'])
         
         self.num_slices = int(config[network_name]['num_slices'])
         self.size_x = int(config[network_name]['size_x'])
@@ -68,7 +68,28 @@ class ARGUS_classification_inference:
             out_channels=self.num_classes,
         ).to(self.device)] * self.num_models
         
-        self.ARGUS_preprocess = ARGUS_RandSpatialCropSlices(
+        # preload itk libs
+        ImageF = itk.Image[itk.F, 3]
+        ImageSS = itk.Image[itk.SS, 3]
+        preload = tube.CropImage[ImageF,ImageF].New()
+        preload = tube.CropImage[ImageSS,ImageSS].New()
+        preload = tube.ResampleImage[ImageF].New()
+        preload = tube.ResampleImage[ImageSS].New()
+        preload = itk.PermuteAxesImageFilter[ImageF].New()
+        preload = itk.PermuteAxesImageFilter[ImageSS].New()
+        
+        self.ImageMath3F = tube.ImageMath[ImageF].New()
+        
+        ImageF2 = itk.Image[itk.F, 2]
+        self.ImageMathF2 = tube.ImageMath[ImageF2].New()
+        
+        ImageS2 = itk.Image[itk.SS, 2]
+        self.ImageMathS2 = tube.ImageMath[ImageS2].New()
+        
+        self.Resize = Resize(
+            spatial_size=[self.size_y, self.size_x])
+        
+        self.ARGUS_Preprocess = ARGUS_RandSpatialCropSlices(
             num_slices=self.num_slices,
             center_slice=self.testing_slice,
             reduce_to_statistics=self.reduce_to_statistics,
@@ -77,8 +98,17 @@ class ARGUS_classification_inference:
             include_gradient=self.reduce_to_statistics,
             axis=0)
         
+        self.ARGUS_PreprocessLabel = ARGUS_RandSpatialCropSlices(
+            num_slices=1,
+            center_slice=self.testing_slice,
+            reduce_to_statistics=False,
+            extended=False,
+            include_center_slice=True,
+            include_gradient=False,
+            axis=0)
+        
         self.ConvertToTensor = ToTensor()
-
+        
     def init_model(self, model_num):
         self.model[model_num] = monai.networks.nets.DenseNet121(
             spatial_dims=self.net_in_dims,
@@ -100,9 +130,6 @@ class ARGUS_classification_inference:
                and roi_max_x>roi_min_x+1):
             roi_max_x -= 1
         roi_mid_x = (roi_min_x + roi_max_x)//2
-        roi_min_x = max(roi_mid_x-self.size_x//2, 0)
-        roi_max_x = min(roi_min_x+self.size_x, ar_labels.shape[1]-1)
-        roi_min_x = roi_max_x-self.size_x
         
         roi_min_y = 0
         roi_max_y = ar_labels.shape[0]-1
@@ -113,28 +140,185 @@ class ARGUS_classification_inference:
                and roi_max_y>roi_min_y+1):
             roi_max_y -= 1
         roi_mid_y = (roi_min_y + roi_max_y)//2
-        roi_min_y = max(roi_mid_y-self.size_y//2, 0)
-        roi_max_y = min(roi_min_y+self.size_y, ar_labels.shape[0]-1)
-        roi_min_y = roi_max_y-self.size_y
     
-        ar_image_size = ar_image.GetLargestPossibleRegion().GetSize()
-        crop = tube.CropImage.New(Input=ar_image)
-        crop.SetMin([roi_min_x, roi_min_y, 0])
-        crop.SetMax([roi_max_x, roi_max_y, ar_image_size[2]])
-        crop.Update()
-        self.input_image = crop.GetOutput()
+        ar_image_size = list(ar_image.GetLargestPossibleRegion().GetSize())
         
-        self.input_array = ar_array[:, roi_min_y:roi_max_y, roi_min_x:roi_max_x]
+        if not self.roi_use_spacing:
+            roi_min_x = max(roi_mid_x-self.size_x//2, 0)
+            roi_max_x = min(roi_min_x+self.size_x, ar_labels.shape[1]-1)
+            roi_min_x = roi_max_x-self.size_x
+            roi_min_y = max(roi_mid_y-self.size_y//2, 0)
+            roi_max_y = min(roi_min_y+self.size_y, ar_labels.shape[0]-1)
+            roi_min_y = roi_max_y-self.size_y
+            crop = tube.CropImage.New(Input=ar_image)
+            crop.SetMin([roi_min_x, roi_min_y, 0])
+            crop.SetMax([roi_max_x, roi_max_y, ar_image_size[2]])
+            crop.Update()
+            self.input_image = crop.GetOutput()
+            self.input_array = ar_array[:, roi_min_y:roi_max_y, roi_min_x:roi_max_x]
+            self.label_array = ar_labels[roi_min_y:roi_max_y, roi_min_x:roi_max_x]
+        else:
+            ar_image_spacing = list(ar_image.GetSpacing())
+            org = list(ar_image.GetOrigin())
+            ext = org + ar_image_spacing * ar_image_size
+            mid_pt = ar_image.TransformIndexToPhysicalPoint([roi_mid_x, roi_mid_y, 0])
+            min_x = max(org[0], mid_pt - self.roi_spacing_x * self.size_x / 2)
+            max_x = min(ext[0], min_x + self.roi_spacing_x * self.size_x)
+            min_x = max_x - self.roi_spacing_x * self.size_x
+            min_y = max(org[1], mid_pt - self.roi_spacing_y * self.size_y / 2)
+            max_y = min(ext[1], min_y + self.roi_spacing_y * self.size_y)
+            min_y = max_y - self.roi_spacing_y * self.size_y
+            resample = tube.ResampleImage.New()
+            resample.SetInput(ar_image)
+            size = [self.size_x, self.size_y, ar_image_size]
+            resample.SetSize(size)
+            spacing = [self.roi_spacing_x, self.roi_spacing_y, ar_image_spacing[2]]
+            resample.SetSpacing(spacing)
+            origin = [min_x, min_y, org[2]]
+            resample.SetOrigin(origin)
+            resample.Update()
+            self.input_image = resample.GetOutput()
+            min_in = ar_image.TransformPhysicalPointToIndex(origin)
+            size_in = [self.size_x * self.roi_spacing_x / ar_image_spacing[0],
+                       self.size_y * self.roi_spacing_y / ar_image_spacing[1]]
+            tmp_input_array = ar_array[:,
+                                        min_in[1]:min_in[1]+size_in[1],
+                                        min_in[0]:min_in[0]+size_in[0]]
+            self.Resize.SetMode("bilinear")
+            self.input_array = self.Resize(tmp_input_array)
+            tmp_label_array = ar_labels[min_in[1]:min_in[1]+self.size_y,
+                                         min_in[0]:min_in[0]+self,size_x]
+            self.Resize.SetMode("near-exact")
+            self.label_array = self.Resize(tmp_label_array)
+                                        
+            
         roi_input_array = np.empty([1, 1,
             self.net_in_channels, self.size_y, self.size_x])
         roi_input_array[0, 0] = self.input_array
         
-        self.label_array = ar_labels[roi_min_y:roi_max_y, roi_min_x:roi_max_x]
         roi_label_array = np.empty([1, 1, self.size_y, self.size_x])
         roi_label_array[0, 0] = self.label_array
         
         self.input_tensor = self.ConvertToTensor(roi_input_array.astype(np.float32))
         self.label_tensor = self.ConvertToTensor(roi_label_array)
+        
+    def init_model(self, model_num):
+        self.model[model_num] = UNet(
+            dimensions=self.net_in_dims,
+            in_channels=self.net_in_channels,
+            out_channels=self.num_classes,
+            channels=self.net_layer_channels,
+            strides=self.net_layer_strides,
+            num_res_units=self.net_num_residual_units,
+            norm=Norm.BATCH,
+            ).to(self.device)
+        
+    def load_model(self, model_num, filename):
+        self.model[model_num].load_state_dict(torch.load(filename, map_location=self.device))
+        self.model[model_num].eval()
+
+    def preprocess(self, vid_img, lbl_img=None, slice_num=None, scale_data=True, rotate_data=True):
+        ImageF = itk.Image[itk.F, 3]
+        ImageSS = itk.Image[itk.SS, 3]
+        
+        img_size = vid_img.GetLargestPossibleRegion().GetSize()
+        
+        if slice_num != None:
+            tmp_testing_slice = slice_num
+        else:
+            tmp_testing_slice = self.testing_slice
+        if tmp_testing_slice < 0:
+            tmp_testing_slice = img_size[2]+tmp_testing_slice-1
+        min_slice = max(0,tmp_testing_slice-self.num_slices//2-1)
+        max_slice = min(img_size[2],tmp_testing_slice+self.num_slices//2+2)
+        
+        min_index = [0, 0, min_slice]
+        max_index = [img_size[0], img_size[1], max_slice]
+        crop = tube.CropImage[ImageF,ImageF].New()
+        crop.SetInput(vid_img)
+        crop.SetMin(min_index)
+        crop.SetMax(max_index)
+        crop.Update()
+        vid_roi_img = crop.GetOutput()
+        if lbl_img != None:
+            min_index = [0, 0, tmp_testing_slice]
+            max_index = [img_size[0], img_size[1], tmp_testing_slice+1]
+            crop = tube.CropImage[ImageSS,ImageSS].New()
+            crop.SetInput(lbl_img)
+            crop.SetMin(min_index)
+            crop.SetMax(max_index)
+            crop.Update()
+            lbl_roi_img = crop.GetOutput()
+            #lbl[tmp_testing_slice:tmp_testing_slice+1,:,:]
+        else:
+            lbl_roi_img = None
+        
+        resample = tube.ResampleImage[ImageF].New()
+        resample.SetInput(vid_roi_img)
+        size = [self.size_x, self.size_y, self.num_slices]
+        spacing_org = vid_roi_img.GetSpacing()
+        spacing = [1,1,1]
+        spacing[0] = spacing_org[0] * img_size[0]/self.size_x
+        spacing[1] = spacing_org[1] * img_size[1]/self.size_y
+        spacing[2] = spacing_org[2]
+        resample.SetSize(size)
+        resample.SetSpacing(spacing)
+        resample.Update()
+        vid_roi_img = resample.GetOutput()
+        if lbl_img != None:
+            resample = tube.ResampleImage[ImageSS].New()
+            resample.SetInput(lbl_roi_img)
+            size = [self.size_x, self.size_y, 1]
+            resample.SetSize(size)
+            resample.Update()
+            lbl_roi_img = resample.GetOutput()
+        
+        if scale_data:
+            self.ImageMath3F.SetInput(vid_roi_img)
+            self.ImageMath3F.IntensityWindow(0,255,0,1)
+            vid_roi_img = self.ImageMath3F.GetOutput()
+
+        if rotate_data:
+            permute = itk.PermuteAxesImageFilter[ImageF].New()
+            permute.SetInput(vid_roi_img)
+            order = [1,0,2]
+            permute.SetOrder(order)
+            permute.Update()
+            vid_roi_img = permute.GetOutput()
+            if lbl_img != None:
+                permute = itk.PermuteAxesImageFilter[ImageSS].New()
+                permute.SetInput(lbl_roi_img)
+                order = [1,0,2]
+                permute.SetOrder(order)
+                permute.Update()
+                lbl_roi_img = permute.GetOutput()
+                
+        vid_roi_array = itk.GetArrayFromImage(vid_roi_img)
+        self.ARGUS_Preprocess.center_slice = self.num_slices//2
+        roi_array = self.ARGUS_Preprocess(vid_roi_array)
+        
+        if lbl_img != None:
+            lbl_array = itk.GetArrayFromImage(lbl_roi_img)[0]
+        else:
+            lbl_array = np.zeros([self.size_x, self.size_y])
+        
+        ar_input_array = np.empty([1,
+                                   1,
+                                   self.net_in_channels,
+                                   self.size_x,
+                                   self.size_y])
+        ar_input_array[0,0] = roi_array
+        
+        ar_lbl_array = np.empty([1, 1, self.size_x, self.size_y])
+        ar_lbl_array[0,0] = lbl_array
+            
+        self.input_image = vid_roi_img
+        self.input_array = roi_array
+        self.label_array = lbl_array
+        
+        self.input_tensor = self.ConvertToTensor(ar_input_array.astype(np.float32))
+        self.label_tensor = self.ConvertToTensor(ar_lbl_array.astype(np.short))
+        
         
     def clean_probabilities(self, run_output):
         prob = run_output.copy()
@@ -160,5 +344,5 @@ class ARGUS_classification_inference:
                 prob_total += prob
         prob_total /= self.num_models
         prob = self.clean_probabilities(prob_total)
-        class_array = self.classify_probabilities(prob_total)
-        return class_array, prob
+        classification = self.classify_probabilities(prob_total)
+        return classification, prob

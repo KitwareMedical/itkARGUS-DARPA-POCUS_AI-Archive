@@ -26,7 +26,7 @@ def ARGUS_load_video(filename):
                 frames = np.empty((num_frames, frame.height, frame.width))
             frames[i] = frame.to_ndarray(format='gray')
             
-        vid = itk.GetImageFromArray(frames)
+        vid = itk.GetImageFromArray(frames.astype(np.float32))
         
         return vid
     finally:

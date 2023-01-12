@@ -370,12 +370,15 @@ class ARGUS_segmentation_train(ARGUS_segmentation_inference):
             #print( "   VAL", self.val_files[i])
             #print( "   TEST", self.test_files[i])
 
-    def setup_training_vfold(self, vfold_num):
+    def setup_training_vfold(self, vfold_num, run_num):
         self.vfold_num = vfold_num
 
         if self.use_persistent_cache:
-            persistent_cache = pathlib.Path("./data_cache_"+self.network_name+str(vfold_num),
-                    "persistent_cache")
+            persistent_cache = pathlib.Path(
+                    ".",
+                    "data_cache",
+                    self.network_name+"_f"+str(vfold_num)+"_r"+str(run_num)
+                    )
             persistent_cache.mkdir(parents=True, exist_ok=True)
             train_ds = PersistentDataset(
                 data=self.train_files[self.vfold_num],
@@ -422,13 +425,16 @@ class ARGUS_segmentation_train(ARGUS_segmentation_inference):
                 pin_memory=True,
             )
 
-    def setup_testing_vfold(self, vfold_num):
+    def setup_testing_vfold(self, vfold_num, run_num):
         self.vfold_num = vfold_num
 
         if len(self.test_files) > self.vfold_num and len(self.test_files[self.vfold_num]) > 0:
             if self.use_persistent_cache:
-                persistent_cache = pathlib.Path("./data_cache_"+self.network_name+str(vfold_num),
-                        "persistent_cache")
+                persistent_cache = pathlib.Path(
+                    ".",
+                    "data_cache",
+                    self.network_name+"_f"+str(vfold_num)+"_r"+str(run_num)
+                    )
                 persistent_cache.mkdir(parents=True, exist_ok=True)
                 test_ds = PersistentDataset(
                     data=self.test_files[self.vfold_num],
@@ -672,11 +678,11 @@ class ARGUS_segmentation_train(ARGUS_segmentation_inference):
             prob_total = np.zeros(prob_shape)
             for run_num in range(num_runs):
                 run_output = test_run_outputs[run_num][image_num]
-                prob = self.clean_probabilities(run_output)
+                prob = self.clean_probabilities_array(run_output)
                 prob_total += prob
             prob_total /= num_runs
-            prob = self.clean_probabilities(prob_total, use_blur=False)
-            class_array = self.classify_probabilities(prob_total)
+            prob = self.clean_probabilities_array(prob_total, use_blur=False)
+            class_array = self.classify_probabilities_array(prob_total)
             test_ensemble_outputs.append(class_array)
 
         return test_filenames, test_inputs, test_ideal_outputs, test_ensemble_outputs
@@ -833,7 +839,7 @@ class ARGUS_segmentation_train(ARGUS_segmentation_inference):
             run_output = np.empty(prob_shape)
             for run_num in range(num_runs):
                 run_output = test_net_outputs[run_num][image_num]
-                prob = self.clean_probabilities(run_output)
+                prob = self.clean_probabilities_array(run_output)
                 prob_total += prob
                 if not summary_only:
                     subplot_num = num_subplots*(run_num+1) + 2
@@ -847,7 +853,7 @@ class ARGUS_segmentation_train(ARGUS_segmentation_inference):
             prob_total /= num_runs
 
             # ensemble probabilities
-            prob = self.clean_probabilities(prob_total, use_blur=False)
+            prob = self.clean_probabilities_array(prob_total, use_blur=False)
             if not summary_only:
                 subplot_num = (num_runs+1)*num_subplots - self.num_classes
                 for c in range(self.num_classes):
@@ -859,7 +865,7 @@ class ARGUS_segmentation_train(ARGUS_segmentation_inference):
                     subplot_num += 1
 
             # ensemble classifications
-            class_array = self.classify_probabilities(prob)
+            class_array = self.classify_probabilities_array(prob)
 
             #itk.imwrite(
                 #itk.GetImageFromArray(class_array.astype(np.float32)),

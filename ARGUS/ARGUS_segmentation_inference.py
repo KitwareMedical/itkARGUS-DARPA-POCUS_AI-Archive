@@ -71,12 +71,12 @@ class ARGUS_segmentation_inference:
         # Preload these definitions
         ImageF = itk.Image[itk.F, 3]
         ImageSS = itk.Image[itk.SS, 3]
-        crop = tube.CropImage[ImageF,ImageF].New()
-        crop = tube.CropImage[ImageSS,ImageSS].New()
-        resample = tube.ResampleImage[ImageF].New()
-        resample = tube.ResampleImage[ImageSS].New()
-        permute = itk.PermuteAxesImageFilter[ImageF].New()
-        permute = itk.PermuteAxesImageFilter[ImageSS].New()
+        pre_load = tube.CropImage[ImageF,ImageF].New()
+        pre_load = tube.CropImage[ImageSS,ImageSS].New()
+        pre_load = tube.ResampleImage[ImageF].New()
+        pre_load = tube.ResampleImage[ImageSS].New()
+        pre_load = itk.PermuteAxesImageFilter[ImageF].New()
+        pre_load = itk.PermuteAxesImageFilter[ImageSS].New()
         
         self.ImageMath3F = tube.ImageMath[ImageF].New()
         
