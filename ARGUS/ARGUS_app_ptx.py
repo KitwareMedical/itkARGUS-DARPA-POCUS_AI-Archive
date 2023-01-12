@@ -1,3 +1,5 @@
+import os
+
 from ARGUS_ptx_ar_inference import ARGUS_ptx_ar_inference
 from ARGUS_ptx_roi_inference import ARGUS_ptx_roi_inference
 
@@ -32,20 +34,23 @@ class ARGUS_app_ptx:
             )
             self.ptx_roi.load_model(r, model_name)
             
-        self.decision = 0
+        self.result = 0
         self.confidence = [0, 0]
             
     def ar_preprocess(self, vid_img):
-        self.ptx_ar.preprocess(vid)
+        self.ptx_ar.preprocess(vid_img)
         
     def ar_inference(self):
-        labels = ptx_ar.inference()
+        labels = self.ptx_ar.inference()
         
     def roi_generate_roi(self):
-        ptx_roi.generate_roi(ptx_ar.input_image, ptx_ar.input_array, ptx_ar.label_array)
+        self.ptx_roi.generate_roi(
+            self.ptx_ar.input_image,
+            self.ptx_ar.input_array,
+            self.ptx_ar.label_array)
         
     def roi_inference(self):
-        self.decision,self.confidence = ptx_roi.inference()
+        self.result,self.confidence = self.ptx_roi.inference()
         
     def decision(self):
-        return self.decision, self.confidence
+        return self.result, self.confidence

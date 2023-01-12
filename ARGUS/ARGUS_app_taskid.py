@@ -1,3 +1,5 @@
+import os
+
 from ARGUS_taskid_inference import ARGUS_taskid_inference
 
 class ARGUS_app_taskid:
@@ -12,19 +14,24 @@ class ARGUS_app_taskid:
             model_name = os.path.join(
                 "Models",
                 "taskid_run"+str(r),
-                "best_model_"+str(ptx_ar_best_models[r])+".pth"
+                "best_model_"+str(taskid_best_models[r])+".pth"
             )
             self.taskid.load_model(r, model_name)
             
-        self.decision = 0
+        self.result = 0
         self.confidence = [0, 0, 0, 0]
             
     def preprocess(self, vid_img):
-        self.taskid.preprocess(vid_img)
+        self.taskid.preprocess(
+            vid_img,
+            lbl_img=None,
+            slice_num=None,
+            scale_data=True,
+            rotate_data=False)
         
     def inference(self):
-        self.decision, self.confidence = self.taskid.inference()
+        self.result, self.confidence = self.taskid.inference()
         
     def decision(self):
-        return self.decision, self.confidence
+        return self.result, self.confidence
         

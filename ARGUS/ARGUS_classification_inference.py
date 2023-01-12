@@ -20,9 +20,6 @@ import torch
 
 import monai
 from monai.transforms import (
-    AsChannelFirstd,
-    AsDiscrete,
-    Compose,
     Resize,
     ToTensor,
 )
@@ -44,6 +41,9 @@ class ARGUS_classification_inference:
         self.num_classes  = int(config[network_name]['num_classes'])
         
         self.ar_roi_class  = int(config[network_name]['ar_roi_class'])
+        self.ar_roi_use_spacing  = int(config[network_name]['ar_roi_use_spacing'])
+        self.ar_roi_spacing_x  = float(config[network_name]['ar_roi_spacing_x'])
+        self.ar_roi_spacing_y  = float(config[network_name]['ar_roi_spacing_y'])
         
         self.num_slices = int(config[network_name]['num_slices'])
         self.size_x = int(config[network_name]['size_x'])
@@ -68,14 +68,15 @@ class ARGUS_classification_inference:
             out_channels=self.num_classes,
         ).to(self.device)] * self.num_models
         
+        # preload itk libs
         ImageF = itk.Image[itk.F, 3]
         ImageSS = itk.Image[itk.SS, 3]
-        crop = tube.CropImage[ImageF,ImageF].New()
-        crop = tube.CropImage[ImageSS,ImageSS].New()
-        resample = tube.ResampleImage[ImageF].New()
-        resample = tube.ResampleImage[ImageSS].New()
-        permute = itk.PermuteAxesImageFilter[ImageF].New()
-        permute = itk.PermuteAxesImageFilter[ImageSS].New()
+        preload = tube.CropImage[ImageF,ImageF].New()
+        preload = tube.CropImage[ImageSS,ImageSS].New()
+        preload = tube.ResampleImage[ImageF].New()
+        preload = tube.ResampleImage[ImageSS].New()
+        preload = itk.PermuteAxesImageFilter[ImageF].New()
+        preload = itk.PermuteAxesImageFilter[ImageSS].New()
         
         self.ImageMath3F = tube.ImageMath[ImageF].New()
         
@@ -84,6 +85,9 @@ class ARGUS_classification_inference:
         
         ImageS2 = itk.Image[itk.SS, 2]
         self.ImageMathS2 = tube.ImageMath[ImageS2].New()
+        
+        self.Resize = Resize(
+            spatial_size=[self.size_y, self.size_x])
         
         self.ARGUS_Preprocess = ARGUS_RandSpatialCropSlices(
             num_slices=self.num_slices,
@@ -126,9 +130,6 @@ class ARGUS_classification_inference:
                and roi_max_x>roi_min_x+1):
             roi_max_x -= 1
         roi_mid_x = (roi_min_x + roi_max_x)//2
-        roi_min_x = max(roi_mid_x-self.size_x//2, 0)
-        roi_max_x = min(roi_min_x+self.size_x, ar_labels.shape[1]-1)
-        roi_min_x = roi_max_x-self.size_x
         
         roi_min_y = 0
         roi_max_y = ar_labels.shape[0]-1
@@ -139,23 +140,62 @@ class ARGUS_classification_inference:
                and roi_max_y>roi_min_y+1):
             roi_max_y -= 1
         roi_mid_y = (roi_min_y + roi_max_y)//2
-        roi_min_y = max(roi_mid_y-self.size_y//2, 0)
-        roi_max_y = min(roi_min_y+self.size_y, ar_labels.shape[0]-1)
-        roi_min_y = roi_max_y-self.size_y
     
-        ar_image_size = ar_image.GetLargestPossibleRegion().GetSize()
-        crop = tube.CropImage.New(Input=ar_image)
-        crop.SetMin([roi_min_x, roi_min_y, 0])
-        crop.SetMax([roi_max_x, roi_max_y, ar_image_size[2]])
-        crop.Update()
-        self.input_image = crop.GetOutput()
+        ar_image_size = list(ar_image.GetLargestPossibleRegion().GetSize())
         
-        self.input_array = ar_array[:, roi_min_y:roi_max_y, roi_min_x:roi_max_x]
+        if not self.roi_use_spacing:
+            roi_min_x = max(roi_mid_x-self.size_x//2, 0)
+            roi_max_x = min(roi_min_x+self.size_x, ar_labels.shape[1]-1)
+            roi_min_x = roi_max_x-self.size_x
+            roi_min_y = max(roi_mid_y-self.size_y//2, 0)
+            roi_max_y = min(roi_min_y+self.size_y, ar_labels.shape[0]-1)
+            roi_min_y = roi_max_y-self.size_y
+            crop = tube.CropImage.New(Input=ar_image)
+            crop.SetMin([roi_min_x, roi_min_y, 0])
+            crop.SetMax([roi_max_x, roi_max_y, ar_image_size[2]])
+            crop.Update()
+            self.input_image = crop.GetOutput()
+            self.input_array = ar_array[:, roi_min_y:roi_max_y, roi_min_x:roi_max_x]
+            self.label_array = ar_labels[roi_min_y:roi_max_y, roi_min_x:roi_max_x]
+        else:
+            ar_image_spacing = list(ar_image.GetSpacing())
+            org = list(ar_image.GetOrigin())
+            ext = org + ar_image_spacing * ar_image_size
+            mid_pt = ar_image.TransformIndexToPhysicalPoint([roi_mid_x, roi_mid_y, 0])
+            min_x = max(org[0], mid_pt - self.roi_spacing_x * self.size_x / 2)
+            max_x = min(ext[0], min_x + self.roi_spacing_x * self.size_x)
+            min_x = max_x - self.roi_spacing_x * self.size_x
+            min_y = max(org[1], mid_pt - self.roi_spacing_y * self.size_y / 2)
+            max_y = min(ext[1], min_y + self.roi_spacing_y * self.size_y)
+            min_y = max_y - self.roi_spacing_y * self.size_y
+            resample = tube.ResampleImage.New()
+            resample.SetInput(ar_image)
+            size = [self.size_x, self.size_y, ar_image_size]
+            resample.SetSize(size)
+            spacing = [self.roi_spacing_x, self.roi_spacing_y, ar_image_spacing[2]]
+            resample.SetSpacing(spacing)
+            origin = [min_x, min_y, org[2]]
+            resample.SetOrigin(origin)
+            resample.Update()
+            self.input_image = resample.GetOutput()
+            min_in = ar_image.TransformPhysicalPointToIndex(origin)
+            size_in = [self.size_x * self.roi_spacing_x / ar_image_spacing[0],
+                       self.size_y * self.roi_spacing_y / ar_image_spacing[1]]
+            tmp_input_array = ar_array[:,
+                                        min_in[1]:min_in[1]+size_in[1],
+                                        min_in[0]:min_in[0]+size_in[0]]
+            self.Resize.SetMode("bilinear")
+            self.input_array = self.Resize(tmp_input_array)
+            tmp_label_array = ar_labels[min_in[1]:min_in[1]+self.size_y,
+                                         min_in[0]:min_in[0]+self,size_x]
+            self.Resize.SetMode("near-exact")
+            self.label_array = self.Resize(tmp_label_array)
+                                        
+            
         roi_input_array = np.empty([1, 1,
             self.net_in_channels, self.size_y, self.size_x])
         roi_input_array[0, 0] = self.input_array
         
-        self.label_array = ar_labels[roi_min_y:roi_max_y, roi_min_x:roi_max_x]
         roi_label_array = np.empty([1, 1, self.size_y, self.size_x])
         roi_label_array[0, 0] = self.label_array
         
@@ -216,7 +256,13 @@ class ARGUS_classification_inference:
         resample = tube.ResampleImage[ImageF].New()
         resample.SetInput(vid_roi_img)
         size = [self.size_x, self.size_y, self.num_slices]
+        spacing_org = vid_roi_img.GetSpacing()
+        spacing = [1,1,1]
+        spacing[0] = spacing_org[0] * img_size[0]/self.size_x
+        spacing[1] = spacing_org[1] * img_size[1]/self.size_y
+        spacing[2] = spacing_org[2]
         resample.SetSize(size)
+        resample.SetSpacing(spacing)
         resample.Update()
         vid_roi_img = resample.GetOutput()
         if lbl_img != None:
@@ -289,7 +335,7 @@ class ARGUS_classification_inference:
         class_num = np.argmax(run_output, axis=0)
         return class_num
     
-    def inference(self)
+    def inference(self):
         prob_total = np.zeros(self.num_classes)
         with torch.no_grad():
             for run_num in range(self.num_models):
