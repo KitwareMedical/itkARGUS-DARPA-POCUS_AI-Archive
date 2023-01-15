@@ -41,7 +41,7 @@ class ARGUS_classification_inference:
         self.num_classes  = int(config[network_name]['num_classes'])
         
         self.ar_roi_class  = int(config[network_name]['ar_roi_class'])
-        self.ar_roi_use_spacing  = int(config[network_name]['ar_roi_use_spacing'])
+        self.ar_roi_use_spacing  = bool(config[network_name]['ar_roi_use_spacing'])
         self.ar_roi_spacing_x  = float(config[network_name]['ar_roi_spacing_x'])
         self.ar_roi_spacing_y  = float(config[network_name]['ar_roi_spacing_y'])
         
@@ -143,7 +143,7 @@ class ARGUS_classification_inference:
     
         ar_image_size = list(ar_image.GetLargestPossibleRegion().GetSize())
         
-        if not self.roi_use_spacing:
+        if not self.ar_roi_use_spacing:
             roi_min_x = max(roi_mid_x-self.size_x//2, 0)
             roi_max_x = min(roi_min_x+self.size_x, ar_labels.shape[1]-1)
             roi_min_x = roi_max_x-self.size_x
@@ -160,27 +160,26 @@ class ARGUS_classification_inference:
         else:
             ar_image_spacing = list(ar_image.GetSpacing())
             org = list(ar_image.GetOrigin())
-            ext = org + ar_image_spacing * ar_image_size
+            ext = np.array(org) + np.array(ar_image_spacing) * np.array(ar_image_size)
             mid_pt = ar_image.TransformIndexToPhysicalPoint([roi_mid_x, roi_mid_y, 0])
-            min_x = max(org[0], mid_pt - self.roi_spacing_x * self.size_x / 2)
-            max_x = min(ext[0], min_x + self.roi_spacing_x * self.size_x)
-            min_x = max_x - self.roi_spacing_x * self.size_x
-            min_y = max(org[1], mid_pt - self.roi_spacing_y * self.size_y / 2)
-            max_y = min(ext[1], min_y + self.roi_spacing_y * self.size_y)
-            min_y = max_y - self.roi_spacing_y * self.size_y
-            resample = tube.ResampleImage.New()
-            resample.SetInput(ar_image)
+            min_x = max(org[0], mid_pt[0] - self.ar_roi_spacing_x * self.size_x / 2)
+            max_x = min(ext[0], min_x + self.ar_roi_spacing_x * self.size_x)
+            min_x = max_x - self.ar_roi_spacing_x * self.size_x
+            min_y = max(org[1], mid_pt[1] - self.ar_roi_spacing_y * self.size_y / 2)
+            max_y = min(ext[1], min_y + self.ar_roi_spacing_y * self.size_y)
+            min_y = max_y - self.ar_roi_spacing_y * self.size_y
+            resample = tube.ResampleImage.New(ar_image)
             size = [self.size_x, self.size_y, ar_image_size]
             resample.SetSize(size)
-            spacing = [self.roi_spacing_x, self.roi_spacing_y, ar_image_spacing[2]]
+            spacing = [self.ar_roi_spacing_x, self.ar_roi_spacing_y, ar_image_spacing[2]]
             resample.SetSpacing(spacing)
             origin = [min_x, min_y, org[2]]
             resample.SetOrigin(origin)
             resample.Update()
             self.input_image = resample.GetOutput()
             min_in = ar_image.TransformPhysicalPointToIndex(origin)
-            size_in = [self.size_x * self.roi_spacing_x / ar_image_spacing[0],
-                       self.size_y * self.roi_spacing_y / ar_image_spacing[1]]
+            size_in = [self.size_x * self.ar_roi_spacing_x / ar_image_spacing[0],
+                       self.size_y * self.ar_roi_spacing_y / ar_image_spacing[1]]
             tmp_input_array = ar_array[:,
                                         min_in[1]:min_in[1]+size_in[1],
                                         min_in[0]:min_in[0]+size_in[0]]
@@ -201,17 +200,6 @@ class ARGUS_classification_inference:
         
         self.input_tensor = self.ConvertToTensor(roi_input_array.astype(np.float32))
         self.label_tensor = self.ConvertToTensor(roi_label_array)
-        
-    def init_model(self, model_num):
-        self.model[model_num] = UNet(
-            dimensions=self.net_in_dims,
-            in_channels=self.net_in_channels,
-            out_channels=self.num_classes,
-            channels=self.net_layer_channels,
-            strides=self.net_layer_strides,
-            num_res_units=self.net_num_residual_units,
-            norm=Norm.BATCH,
-            ).to(self.device)
         
     def load_model(self, model_num, filename):
         self.model[model_num].load_state_dict(torch.load(filename, map_location=self.device))

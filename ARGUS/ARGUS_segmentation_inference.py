@@ -106,17 +106,6 @@ class ARGUS_segmentation_inference:
         
         self.ConvertToTensor = ToTensor()
         
-    def init_model(self, model_num):
-        self.model[model_num] = UNet(
-            dimensions=self.net_in_dims,
-            in_channels=self.net_in_channels,
-            out_channels=self.num_classes,
-            channels=self.net_layer_channels,
-            strides=self.net_layer_strides,
-            num_res_units=self.net_num_residual_units,
-            norm=Norm.BATCH,
-            ).to(self.device)
-        
     def load_model(self, model_num, filename):
         self.model[model_num].load_state_dict(torch.load(filename, map_location=self.device))
         self.model[model_num].eval()
@@ -235,37 +224,41 @@ class ARGUS_segmentation_inference:
         prob = (prob - pmin) / prange
         for c in range(1,self.num_classes):
             class_array = np.argmax(prob, axis=0)
-            class_array[:self.class_morph[c]*2,:] = 0
-            class_array[:,:self.class_morph[c]*2] = 0
-            class_array[-self.class_morph[c]*2:,:] = 0
-            class_array[:,-self.class_morph[c]*2:] = 0
+            k = self.class_morph[c]*2
+            if k < 2:
+                k = 2
+            class_array[:k,:] = 0
+            class_array[:,:k] = 0
+            class_array[-k:,:] = 0
+            class_array[:,-k:] = 0
             count = np.count_nonzero(class_array == c)
-            done = False
-            op_iter = 0
-            op_iter_max = 40
-            while not done and op_iter < op_iter_max:
-                done = True
-                while count < self.class_min_size[c] and op_iter < op_iter_max:
-                    prob[c] = prob[c] * 1.05
-                    class_array = np.argmax(prob, axis=0)
-                    class_array[:self.class_morph[c]*2,:] = 0
-                    class_array[:,:self.class_morph[c]*2] = 0
-                    class_array[-self.class_morph[c]*2:,:] = 0
-                    class_array[:,-self.class_morph[c]*2:] = 0
-                    count = np.count_nonzero(class_array == c)
-                    op_iter += 1
-                    done = False
-                while count > self.class_max_size[c] and op_iter < op_iter_max:
-                    prob[c] = prob[c] * 0.95
-                    class_array = np.argmax(prob, axis=0)
-                    class_array[:self.class_morph[c]*2,:] = 0
-                    class_array[:,:self.class_morph[c]*2] = 0
-                    class_array[-self.class_morph[c]*2:,:] = 0
-                    class_array[:,-self.class_morph[c]*2:] = 0
-                    count = np.count_nonzero(class_array == c)
-                    op_iter += 1
-                    done = False
-        #print("Iterations to optimize prior =", op_iter)
+            if self.class_max_size[c] > 0:
+                done = False
+                op_iter = 0
+                op_iter_max = 40
+                while not done and op_iter < op_iter_max:
+                    done = True
+                    while count < self.class_min_size[c] and op_iter < op_iter_max:
+                        prob[c] = prob[c] * 1.05
+                        class_array = np.argmax(prob, axis=0)
+                        class_array[:k,:] = 0
+                        class_array[:,:k] = 0
+                        class_array[-k:,:] = 0
+                        class_array[:,-k:] = 0
+                        count = np.count_nonzero(class_array == c)
+                        op_iter += 1
+                        done = False
+                    while count > self.class_max_size[c] and op_iter < op_iter_max:
+                        prob[c] = prob[c] * 0.95
+                        class_array = np.argmax(prob, axis=0)
+                        class_array[:k,:] = 0
+                        class_array[:,:k] = 0
+                        class_array[-k:,:] = 0
+                        class_array[:,-k:] = 0
+                        count = np.count_nonzero(class_array == c)
+                        op_iter += 1
+                        done = False
+                print("Iterations to optimize prior =", op_iter)
         denom = np.sum(prob, axis=0)
         denom = np.where(denom == 0, 1, denom)
         prob =  prob / denom
@@ -274,10 +267,13 @@ class ARGUS_segmentation_inference:
 
     def classify_probabilities_array(self, prob):
         class_array = np.argmax(prob, axis=0)
-        class_array[:self.class_morph[1]*2,:] = 0
-        class_array[:,:self.class_morph[1]*2] = 0
-        class_array[-self.class_morph[1]*2:,:] = 0
-        class_array[:,-self.class_morph[1]*2:] = 0
+        k = max(self.class_morph)*2
+        if k < 2:
+            k = 2
+        class_array[:k,:] = 0
+        class_array[:,:k] = 0
+        class_array[-k:,:] = 0
+        class_array[:,-k:] = 0
         class_image = itk.GetImageFromArray(
             class_array.astype(np.short))
 
@@ -291,14 +287,10 @@ class ARGUS_segmentation_inference:
 
         for c in range(1,self.num_classes):
             self.ImageMathS2.SetInput(class_image)
-            if self.class_morph[c] > 0:
-                self.ImageMathS2.Dilate(self.class_morph[c], c, 0)
-                self.ImageMathS2.Erode(self.class_morph[c], c, 0)
-                class_array[:2*self.class_morph[1],:] = 0
-                class_array[:,:2*self.class_morph[1]] = 0
-                class_array[-2*self.class_morph[1]:,:] = 0
-                class_array[:,-2*self.class_morph[1]:] = 0
             self.ImageMathS2.Threshold(c, c, 1, 0)
+            if self.class_morph[c] > 0:
+                self.ImageMathS2.Dilate(self.class_morph[c], 1, 0)
+                self.ImageMathS2.Erode(self.class_morph[c], 1, 0)
             class_clean_image = self.ImageMathS2.GetOutputShort()
 
             if self.class_keep_only_largest[c]==1:
@@ -310,8 +302,10 @@ class ARGUS_segmentation_inference:
                 class_clean_image = seg.GetOutput()
 
             class_clean_array = itk.GetArrayFromImage(class_clean_image)
+            class_array_fill = np.nonzero(class_clean_array)
+            
             class_array = np.where(class_array == c, 0, class_array)
-            class_array = np.where(class_clean_array != 0, c, class_array)
+            class_array[class_array_fill] = c
 
         return class_array.astype(np.short)
     

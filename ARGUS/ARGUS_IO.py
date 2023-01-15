@@ -20,6 +20,8 @@ def ARGUS_load_video(filename):
         
         num_frames = stream.frames
         
+        framerate = stream.average_rate
+        
         frames = None
         for i,frame in enumerate(container.decode(stream)):
             if i == 0:
@@ -27,6 +29,8 @@ def ARGUS_load_video(filename):
             frames[i] = frame.to_ndarray(format='gray')
             
         vid = itk.GetImageFromArray(frames.astype(np.float32))
+        spacing = [1, 1, 1.0/framerate]
+        vid.SetSpacing(spacing)
         
         return vid
     finally:

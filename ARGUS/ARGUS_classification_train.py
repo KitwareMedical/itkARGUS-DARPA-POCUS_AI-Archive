@@ -204,6 +204,13 @@ class ARGUS_classification_train(ARGUS_classification_inference):
                 ]
             )
 
+    def init_model(self, model_num):
+        self.model[model_num] = monai.networks.nets.DenseNet121(
+            spatial_dims=self.net_in_dims,
+            in_channels=self.net_in_channels,
+            out_channels=self.num_classes,
+        ).to(self.device)
+
     def setup_vfold_files(self):
         all_train_images = []
         for dirname in self.image_dirname:
@@ -312,12 +319,15 @@ class ARGUS_classification_train(ARGUS_classification_inference):
             #print( "   VAL", self.val_files[i])
             #print( "   TEST", self.test_files[i])
 
-    def setup_training_vfold(self, vfold_num):
+    def setup_training_vfold(self, vfold_num, run_num):
         self.vfold_num = vfold_num
 
         if self.use_persistent_cache:
-            persistent_cache = pathlib.Path("./data_cache_"+self.network_name+str(vfold_num),
-                    "persistent_cache")
+            persistent_cache = pathlib.Path(
+                ".",
+                "data_cache",
+                self.network_name+"_f"+str(vfold_num)+"_r"+str(run_num)
+            )
             persistent_cache.mkdir(parents=True, exist_ok=True)
             train_ds = PersistentDataset(
                 data=self.train_files[self.vfold_num],
@@ -369,8 +379,11 @@ class ARGUS_classification_train(ARGUS_classification_inference):
 
         if len(self.test_files) > self.vfold_num and len(self.test_files[self.vfold_num]) > 0:
             if self.use_persistent_cache:
-                persistent_cache = pathlib.Path("./data_cache_"+self.network_name+str(vfold_num),
-                        "persistent_cache")
+                persistent_cache = pathlib.Path(
+                    ".",
+                    "data_cache",
+                    self.network_name+"_f"+str(vfold_num)+"_r"+str(run_num)
+                )
                 persistent_cache.mkdir(parents=True, exist_ok=True)
                 test_ds = PersistentDataset(
                     data=self.test_files[self.vfold_num],

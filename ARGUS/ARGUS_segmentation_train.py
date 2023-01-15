@@ -178,6 +178,17 @@ class ARGUS_segmentation_train(ARGUS_segmentation_inference):
             ]
         )
 
+    def init_model(self, model_num):
+        self.model[model_num] = UNet(
+            dimensions=self.net_in_dims,
+            in_channels=self.net_in_channels,
+            out_channels=self.num_classes,
+            channels=self.net_layer_channels,
+            strides=self.net_layer_strides,
+            num_res_units=self.net_num_residual_units,
+            norm=Norm.BATCH,
+            ).to(self.device)
+
     def setup_vfold_files(self):
         self.all_train_images = []
         for dirname in self.image_dirname:
@@ -375,10 +386,10 @@ class ARGUS_segmentation_train(ARGUS_segmentation_inference):
 
         if self.use_persistent_cache:
             persistent_cache = pathlib.Path(
-                    ".",
-                    "data_cache",
-                    self.network_name+"_f"+str(vfold_num)+"_r"+str(run_num)
-                    )
+                ".",
+                "data_cache",
+                self.network_name+"_f"+str(vfold_num)+"_r"+str(run_num)
+            )
             persistent_cache.mkdir(parents=True, exist_ok=True)
             train_ds = PersistentDataset(
                 data=self.train_files[self.vfold_num],
