@@ -1,3 +1,5 @@
+import itk
+
 import site
 site.addsitedir("../ARGUS")
 
@@ -13,7 +15,9 @@ class ARGUS_pnb_ar_inference(ARGUS_segmentation_inference):
         
     def preprocess(self, vid, lbl=None, slice_num=None, crop_data=True, scale_data=True, rotate_data=True):
         if crop_data:
-            self.preprocessed_pnb_video = self.preprocess_pnb.process(vid)
+            self.preprocessed_pnb_video = self.preprocess_pnb.process(
+                    vid,
+                    [self.size_x, self.size_y])
         else:
             self.preprocessed_pnb_video = vid
-        super().preprocess(self.preprocessed_pnb_video, lbl, slice_num, crop_data, scale_data, rotate_data)
+        super().preprocess(self.preprocessed_pnb_video, lbl, slice_num, scale_data, rotate_data)
