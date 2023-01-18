@@ -59,7 +59,7 @@ class ARGUS_segmentation_inference:
         self.class_morph = [int(x) for x in json.loads(config[network_name]['class_morph'])]
 
         self.model = [UNet(
-            dimensions=self.net_in_dims,
+            spatial_dims=self.net_in_dims,
             in_channels=self.net_in_channels,
             out_channels=self.num_classes,
             channels=self.net_layer_channels,
@@ -181,6 +181,8 @@ class ARGUS_segmentation_inference:
                 lbl_roi_img = permute.GetOutput()
                 
         vid_roi_array = itk.GetArrayFromImage(vid_roi_img)
+        self.ARGUS_Preprocess._gradient_cache = None
+        self.ARGUS_Preprocess.cache_gradient = False
         self.ARGUS_Preprocess.center_slice = self.num_slices//2
         roi_array = self.ARGUS_Preprocess(vid_roi_array)
         
@@ -258,7 +260,6 @@ class ARGUS_segmentation_inference:
                         count = np.count_nonzero(class_array == c)
                         op_iter += 1
                         done = False
-                print("Iterations to optimize prior =", op_iter)
         denom = np.sum(prob, axis=0)
         denom = np.where(denom == 0, 1, denom)
         prob =  prob / denom

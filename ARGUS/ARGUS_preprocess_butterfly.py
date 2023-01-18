@@ -71,8 +71,6 @@ class ARGUS_preprocess_butterfly():
         crop_min_z = 0
         crop_max_z = vid.shape[0]
         Crop = tube.CropImage.New(vid)
-        print([crop_min_x,crop_min_y,crop_min_z])
-        print([crop_max_x,crop_max_y,crop_max_z])
         Crop.SetMin([crop_min_x,crop_min_y,crop_min_z])
         Crop.SetMax([crop_max_x,crop_max_y,crop_max_z])
         Crop.Update()

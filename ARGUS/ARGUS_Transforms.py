@@ -56,7 +56,8 @@ class ARGUS_RandSpatialCropSlices(RandomizableTransform, Transform):
         include_mean_abs_diff: bool = False,
         include_skewness: bool = False,
         include_kurtosis: bool = False,
-        include_gradient: bool = False
+        include_gradient: bool = False,
+        cache_gradient: bool = False
     ) -> None:
         RandomizableTransform.__init__(self, 1.0)
         self.num_slices = num_slices
@@ -71,11 +72,13 @@ class ARGUS_RandSpatialCropSlices(RandomizableTransform, Transform):
         self.include_skewness = include_skewness
         self.include_kurtosis = include_kurtosis
         self.include_gradient = include_gradient
+        self.cache_gradient = cache_gradient
         self._roi_start: Optional[Sequence[int]] = None
         self._roi_center_slice: int = 99999
         self._roi_end: Optional[Sequence[int]] = None
         if self.boundary == -1:
             self.boundary = self.num_slices//2
+        self._gradient_cache = None
 
     
     def randomize(self, data: NdarrayOrTensor) -> None:
@@ -105,6 +108,9 @@ class ARGUS_RandSpatialCropSlices(RandomizableTransform, Transform):
         slicing DOES apply to the channel dim.
         """
         self.randomize(img)
+        
+        if self.cache_gradient == True and self._gradient_cache == None:
+            self._gradient_cache = np.gradient(img)
 
         def make_slices(smin, smax, _start, _end):
             tlist = list(_start)
@@ -185,7 +191,10 @@ class ARGUS_RandSpatialCropSlices(RandomizableTransform, Transform):
                                                            axis=self.axis)
                 out_img_slice += 1
             if self.include_gradient:
-                gradlist = np.gradient(arr)
+                if self.cache_gradient == True:
+                    gradlist = [x[tuple(slices_all)] for x in self._gradient_cache]
+                else:
+                    gradlist = np.gradient(img)
                 for d in range(len(gradlist)):
                     np.mean(gradlist[d],axis=self.axis,
                         out=out_img[out_img_slice])
@@ -273,7 +282,10 @@ class ARGUS_RandSpatialCropSlices(RandomizableTransform, Transform):
                 out_img_slice += 1
 
             if self.include_gradient:
-                gradlist = np.gradient(arr)
+                if self.cache_gradient == True:
+                    gradlist = [x[tuple(slices_all)] for x in self._gradient_cache]
+                else:
+                    gradlist = np.gradient(arr)
                 for d in range(len(gradlist)):
                     for i in range(len(slices)):
                         np.mean(gradlist[d][tuple(slices[i])],
@@ -313,6 +325,7 @@ class ARGUS_RandSpatialCropSlicesd(RandomizableTransform, MapTransform, Invertib
         include_skewness: bool = False,
         include_kurtosis: bool = False,
         include_gradient: bool = False,
+        cache_gradient: bool = False,
         allow_missing_keys: bool = False,
     ) -> None:
         """
@@ -349,6 +362,7 @@ class ARGUS_RandSpatialCropSlicesd(RandomizableTransform, MapTransform, Invertib
         self.include_skewness = include_skewness
         self.include_kurtosis = include_kurtosis
         self.include_gradient = include_gradient
+        self.cache_gradient = cache_gradient
         self._roi_start: Optional[Sequence[int]] = None
         self._roi_center_slice: int = 99999
         self._roi_end: Optional[Sequence[int]] = None
@@ -383,7 +397,7 @@ class ARGUS_RandSpatialCropSlicesd(RandomizableTransform, MapTransform, Invertib
         d = dict(data)
 
         for key, num_slices, reduce_to_statistics in self.key_iterator(d, self.num_slices, self.reduce_to_statistics):
-            cropper = ARGUS_RandSpatialCropSlices(num_slices=num_slices, axis=self.axis, center_slice=self._roi_center_slice, reduce_to_statistics=reduce_to_statistics,boundary=self.boundary,require_labeled=self.require_labeled,extended=self.extended,include_center_slice=self.include_center_slice,include_mean_abs_diff=self.include_mean_abs_diff,include_skewness=self.include_skewness,include_kurtosis=self.include_kurtosis,include_gradient=self.include_gradient)
+            cropper = ARGUS_RandSpatialCropSlices(num_slices=num_slices, axis=self.axis, center_slice=self._roi_center_slice, reduce_to_statistics=reduce_to_statistics,boundary=self.boundary,require_labeled=self.require_labeled,extended=self.extended,include_center_slice=self.include_center_slice,include_mean_abs_diff=self.include_mean_abs_diff,include_skewness=self.include_skewness,include_kurtosis=self.include_kurtosis,include_gradient=self.include_gradient,cache_gradient=self.cache_gradient)
             orig_size = d[key].shape
             d[key] = cropper(d[key])
             self.push_transform(
