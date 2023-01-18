@@ -1,5 +1,5 @@
 save
 Results*
 *.log
-data_cache_*
+data_cache*
 Data_Pretrain_Net

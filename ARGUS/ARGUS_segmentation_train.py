@@ -1,6 +1,8 @@
 import warnings
 warnings.filterwarnings("ignore")
 
+from monai.networks.nets import UNet
+from monai.networks.layers import Norm
 from monai.utils import first, set_determinism
 from monai.transforms import (
     AsChannelFirstd,
@@ -180,7 +182,7 @@ class ARGUS_segmentation_train(ARGUS_segmentation_inference):
 
     def init_model(self, model_num):
         self.model[model_num] = UNet(
-            dimensions=self.net_in_dims,
+            spatial_dims=self.net_in_dims,
             in_channels=self.net_in_channels,
             out_channels=self.num_classes,
             channels=self.net_layer_channels,
