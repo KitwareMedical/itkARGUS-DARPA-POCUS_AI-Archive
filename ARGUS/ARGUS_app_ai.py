@@ -28,7 +28,7 @@ class ARGUS_app_ai:
         decision_confidence = [0, 0]
         
         with time_this("all"):
-            with time_this("Read Video Total"):
+            with time_this("Read Video"):
                 with time_this("Read Video: Read from disk"):
                     us_video_img = ARGUS_load_video(filename)
                     video_time = (
@@ -43,7 +43,8 @@ class ARGUS_app_ai:
                         self.taskid.inference()
                         taskid,taskid_confidence = self.taskid.decision()
 
-                with time_this("Read Video: AR Preprocess"):
+            with time_this("Preprocess Video"):
+                with time_this("Preprocess for AR"):
                     if taskid == 0:  #PTX
                         print("PTX")
                         self.ptx.ar_preprocess(us_video_img)
@@ -57,8 +58,7 @@ class ARGUS_app_ai:
                         print("ETT")
                         # self.ett.ar_preprocess(us_video_img)
 
-            with time_this("Process Video Total"):
-                with time_this("Process Video: AR Inference Time:"):
+                with time_this("Preprocess AR Inference"):
                     if taskid == 0:  #PTX
                         self.ptx.ar_inference()
                     elif taskid == 1: # PNB
@@ -68,7 +68,7 @@ class ARGUS_app_ai:
                     #elif taskid == 3: # ETT
                         # self.ett.ar_inference()
 
-                with time_this("Process Video: ROI Preprocess:"):
+                with time_this("Preprocess for ROI"):
                     if taskid == 0:  #PTX
                         self.ptx.roi_generate_roi()
                     #elif taskid == 1: # PNB
@@ -78,7 +78,8 @@ class ARGUS_app_ai:
                     #elif taskid == 3: # ETT
                         # Nothing to do
 
-                with time_this("Process Video: ROI Inference Time:"):
+            with time_this("Process Video"):
+                with time_this("Process Video: ROI Inference"):
                     if taskid == 0:  #PTX
                         self.ptx.roi_inference()
                     elif taskid == 1: # PNB
@@ -88,7 +89,7 @@ class ARGUS_app_ai:
                     #elif taskid == 3: # ETT
                         # Nothing to do
 
-                with time_this("Process Video: Decision Time:"):
+                with time_this("Process Video: Decision"):
                     if taskid == 0:  #PTX
                         decision,decision_confidence = self.ptx.decision()
                     elif taskid == 1: # PNB
@@ -99,12 +100,11 @@ class ARGUS_app_ai:
                         # decision,decision_confidence = self.ett.decision()
         return dict(
             decision = decision,
-            # debug info
             task_name = taskname[taskid],
-            task_confidencePTX = taskid_confidence[0],
-            task_confidencePNB = taskid_confidence[1],
-            task_confidenceONSD = taskid_confidence[2],
-            task_confidenceETT = taskid_confidence[3],
-            pos_confidence = decision_confidence[0],
-            neg_confidence = decision_confidence[1],
+            task_confidence_PTX = taskid_confidence[0],
+            task_confidence_PNB = taskid_confidence[1],
+            task_confidence_ONSD = taskid_confidence[2],
+            task_confidence_ETT = taskid_confidence[3],
+            decision_confidence_0 = decision_confidence[0],
+            decision_confidence_1 = decision_confidence[1],
         )

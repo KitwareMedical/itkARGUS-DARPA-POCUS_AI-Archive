@@ -3,7 +3,6 @@ warnings.filterwarnings("ignore")
 
 import os
 import json
-from glob import glob
 
 import configparser
 
