@@ -44,8 +44,6 @@ import itk
 import matplotlib.pyplot as plt
 from scipy.ndimage import rotate
 
-import site
-site.addsitedir("../ARGUS")
 from ARGUS_segmentation_inference import ARGUS_segmentation_inference
 from ARGUS_Transforms import ARGUS_RandSpatialCropSlicesd
 
@@ -67,7 +65,10 @@ class ARGUS_segmentation_train(ARGUS_segmentation_inference):
         self.test_data_portion = float(config[network_name]['test_data_portion'])
         
         self.num_folds = int(config[network_name]['num_folds'])
-        self.randomize_folds = bool(config[network_name]['randomize_folds'])
+        tmp_str = config[network_name]['randomize_folds']
+        self.randomize_folds = False
+        if tmp_str == "True":
+            self.randomize_folds = True
         if self.num_folds < 4:
             self.num_folds = 1
         self.refold_interval = int(config[network_name]['refold_interval'])
@@ -80,7 +81,10 @@ class ARGUS_segmentation_train(ARGUS_segmentation_inference):
         self.results_filename_base = config[network_name]['results_filename_base']
         self.results_dirname = config[network_name]['results_dirname']
         
-        self.use_persistent_cache = bool(config[network_name]['use_persistent_cache'])
+        tmp_str = config[network_name]['use_persistent_cache']
+        self.use_persistent_cache = False
+        if tmp_str == "True":
+            self.use_persistent_cache = True
         
         self.max_epochs = int(config[network_name]['max_epochs'])
 

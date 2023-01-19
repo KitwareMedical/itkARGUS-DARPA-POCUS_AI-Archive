@@ -23,15 +23,6 @@ def get_ARGUS_dir():
         return path.join(sys._MEIPASS, 'ARGUS')
     return path.join('../..', 'ARGUS')
 
-def get_model_dir():
-    return path.join(get_ARGUS_dir(), 'Models')
-
-def get_data_dir():
-    return path.join(get_ARGUS_dir(), 'Data')
-
-def get_maps_dir():
-    return path.join(get_ARGUS_dir(), 'linearization_maps_sonosite')
-
 def preload_itk_argus():
     # avoids "ITK not compiled with TBB" errors
     # this just does an instantiation prior to actuallly using it
@@ -42,14 +33,13 @@ preload_itk_argus()
 
 # load argus stuff after ITK
 sys.path.append(get_ARGUS_dir())
-sys.path.append(get_ARGUS_PTX_dir())
 from ARGUS_app_ai import ARGUS_app_ai
 
 class ArgusWorker:
     def __init__(self, sock, log):
         self.sock = sock
         self.log = log
-        self.app_ai = ARGUS_app_ai(device_name='cpu')
+        self.app_ai = ARGUS_app_ai(argus_dir=get_ARGUS_dir(), device_num=None)
 
     def run(self):
         stats = Stats()
@@ -90,7 +80,7 @@ class ArgusWorker:
 
         result = dict(
             filename=video_file,
-            task_name=inf_results['task_name'],
+            task_name=inf_result['task_name'],
             prediction=inf_result['decision'],
             stats=stats.todict(),
             video_length=inf_result['video_length'],

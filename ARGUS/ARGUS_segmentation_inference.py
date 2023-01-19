@@ -24,7 +24,7 @@ class ARGUS_segmentation_inference:
         config.read(config_file_name)
 
         self.network_name = network_name
-        if device_num >= 0:
+        if device_num != None and device_num >= 0:
             self.device = torch.device("cuda:" + str(device_num))
         else:
             self.device = "cpu"

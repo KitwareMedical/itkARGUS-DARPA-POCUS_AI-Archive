@@ -3,9 +3,6 @@ from itk import TubeTK as tube
 
 import numpy as np
 
-import site
-site.addsitedir("../ARGUS")
-
 class ARGUS_onsd_roi_inference():
     
     def __init__(self):

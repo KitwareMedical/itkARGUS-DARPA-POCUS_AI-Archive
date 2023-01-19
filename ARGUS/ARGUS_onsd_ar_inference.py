@@ -7,9 +7,6 @@ import torch
 
 from monai.inferers import sliding_window_inference
 
-import site
-site.addsitedir("../ARGUS")
-
 from ARGUS_Timing import *
 
 from ARGUS_segmentation_inference import ARGUS_segmentation_inference

@@ -3,15 +3,16 @@ import os
 from ARGUS_taskid_inference import ARGUS_taskid_inference
 
 class ARGUS_app_taskid:
-    def __init__(self, device_num=0):
+    def __init__(self, argus_dir=".", device_num=0):
         self.taskid = ARGUS_taskid_inference(
-            config_file_name="ARGUS_taskid.cfg",
+            config_file_name=os.path.join(argus_dir, "ARGUS_taskid.cfg"),
             network_name="final",
             device_num=device_num
         )
         taskid_best_models = [0]
         for r in range(self.taskid.num_models):
             model_name = os.path.join(
+                argus_dir,
                 "Models",
                 "taskid_run"+str(r),
                 "best_model_"+str(taskid_best_models[r])+".pth"

@@ -4,14 +4,14 @@ from ARGUS_ptx_ar_inference import ARGUS_ptx_ar_inference
 from ARGUS_ptx_roi_inference import ARGUS_ptx_roi_inference
 
 class ARGUS_app_ptx:
-    def __init__(self, device_num=0):
+    def __init__(self, argus_dir=".", device_num=0):
         self.ptx_ar = ARGUS_ptx_ar_inference(
-            config_file_name="ARGUS_ptx_ar.cfg",
+            config_file_name=os.path.join(argus_dir, "ARGUS_ptx_ar.cfg"),
             network_name="final",
             device_num=device_num
         )
         self.ptx_roi = ARGUS_ptx_roi_inference(
-            config_file_name="ARGUS_ptx_roi.cfg",
+            config_file_name=os.path.join(argus_dir, "ARGUS_ptx_roi.cfg"),
             network_name="final",
             device_num=device_num
         )
@@ -20,6 +20,7 @@ class ARGUS_app_ptx:
         ptx_roi_best_models = [9, 8, 9]
         for r in range(self.ptx_ar.num_models):
             model_name = os.path.join(
+                argus_dir,
                 "Models",
                 "ptx_ar_run"+str(r),
                 "best_model_"+str(ptx_ar_best_models[r])+".pth"
@@ -28,6 +29,7 @@ class ARGUS_app_ptx:
 
         for r in range(self.ptx_roi.num_models):
             model_name = os.path.join(
+                argus_dir,
                 "Models",
                 "ptx_roi_run"+str(r),
                 "best_model_"+str(ptx_roi_best_models[r])+".pth"

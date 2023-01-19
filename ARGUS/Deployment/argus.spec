@@ -36,17 +36,19 @@ srv_binaries += gather_ffmpeg_exes()
 srv_datas = []
 srv_datas += [(get_package_paths('monai')[1], 'monai')]
 srv_datas += [(get_package_paths('torch')[1], 'torch')]
+srv_datas += [(get_package_paths('scipy')[1], 'scipy')]
 
 # ARGUS utils
-srv_datas += [('../ARGUS/*.py', 'ARGUS')]
-srv_datas += [('../ARGUS/linearization_maps_sonosite',
+srv_datas += [('../../ARGUS/*.py', 'ARGUS')]
+srv_datas += [('../../ARGUS/*.cfg', 'ARGUS')]
+srv_datas += [('../../ARGUS/linearization_maps_sonosite',
                'ARGUS/linearization_maps_sonosite')]
 
 # pytorch models
-srv_datas += [('../ARGUS/Models', 'ARGUS/Models')]
+srv_datas += [('../../ARGUS/Models', 'ARGUS/Models')]
 
 # demo data
-srv_datas += [('../ARGUS/Data', 'ARGUS/Data')]
+srv_datas += [('../../ARGUS/Data', 'ARGUS/Data')]
 
 srv_hiddenimports = []
 srv_hiddenimports += collect_submodules('av')

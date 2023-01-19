@@ -51,14 +51,16 @@ def write_result(video_file, result, debug=False):
     timers = stats['timers']
     prediction = result['prediction']
 
-    time_reading=round(timers['Read Video']['elapsed'], 3),
-    time_preprocessing=round(timers['Preprocess Video']['elapsed'], 3),
-    time_processing=round(timers['Process Video']['elapsed'], 3),
-    time_total=round(timers['all']['elapsed'], 3),
-    time_with_parallelism=time_total-min(time_preprocessing_video,
-                                         video_length)
+    task_name = result['task_name']
 
     video_length = result['video_length']
+
+    time_reading=round(timers['Read Video']['elapsed'], 3)
+    time_preprocessing=round(timers['Preprocess Video']['elapsed'], 3)
+    time_processing=round(timers['Process Video']['elapsed'], 3)
+    time_total=round(timers['all']['elapsed'], 3)
+    time_total_with_parallelism = time_total - min(time_processing,
+                                                   video_length)
 
     task_confidence_PTX = result['task_confidence_PTX']
     task_confidence_PNB = result['task_confidence_PNB']
@@ -75,7 +77,7 @@ def write_result(video_file, result, debug=False):
         time_preprocessing_the_video=time_preprocessing,
         time_processing_the_video=time_processing,
         time_total=time_total,
-        time_if_parallel_read_preprocess=time_with_parallelism,
+        time_total_with_parallelism=time_total_with_parallelism,
         video_length=video_length,
         task_confidence_PTX=task_confidence_PTX,
         task_confidence_PNB=task_confidence_PNB,
@@ -97,7 +99,11 @@ def write_result(video_file, result, debug=False):
         writer.writeheader()
         writer.writerow(csv_data)
 
-    print(f'Prediction {prediction}')
+    print(f'File: {video_file}')
+    print(f'   Task: {task_name}')
+    print(f'   Prediction: {prediction}')
+    print(f'      Confidence Measure 0: {decision_confidence_0}')
+    print(f'      Confidence Measure 1: {decision_confidence_1}')
 
 def cli_send_video(video_file, sock, taskid=None, debug=False):
     if not path.exists(video_file):
@@ -136,39 +142,69 @@ def cli_send_video(video_file, sock, taskid=None, debug=False):
 def main(args):
     handle = None
     try:
-        handle = win32file.CreateFile(
-            PIPE_NAME,
-            win32file.GENERIC_READ | win32file.GENERIC_WRITE,
-            0,
-            None,
-            win32file.OPEN_EXISTING,
-            0,
-            None
-        )
-        res = win32pipe.SetNamedPipeHandleState(handle, win32pipe.PIPE_READMODE_MESSAGE, None, None)
-        if res == 0:
-            print(f'SetNamedPipeHandleState return code: {res}')
-            return
         
-        sock = WinPipeSock(handle)
         if args.file != None:
+            handle = win32file.CreateFile(
+                PIPE_NAME,
+                win32file.GENERIC_READ | win32file.GENERIC_WRITE,
+                0,
+                None,
+                win32file.OPEN_EXISTING,
+                0,
+                None
+            )
+            res = win32pipe.SetNamedPipeHandleState(
+                handle,
+                win32pipe.PIPE_READMODE_MESSAGE,
+                None,
+                None
+            )
+            if res == 0:
+                print(f'SetNamedPipeHandleState return code: {res}')
+                return
+            sock = WinPipeSock(handle)
             result = cli_send_video(args.file,
                                     sock,
                                     taskid=args.taskid,
                                     debug=args.Debug)
             if result:
                 write_result(args.file, result, debug=args.Debug)
+                if handle:
+                    win32file.CloseHandle(handle)
                 return EXIT_SUCCESS
             return EXIT_FAILURE
         elif args.directory != None:
-            files = sorted(glob(path.join(args.directory, "*.m??"))
-            for file in files:
-                result = cli_send_video(file,
+            files = sorted(glob(os.path.join(args.directory, "*.m??")))
+            for vidfile in files:
+                handle = win32file.CreateFile(
+                    PIPE_NAME,
+                    win32file.GENERIC_READ | win32file.GENERIC_WRITE,
+                    0,
+                    None,
+                    win32file.OPEN_EXISTING,
+                    0,
+                    None
+                )
+                res = win32pipe.SetNamedPipeHandleState(
+                    handle,
+                    win32pipe.PIPE_READMODE_MESSAGE,
+                    None,
+                    None
+                )
+                if res == 0:
+                    print(f'SetNamedPipeHandleState return code: {res}')
+                    return
+                sock = WinPipeSock(handle)
+                result = cli_send_video(vidfile,
                                         sock,
                                         taskid=args.taskid,
                                         debug=args.Debug)
                 if result:
-                    write_result(args.file, result, debug=args.Debug)
+                    write_result(vidfile, result, debug=args.Debug)
+                if handle:
+                    win32file.CloseHandle(handle)
+                time.sleep(5)
+
             return EXIT_SUCCESS
         else:
             print('Please specify -f <filename> or -d <directory>.')

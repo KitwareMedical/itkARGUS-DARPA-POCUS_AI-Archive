@@ -1,6 +1,3 @@
-import site
-site.addsitedir("../ARGUS")
-
 from ARGUS_classification_inference import ARGUS_classification_inference
 
 class ARGUS_taskid_inference(ARGUS_classification_inference):

@@ -32,7 +32,7 @@ class ARGUS_classification_inference:
         config.read(config_file_name)
 
         self.network_name = network_name
-        if device_num >= 0:
+        if device_num != None and device_num >= 0:
             self.device = torch.device("cuda:" + str(device_num))
         else:
             self.device = "cpu"
@@ -40,7 +40,10 @@ class ARGUS_classification_inference:
         self.num_classes  = int(config[network_name]['num_classes'])
         
         self.ar_roi_class  = int(config[network_name]['ar_roi_class'])
-        self.ar_roi_use_spacing  = bool(config[network_name]['ar_roi_use_spacing'])
+        tmp_str  = config[network_name]['ar_roi_use_spacing']
+        self.ar_roi_use_spacing = False
+        if tmp_str == "True":
+            self.ar_roi_use_spacing = True
         self.ar_roi_spacing_x  = float(config[network_name]['ar_roi_spacing_x'])
         self.ar_roi_spacing_y  = float(config[network_name]['ar_roi_spacing_y'])
         
@@ -55,9 +58,9 @@ class ARGUS_classification_inference:
         self.net_in_dims = int(config[network_name]['num_input_dims'])
         
         self.net_in_channels = 1
-        reduce_to_statistics_str = config[network_name]['reduce_to_statistics']
+        tmp_str = config[network_name]['reduce_to_statistics']
         self.reduce_to_statistics = False
-        if( reduce_to_statistics_str == "True"):
+        if tmp_str == "True":
             self.reduce_to_statistics = True   
             self.net_in_channels = 12
             
@@ -168,8 +171,8 @@ class ARGUS_classification_inference:
             max_y = min(ext[1], min_y + self.ar_roi_spacing_y * self.size_y)
             min_y = max_y - self.ar_roi_spacing_y * self.size_y
             resample = tube.ResampleImage.New(ar_image)
-            size = [self.size_x, self.size_y, ar_image_size]
-            resample.SetSize(size)
+            new_size = [self.size_x, self.size_y, ar_image_size[2]]
+            resample.SetSize(new_size)
             spacing = [self.ar_roi_spacing_x, self.ar_roi_spacing_y, ar_image_spacing[2]]
             resample.SetSpacing(spacing)
             origin = [min_x, min_y, org[2]]
@@ -180,14 +183,12 @@ class ARGUS_classification_inference:
             size_in = [self.size_x * self.ar_roi_spacing_x / ar_image_spacing[0],
                        self.size_y * self.ar_roi_spacing_y / ar_image_spacing[1]]
             tmp_input_array = ar_array[:,
-                                        min_in[1]:min_in[1]+size_in[1],
-                                        min_in[0]:min_in[0]+size_in[0]]
-            self.Resize.SetMode("bilinear")
-            self.input_array = self.Resize(tmp_input_array)
+                                        min_in[1]:int(min_in[1]+size_in[1]),
+                                        min_in[0]:int(min_in[0]+size_in[0])]
+            self.input_array = self.Resize(tmp_input_array, mode="bilinear")
             tmp_label_array = ar_labels[min_in[1]:min_in[1]+self.size_y,
-                                         min_in[0]:min_in[0]+self,size_x]
-            self.Resize.SetMode("near-exact")
-            self.label_array = self.Resize(tmp_label_array)
+                                         min_in[0]:min_in[0]+self.size_x]
+            self.label_array = self.Resize(tmp_label_array, mode="nearest-exact")
                                         
             
         roi_input_array = np.empty([1, 1,
@@ -195,7 +196,7 @@ class ARGUS_classification_inference:
         roi_input_array[0, 0] = self.input_array
         
         roi_label_array = np.empty([1, 1, self.size_y, self.size_x])
-        roi_label_array[0, 0] = self.label_array
+        roi_label_array[0] = self.label_array
         
         self.input_tensor = self.ConvertToTensor(roi_input_array.astype(np.float32))
         self.label_tensor = self.ConvertToTensor(roi_label_array)
@@ -331,5 +332,5 @@ class ARGUS_classification_inference:
                 prob_total += prob
         prob_total /= self.num_models
         prob = self.clean_probabilities(prob_total)
-        classification = self.classify_probabilities(prob_total)
-        return classification, prob
+        classification = self.classify_probabilities(prob)
+        return int(classification), prob
