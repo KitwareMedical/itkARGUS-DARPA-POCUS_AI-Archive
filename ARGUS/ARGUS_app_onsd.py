@@ -4,9 +4,9 @@ from ARGUS_onsd_ar_inference import ARGUS_onsd_ar_inference
 from ARGUS_onsd_roi_inference import ARGUS_onsd_roi_inference
 
 class ARGUS_app_onsd:
-    def __init__(self, device_num=0):
+    def __init__(self, argus_dir=".", device_num=0):
         self.onsd_ar = ARGUS_onsd_ar_inference(
-            config_file_name="ARGUS_onsd_ar.cfg",
+            config_file_name=os.path.join(argus_dir, "ARGUS_onsd_ar.cfg"),
             network_name="final",
             device_num=device_num
         )
@@ -15,6 +15,7 @@ class ARGUS_app_onsd:
         onsd_ar_best_models = [0, 0, 0]
         for r in range(self.onsd_ar.num_models):
             model_name = os.path.join(
+                argus_dir,
                 "Models",
                 "onsd_ar_run"+str(r),
                 "best_model_"+str(onsd_ar_best_models[r])+".pth"

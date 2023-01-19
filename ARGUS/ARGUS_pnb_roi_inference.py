@@ -3,9 +3,6 @@ from itk import TubeTK as tube
 
 import numpy as np
 
-import site
-site.addsitedir("../ARGUS")
-
 class ARGUS_pnb_roi_inference():
     
     def __init__(self):
@@ -38,12 +35,16 @@ class ARGUS_pnb_roi_inference():
 
         needle_count = np.count_nonzero(needle_mask)
         
-        weight_array = itk.GetArrayFromImage(distmap)
-        needle_weight = (needle_mask * weight_array) / needle_count
-        needle_weight = ((self.decision_distance - needle_weight) / self.decision_distance)
+        needle_weight = 0
+        if needle_count > 0:
+            weight_array = itk.GetArrayFromImage(distmap)
+            needle_weight = np.sum(needle_mask * weight_array) / needle_count
+            needle_weight = ((self.decision_distance - needle_weight) / self.decision_distance)
 
         classification = 0
         if needle_count > 5:
             classification = 1
+        prob = [needle_count, needle_weight]
 
-        return classification, [needle_count, needle_weight]
+        return classification, prob
+

@@ -1,8 +1,5 @@
 import itk
 
-import site
-site.addsitedir("../ARGUS")
-
 from ARGUS_segmentation_inference import ARGUS_segmentation_inference
 from ARGUS_preprocess_butterfly import ARGUS_preprocess_butterfly
 
