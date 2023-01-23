@@ -12,12 +12,12 @@ class ARGUS_app_onsd:
         )
         self.onsd_roi = ARGUS_onsd_roi_inference()
         
-        onsd_ar_best_models = [0, 0, 0]
+        onsd_ar_best_models = [5, 8, 5]
         for r in range(self.onsd_ar.num_models):
             model_name = os.path.join(
                 argus_dir,
                 "Models",
-                "onsd_ar_run"+str(r),
+                "onsd_vfold_run"+str(r),
                 "best_model_"+str(onsd_ar_best_models[r])+".pth"
             )
             self.onsd_ar.load_model(r, model_name)

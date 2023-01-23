@@ -260,9 +260,9 @@ class ARGUS_segmentation_inference:
                         count = np.count_nonzero(class_array == c)
                         op_iter += 1
                         done = False
-        denom = np.sum(prob, axis=0)
-        denom = np.where(denom == 0, 1, denom)
-        prob =  prob / denom
+        #denom = np.sum(prob, axis=0)
+        #denom = np.where(denom == 0, 1, denom)
+        #prob =  prob / denom
 
         return prob
 

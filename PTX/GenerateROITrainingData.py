@@ -18,7 +18,7 @@ from ARGUS_ptx_ar_train import ARGUS_ptx_ar_train
 from ARGUS_ptx_roi_inference import ARGUS_ptx_roi_inference
 
 device_num = 0
-best_models = [9, 8, 6]
+best_models = [8, 3, 6]
 
 image_files = sorted(glob.glob("./Data_PTX/images/*.mha"))
 label_files = sorted(glob.glob("./Data_PTX/labels/*.mha"))

@@ -321,9 +321,9 @@ class ARGUS_classification_train(ARGUS_classification_inference):
                     
             print( f"**** VFold =", i, ":", len(self.train_files[i]),
                  len(self.val_files[i]), len(self.test_files[i]))
-            #print( "   TRAIN", self.train_files[i])
-            #print( "   VAL", self.val_files[i])
-            #print( "   TEST", self.test_files[i])
+            print( "   TRAIN", self.train_files[i])
+            print( "   VAL", self.val_files[i])
+            print( "   TEST", self.test_files[i])
 
     def setup_training_vfold(self, vfold_num, run_num):
         self.vfold_num = vfold_num

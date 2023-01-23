@@ -1,5 +1,5 @@
 Data_PTX_Net
-Results
+Results*
 Results_Best
 *.log
-data_cache_*
+data_cache*
