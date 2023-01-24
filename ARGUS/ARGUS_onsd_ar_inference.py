@@ -7,8 +7,6 @@ import torch
 
 from monai.inferers import sliding_window_inference
 
-from ARGUS_Timing import *
-
 from ARGUS_segmentation_inference import ARGUS_segmentation_inference
 from ARGUS_preprocess_butterfly import ARGUS_preprocess_butterfly
 
@@ -87,7 +85,7 @@ class ARGUS_onsd_ar_inference(ARGUS_segmentation_inference):
         else:
             self.label_image = None
 
-    def volume_inference(self, step=1, slice_min=None, slice_max=None, use_cache=False):
+    def volume_inference(self, step=5, slice_min=None, slice_max=None, use_cache=False):
         roi_size = (self.size_x, self.size_y)
 
         img_size = self.input_image.GetLargestPossibleRegion().GetSize()

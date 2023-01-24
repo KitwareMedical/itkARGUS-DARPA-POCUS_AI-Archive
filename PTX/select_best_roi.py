@@ -5,6 +5,7 @@ from ARGUS_ptx_roi_train import ARGUS_ptx_roi_train
 
 nnet = ARGUS_ptx_roi_train("../ARGUS/ARGUS_ptx_roi.cfg", "vfold", device_num=1)
 num_folds = nnet.num_folds
+nnet.use_persistent_cache = False
 nnet.num_folds = 1
 nnet.randomize_folds = False
 nnet.train_data_portion = 1.0

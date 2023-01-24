@@ -176,7 +176,7 @@ class ARGUS_classification_train(ARGUS_classification_inference):
                         keys=["image"],
                     ),
                     ARGUS_RandSpatialCropSlicesd(
-                        num_slices=[self.num_slices],
+                        num_slices=self.num_slices,
                         axis=0,
                         reduce_to_statistics=self.reduce_to_statistics,
                         extended=self.reduce_to_statistics,
@@ -197,7 +197,7 @@ class ARGUS_classification_train(ARGUS_classification_inference):
                         keys=["image"],
                     ),
                     ARGUS_RandSpatialCropSlicesd(
-                        num_slices=[self.num_slices],
+                        num_slices=self.num_slices,
                         center_slice=self.testing_slice,
                         axis=0,
                         reduce_to_statistics=self.reduce_to_statistics,
@@ -380,7 +380,7 @@ class ARGUS_classification_train(ARGUS_classification_inference):
                 pin_memory=True,
             )
 
-    def setup_testing_vfold(self, vfold_num):
+    def setup_testing_vfold(self, vfold_num, run_num):
         self.vfold_num = vfold_num
 
         if len(self.test_files) > self.vfold_num and len(self.test_files[self.vfold_num]) > 0:

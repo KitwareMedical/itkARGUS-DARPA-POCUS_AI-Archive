@@ -12,12 +12,12 @@ class ARGUS_app_pnb:
         )
         self.pnb_roi = ARGUS_pnb_roi_inference()
         
-        pnb_ar_best_models = [0, 0, 0]
+        pnb_ar_best_models = [8, 0, 7]
         for r in range(self.pnb_ar.num_models):
             model_name = os.path.join(
                 argus_dir,
                 "Models",
-                "pnb_ar_run"+str(r),
+                "pnb_vfold_run"+str(r),
                 "best_model_"+str(pnb_ar_best_models[r])+".pth"
             )
             self.pnb_ar.load_model(r, model_name)

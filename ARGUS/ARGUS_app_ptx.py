@@ -16,17 +16,17 @@ class ARGUS_app_ptx:
             device_num=device_num
         )
         
-        ptx_ar_best_models = [9, 8, 6]
-        ptx_roi_best_models = [9, 8, 9]
+        ptx_ar_best_models = [8, 3, 6]
         for r in range(self.ptx_ar.num_models):
             model_name = os.path.join(
                 argus_dir,
                 "Models",
-                "ptx_ar_run"+str(r),
+                "ptx_vfold_run"+str(r),
                 "best_model_"+str(ptx_ar_best_models[r])+".pth"
             )
             self.ptx_ar.load_model(r, model_name)
 
+        ptx_roi_best_models = [4, 3, 1]
         for r in range(self.ptx_roi.num_models):
             model_name = os.path.join(
                 argus_dir,

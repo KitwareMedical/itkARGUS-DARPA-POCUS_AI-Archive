@@ -552,9 +552,9 @@ class ARGUS_segmentation_train(ARGUS_segmentation_inference):
                     # reset the status for next validation round
                     dice_metric.reset()
 
+                    metric_window = 5
                     metric_values.append(metric)
-                    if epoch > 100:
-                        metric_window = 5
+                    if epoch>100 and len(metric_values)>metric_window+1:
                         mean_metric = np.mean(metric_values[-metric_window:])
                         if mean_metric > best_metric:
                             best_metric = mean_metric
@@ -832,7 +832,9 @@ class ARGUS_segmentation_train(ARGUS_segmentation_inference):
             fname = os.path.basename( test_input_image_filenames[image_num] )
             if not summary_only:
                 print("Image:", fname)
-                plt.figure("Testing", (30,12))
+                width = 3 * (self.net_in_channels+1)
+                height = 3 * (num_runs+1)+0.25
+                plt.figure("Testing", figsize=(width,height))
                 subplot_num = 1
                 for c in range(self.net_in_channels):
                     plt.subplot(num_runs+1, num_subplots, subplot_num)

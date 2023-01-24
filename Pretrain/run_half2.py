@@ -6,7 +6,7 @@ from ARGUS_segmentation_train import ARGUS_segmentation_train
 run_num = 2
 device_num = 2
 
-nnet = ARGUS_segmentation_train("ARGUS_pretrain_half_ar_128.cfg", 
+nnet = ARGUS_segmentation_train("ARGUS_pretrain_half_ar.cfg", 
         "vfold", 
         device_num=device_num)
 
