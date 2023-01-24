@@ -17,8 +17,8 @@ if __name__ == "__main__":
         #   assessed, not network performance.
         #filename = "Data/ptx.mp4"
         #filename = "Data/pnb.mp4"
-        filename = "Data/onsd.mp4"
-        #filename = "Data/ett.mp4"
+        #filename = "Data/onsd.mp4"
+        filename = "Data/ett.mp4"
         print("Usage: ARGUS_app [taskid] <filename>")
         print("   taskid:")
         print("       0 = PTX")
