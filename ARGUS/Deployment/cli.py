@@ -140,9 +140,13 @@ def cli_send_video(video_file, sock, taskid=None, debug=False):
 
 
 def main(args):
+    debug = args.Debug
+    taskid = None
+    if args.taskid != None:
+        taskid = int(args.taskid)
+
     handle = None
     try:
-        
         if args.file != None:
             handle = win32file.CreateFile(
                 PIPE_NAME,
@@ -165,10 +169,10 @@ def main(args):
             sock = WinPipeSock(handle)
             result = cli_send_video(args.file,
                                     sock,
-                                    taskid=args.taskid,
-                                    debug=args.Debug)
+                                    taskid=taskid,
+                                    debug=debug)
             if result:
-                write_result(args.file, result, debug=args.Debug)
+                write_result(args.file, result, debug=debug)
                 if handle:
                     win32file.CloseHandle(handle)
                 return EXIT_SUCCESS
@@ -197,10 +201,10 @@ def main(args):
                 sock = WinPipeSock(handle)
                 result = cli_send_video(vidfile,
                                         sock,
-                                        taskid=args.taskid,
-                                        debug=args.Debug)
+                                        taskid=taskid,
+                                        debug=debug)
                 if result:
-                    write_result(vidfile, result, debug=args.Debug)
+                    write_result(vidfile, result, debug=debug)
                 if handle:
                     win32file.CloseHandle(handle)
                 time.sleep(5)
