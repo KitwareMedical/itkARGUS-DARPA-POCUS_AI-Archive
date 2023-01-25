@@ -19,8 +19,22 @@ class ARGUS_preprocess_butterfly():
         """ Find points along ruler on right side of image """
         y_min = 40
         y_max = 1080
-        min_x = 907
-        max_x = 908
+        
+        max_x = img.shape[2]-1
+        count = np.count_nonzero(img[0,y_min:y_max,max_x]//100)
+        while max_x > img.shape[2]-20 and count <= 20:
+            max_x -= 1
+            count = np.count_nonzero(img[0,y_min:y_max,max_x]//100)
+        min_x = max_x - 1
+        count = np.count_nonzero(img[0,y_min:y_max,min_x]//100)
+        while min_x > img.shape[2]-25 and count >= 10:
+            min_x -= 1
+            count = np.count_nonzero(img[0,y_min:y_max,min_x]//100)
+        mid_x = (max_x * 3 + min_x) // 4
+        min_x = mid_x-1
+        max_x = mid_x+1
+        #min_x = img.shape[2] - 4 #907
+        #max_x = img.shape[2] - 5 #908
         mid = np.mean((img[0,y_min:y_max,min_x:max_x]//100),axis=1)
         y = np.flatnonzero(mid)+y_min
         return y
@@ -50,26 +64,47 @@ class ARGUS_preprocess_butterfly():
     
         tic_num = len(yCenters)
         tic_min = yCenters[0]
-        tic_max = yCenters[len(yCenters)-1]
+        tic_max = yCenters[-1]
         tic_diff = avg
-        return tic_num,tic_min,tic_max,tic_diff
+        return tic_num,int(tic_min),int(tic_max),tic_diff
 
     def process(self, vid, new_size):
         
-        tic_num,tic_min,tic_max,tic_diff = self.get_roi(vid)
+        vid_array = itk.GetArrayFromImage(vid)
+        tic_num,tic_min,tic_max,tic_diff = self.get_roi(vid_array)
 
         pixel_spacing = 2/tic_diff
         spacing = [pixel_spacing,pixel_spacing,vid.GetSpacing()[2]]
         vid.SetSpacing(spacing)
 
-        center_x = int((780-120)/2+120)
-        offset_x = center_x-120
-        crop_min_x = 120
-        crop_max_x = 780
-        crop_min_y = int(tic_min+tic_diff)
-        crop_max_y = int(tic_max-tic_diff)
         crop_min_z = 0
         crop_max_z = vid.shape[0]
+        
+        crop_min_y = int(tic_min+tic_diff)
+        crop_max_y = int(tic_max-tic_diff)
+        
+        mid_x = vid_array.shape[2]//2
+        min_x = mid_x-10
+        count = np.count_nonzero(vid_array[0,crop_min_y:crop_max_y,min_x]//50)
+        while min_x > 100 and count > 100:
+            min_x -= 1
+            count = np.count_nonzero(vid_array[0,crop_min_y:crop_max_y,min_x]//50)
+        max_x = mid_x + 1
+        count = np.count_nonzero(vid_array[0,crop_min_y:crop_max_y,max_x]//50)
+        while max_x < vid_array.shape[2]-100 and count > 100:
+            max_x += 1
+            count = np.count_nonzero(vid_array[0,crop_min_y:crop_max_y,max_x]//50)
+        crop_min_x = min_x + 10
+        crop_max_x = max_x - 10
+        #if vid_array.shape[2] < 1000:
+            #crop_min_x = 120
+            #crop_max_x = 780
+        #else:
+            #crop_min_x = 480
+            #crop_max_x = 1180
+        #center_x = int((crop_max_x-crop_min_x)/2+crop_min_x)
+        #offset_x = center_x-crop_min_x
+        
         Crop = tube.CropImage.New(vid)
         Crop.SetMin([crop_min_x,crop_min_y,crop_min_z])
         Crop.SetMax([crop_max_x,crop_max_y,crop_max_z])
