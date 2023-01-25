@@ -22,7 +22,7 @@ class ARGUS_preprocess_butterfly():
         
         max_x = img.shape[2]-1
         count = np.count_nonzero(img[0,y_min:y_max,max_x]//100)
-        while max_x > img.shape[2]-20 and count <= 20:
+        while max_x > img.shape[2]-20 and count <= 12:
             max_x -= 1
             count = np.count_nonzero(img[0,y_min:y_max,max_x]//100)
         min_x = max_x - 1
