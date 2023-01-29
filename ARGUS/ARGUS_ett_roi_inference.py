@@ -5,32 +5,36 @@ import numpy as np
 
 import torch
 
-from ARGUS_preprocess_butterfly import ARGUS_preprocess_butterfly
 from ARGUS_classification_inference import ARGUS_classification_inference
 
+from ARGUS_preprocess_butterfly import ARGUS_preprocess_butterfly
+from ARGUS_preprocess_sonosite import ARGUS_preprocess_sonosite
+from ARGUS_preprocess_clarius import ARGUS_preprocess_clarius
+
 class ARGUS_ett_roi_inference(ARGUS_classification_inference):
-    def __init__(self, config_file_name="ARGUS_taskid.cfg", network_name="final", device_num=0):
+    def __init__(self, config_file_name="ARGUS_taskid.cfg", network_name="final", device_num=0, source=None):
         super().__init__(config_file_name, network_name, device_num)
         self.preprocessed_ett_video = []
-        self.preprocess_ett = ARGUS_preprocess_butterfly()
+        if source=="Butterfly" or source==None:
+            self.preprocess_ett = ARGUS_preprocess_butterfly(new_size=[self.size_x, self.size_y])
+        elif source=="Sonosite":
+            self.preprocess_ett = ARGUS_preprocess_sonosite(new_size=[self.size_x, self.size_y])
+        elif source=="Clarius":
+            self.preprocess_ett = ARGUS_preprocess_clarius(new_size=[self.size_x, self.size_y])
 
-        self.number_of_seconds = 10
-        self.minimum_number_of_positive_seconds = 3
+        self.number_of_seconds = 10.0
+        self.minimum_number_of_positive_seconds = 3.0
         
     def preprocess(self, vid, lbl=None, slice_num=None, crop_data=True, scale_data=True, rotate_data=True):
         if crop_data:
-            self.preprocessed_ett_video = self.preprocess_ett.process(
-                    vid,
-                    [self.size_x, self.size_y])
+            self.preprocessed_ett_video = self.preprocess_ett.process( vid )
         else:
             self.preprocessed_ett_video = vid
         super().preprocess(self.preprocessed_ett_video, lbl, slice_num, scale_data, rotate_data)
 
     def volume_preprocess(self, vid, crop_data=True, slice_num=None, scale_data=True, rotate_data=True):
         if crop_data:
-            self.preprocessed_ett_video = self.preprocess_ett.process(
-                    vid,
-                    [self.size_x, self.size_y])
+            self.preprocessed_ett_video = self.preprocess_ett.process( vid )
         else:
             self.preprocessed_ett_video = vid
             
@@ -78,11 +82,24 @@ class ARGUS_ett_roi_inference(ARGUS_classification_inference):
             self.ARGUS_Preprocess.cache_gradient = True
             
         num_slices = 0
-        window_buffer = self.num_slices // 2 + 1
+        window_size = self.num_slices
+        resize_window = False
+        if img_size[2] < window_size-1:
+            print("Short video: reducing window size")
+            window_size = img_size[2]-1
+            self.ARGUS_Preprocess.num_slices = window_size
+            resize_window = True
+        window_buffer = window_size // 2 + 1
         if slice_min == None:
-            slice_min = int(max(0, img_size[2] - self.number_of_seconds/img_spacing[2]))
+            slice_min = int(img_size[2] - self.number_of_seconds/img_spacing[2])
+        if slice_min < window_buffer:
+            print("Short video: reducing search size min")
+            slice_min = window_buffer
         if slice_max == None:
             slice_max = img_size[2] - window_buffer
+        if slice_max < slice_min:
+            print("Short video: reducing search size max")
+            slice_max = slice_min+1
         for slice_num in range(slice_min, slice_max, step):
             vid_roi_array = itk.GetArrayFromImage(self.input_image)
             self.ARGUS_Preprocess.center_slice = slice_num
@@ -109,13 +126,16 @@ class ARGUS_ett_roi_inference(ARGUS_classification_inference):
             self.prob_total += prob_total
             num_slices += 1
 
+        if resize_window:
+            self.ARGUS_Preprocess.num_slices = self.num_slices
+            
         self.prob_total /= num_slices
 
+        frames = len(self.classification_array)
         frames_positive = np.count_nonzero(self.classification_array)
-        frames_negative = len(self.classification_array)-frames_positive
+        frames_negative = frames-frames_positive
 
-        frames_positive_threshold = int(
-                (self.minimum_number_of_positive_seconds/img_spacing[2]) / step)
+        frames_positive_threshold = (self.minimum_number_of_positive_seconds/self.number_of_seconds) * frames
 
         self.classification = 0
         if frames_positive > frames_positive_threshold:

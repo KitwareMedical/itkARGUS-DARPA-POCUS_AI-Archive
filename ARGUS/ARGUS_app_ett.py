@@ -3,11 +3,12 @@ import os
 from ARGUS_ett_roi_inference import ARGUS_ett_roi_inference
 
 class ARGUS_app_ett:
-    def __init__(self, argus_dir=".", device_num=0):
+    def __init__(self, argus_dir=".", device_num=None, source=None):
         self.ett_roi = ARGUS_ett_roi_inference(
             config_file_name=os.path.join(argus_dir, "ARGUS_ett_roi.cfg"),
             network_name="vfold",
-            device_num=device_num
+            device_num=device_num,
+            source=source
         )
         
         ett_roi_best_models = [9, 2, 0]

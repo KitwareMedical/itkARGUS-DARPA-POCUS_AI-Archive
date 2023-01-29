@@ -10,6 +10,9 @@ itkResampleImageUsingMapFilter = itk.itkARGUS.ResampleImageUsingMapFilter
 
 class ARGUS_preprocess_sonosite():
     
+    def __init__(self, new_size=None):
+        self.new_size = new_size
+        
     def get_ruler_points(self, im):
         """ Find points along ruler on left side of image """
         y_min = 80
@@ -22,6 +25,7 @@ class ARGUS_preprocess_sonosite():
     
     def get_depth_and_zoom(self, im):
         y = self.get_ruler_points(im)
+        assert len(y) > 5, "Could not find ruler in Sonosite format."
     
         im_shape = im.shape
     

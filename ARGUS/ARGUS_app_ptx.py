@@ -4,11 +4,12 @@ from ARGUS_ptx_ar_inference import ARGUS_ptx_ar_inference
 from ARGUS_ptx_roi_inference import ARGUS_ptx_roi_inference
 
 class ARGUS_app_ptx:
-    def __init__(self, argus_dir=".", device_num=0):
+    def __init__(self, argus_dir=".", device_num=None, source=None):
         self.ptx_ar = ARGUS_ptx_ar_inference(
             config_file_name=os.path.join(argus_dir, "ARGUS_ptx_ar.cfg"),
             network_name="final",
-            device_num=device_num
+            device_num=device_num,
+            source=source
         )
         self.ptx_roi = ARGUS_ptx_roi_inference(
             config_file_name=os.path.join(argus_dir, "ARGUS_ptx_roi.cfg"),
