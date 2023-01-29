@@ -8,20 +8,26 @@ import torch
 from monai.inferers import sliding_window_inference
 
 from ARGUS_segmentation_inference import ARGUS_segmentation_inference
+
 from ARGUS_preprocess_butterfly import ARGUS_preprocess_butterfly
+from ARGUS_preprocess_sonosite import ARGUS_preprocess_sonosite
+from ARGUS_preprocess_clarius import ARGUS_preprocess_clarius
 
 class ARGUS_onsd_ar_inference(ARGUS_segmentation_inference):
     
-    def __init__(self, config_file_name="ARGUS_onsd_ar.cfg", network_name="final", device_num=0):
+    def __init__(self, config_file_name="ARGUS_onsd_ar.cfg", network_name="final", device_num=0, source=None):
         super().__init__(config_file_name, network_name, device_num)
         self.preprocessed_onsd_video = []
-        self.preprocess_onsd = ARGUS_preprocess_butterfly()
+        if source=="Butterfly" or source==None:
+            self.preprocess_onsd = ARGUS_preprocess_butterfly(new_size=[self.size_x, self.size_y])
+        elif source=="Sonosite":
+            self.preprocess_onsd = ARGUS_preprocess_sonosite(new_size=[self.size_x, self.size_y])
+        elif source=="Clarius":
+            self.preprocess_onsd = ARGUS_preprocess_clarius(new_size=[self.size_x, self.size_y])
         
     def preprocess(self, vid, lbl=None, slice_num=None, crop_data=True, scale_data=True, rotate_data=True):
         if crop_data:
-            self.preprocessed_onsd_video = self.preprocess_onsd.process(
-                    vid,
-                    [self.size_x, self.size_y])
+            self.preprocessed_onsd_video = self.preprocess_onsd.process( vid )
         else:
             self.preprocessed_onsd_video = vid
             
@@ -29,9 +35,7 @@ class ARGUS_onsd_ar_inference(ARGUS_segmentation_inference):
 
     def volume_preprocess(self, vid, lbl_img=None, crop_data=True, slice_num=None, scale_data=True, rotate_data=True):
         if crop_data:
-            self.preprocessed_onsd_video = self.preprocess_onsd.process(
-                    vid,
-                    [self.size_x, self.size_y])
+            self.preprocessed_onsd_video = self.preprocess_onsd.process( vid )
         else:
             self.preprocessed_onsd_video = vid
             

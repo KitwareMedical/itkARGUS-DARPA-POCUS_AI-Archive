@@ -52,6 +52,8 @@ class ARGUS_onsd_roi_inference():
         max_l = np.zeros([num_methods]).astype(int)
         min_nerve_size = (self.min_nerve_width / image_spacing[0])
         max_width = 0
+        num_width = 0
+        stddev_width = 0
         for method in range(num_methods):
             slices_of_interest[method].sort(reverse = True)
             indxs = [x[1] for x in slices_of_interest[method][0:slices_to_consider]]
@@ -64,8 +66,6 @@ class ARGUS_onsd_roi_inference():
             while max_l[method] in indxs:
                 max_l[method] += 1
                 
-            num_width = 0
-            stddev_width = 0
             for slice_num in range(min_l[method],max_l[method]):
                 top=0
                 while np.count_nonzero(ar_labels[slice_num,:,top] == 2) < min_nerve_size / 2 and top<image_size[1]-10:
@@ -90,7 +90,8 @@ class ARGUS_onsd_roi_inference():
                     stddev_width += np.std(width)
                     num_width += 1
                 
-        stddev_width /= num_width
+        if num_width > 0:
+            stddev_width /= num_width
         classification = 0
         if max_width > self.decision_distance:
             classification = 1

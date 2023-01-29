@@ -4,11 +4,12 @@ from ARGUS_onsd_ar_inference import ARGUS_onsd_ar_inference
 from ARGUS_onsd_roi_inference import ARGUS_onsd_roi_inference
 
 class ARGUS_app_onsd:
-    def __init__(self, argus_dir=".", device_num=0):
+    def __init__(self, argus_dir=".", device_num=None, source=None):
         self.onsd_ar = ARGUS_onsd_ar_inference(
             config_file_name=os.path.join(argus_dir, "ARGUS_onsd_ar.cfg"),
             network_name="final",
-            device_num=device_num
+            device_num=device_num,
+            source=source
         )
         self.onsd_roi = ARGUS_onsd_roi_inference()
         
