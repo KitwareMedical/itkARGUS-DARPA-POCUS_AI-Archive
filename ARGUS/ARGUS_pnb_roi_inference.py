@@ -11,7 +11,7 @@ class ARGUS_pnb_roi_inference():
         self.distmap_filter = itk.DanielssonDistanceMapImageFilter[ImageF, ImageF].New()
         self.imagemath_filter = tube.ImageMath[ImageF].New()
         
-        self.decision_distance = 7.0
+        self.decision_distance = 9.0
         
     def inference(self, ar_image, ar_labels):
         artery_labels = np.where(ar_labels==1,1,0)
