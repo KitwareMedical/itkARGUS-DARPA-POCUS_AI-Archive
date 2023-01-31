@@ -14,7 +14,10 @@ class ARGUS_ptx_ar_inference(ARGUS_segmentation_inference):
         elif source=="Sonosite" or source==None:
             self.preprocess_ptx = ARGUS_preprocess_sonosite(new_size=[self.size_x, self.size_y])
         elif source=="Clarius":
+            print("Adjusting priors for Clarius")
+            self.class_prior = [1, 0.9, 1]
             self.preprocess_ptx = ARGUS_preprocess_clarius(new_size=[self.size_x, self.size_y])
+            
             
     def preprocess(self, vid_img, lbl=None, slice_num=None, crop_data=True, scale_data=True, rotate_data=True):
         if crop_data:

@@ -92,20 +92,23 @@ class ARGUS_preprocess_clarius():
         sz = list(tmp_new_img.GetLargestPossibleRegion().GetSize())
         sp = list(tmp_new_img.GetSpacing())
         new_org = [indx[0]*sp[0], indx[1]*sp[1], org[2]] 
-        new_sp = [(sz[0]*sp[0])/self.new_size[0], (sz[1]*sp[1])/self.new_size[1], sp[2]]
+        new_sp = [(sz[0]*sp[0])/self.new_size[0],
+                  (sz[1]*sp[1])/self.new_size[1],
+                  sp[2]]
         
         if new_sp[0]/sp[0] > 2:
             ImMath = tube.ImageMath.New(tmp_new_img)
             ImMath.BlurOrder(new_sp[0]/3, 0, 0)
             ImMath.BlurOrder(new_sp[1]/3, 0, 1)
             tmp_new_img = ImMath.GetOutput()
-
+            
         interpolator = itk.LinearInterpolateImageFunction.New(tmp_new_img)
-        Resample = itk.ResampleImageFilter.New(tmp_new_img)
+        Resample = itk.ResampleImageFilter.New(Input=tmp_new_img)
         Resample.SetInterpolator(interpolator)
         Resample.SetOutputStartIndex([0,0,0])
         Resample.SetOutputSpacing(new_sp)
         Resample.SetOutputOrigin(new_org)
+        Resample.SetSize([self.new_size[0], self.new_size[1], sz[2]])
         Resample.SetOutputDirection(tmp_new_img.GetDirection())
         Resample.Update()
         img = Resample.GetOutput()
