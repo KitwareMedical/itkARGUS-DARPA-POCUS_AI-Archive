@@ -52,6 +52,11 @@ class ARGUS_segmentation_inference:
         self.net_layer_strides = tuple([int(x) for x in json.loads(config[network_name]['layer_strides'])])
         self.net_num_residual_units = int(config[network_name]['num_residual_units'])
         
+        if config.has_option(network_name, 'class_prior'):
+            self.class_prior = [float(x) for x in json.loads(config[network_name]['class_prior'])]
+        else:
+            self.class_prior = np.ones([self.num_classes])
+            
         self.class_blur = [float(x) for x in json.loads(config[network_name]['class_blur'])]
         self.class_min_size = [int(x) for x in json.loads(config[network_name]['class_min_size'])]
         self.class_max_size = [int(x) for x in json.loads(config[network_name]['class_max_size'])]
@@ -225,6 +230,7 @@ class ARGUS_segmentation_inference:
         prange = pmax - pmin
         prob = (prob - pmin) / prange
         for c in range(1,self.num_classes):
+            prob[c] = prob[c] * self.class_prior[c]
             class_array = np.argmax(prob, axis=0)
             k = self.class_morph[c]*2
             if k < 2:

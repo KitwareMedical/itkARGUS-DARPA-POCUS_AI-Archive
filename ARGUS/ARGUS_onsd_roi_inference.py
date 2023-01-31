@@ -7,11 +7,11 @@ class ARGUS_onsd_roi_inference():
     
     def __init__(self):
         
-        self.decision_distance = 5.0
+        self.decision_distance = 5.5
         self.min_nerve_width = 1.5
         self.distance_from_nerve_top = 2.0
         self.max_nerve_length = 1.0
-        self.slice_scan_interval = 5
+        self.slice_scan_interval = 8
         
     def get_object_min_max(self, labels, obj_id=2, axis=0, thresh=10):
         arr = np.sum(labels==obj_id,axis=axis)
