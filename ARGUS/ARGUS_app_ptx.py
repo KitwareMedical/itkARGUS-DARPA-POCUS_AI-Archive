@@ -39,7 +39,7 @@ class ARGUS_app_ptx:
             
         self.result = 0
         self.confidence = [0, 0]
-            
+        
     def ar_preprocess(self, vid_img):
         self.ptx_ar.preprocess(vid_img)
         
