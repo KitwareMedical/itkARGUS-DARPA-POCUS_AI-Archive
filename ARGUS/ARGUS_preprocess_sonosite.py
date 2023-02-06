@@ -25,7 +25,9 @@ class ARGUS_preprocess_sonosite():
     
     def get_depth_and_zoom(self, im):
         y = self.get_ruler_points(im)
+
         assert len(y) > 5, "Could not find ruler in Sonosite format."
+        assert len(y) < 75, "Could not find ruler in Sonosite format."
     
         im_shape = im.shape
     
@@ -44,6 +46,10 @@ class ARGUS_preprocess_sonosite():
         count += 1
         avg /= count
         yCenters.append(avg)
+
+        assert len(yCenters) > 5, "Could not find ruler in Sonosite format."
+        assert len(yCenters) < 75, "Could not find ruler in Sonosite format."
+
         avg = 0
         for j in range(len(yCenters)-1):
             avg += yCenters[j+1]-yCenters[j]
@@ -78,9 +84,9 @@ class ARGUS_preprocess_sonosite():
     
     def unzoom_video(self, vid, zoom, offsetY):
         if(zoom!=1):
-            itkimgBase = itk.GetImageFromArray(vid.astype(np.float32))
+            itkimgBase = itk.GetImageViewFromArray(vid.astype(np.float32))
     
-            itkimg = itk.GetImageFromArray(vid.astype(np.float32))
+            itkimg = itk.GetImageViewFromArray(vid.astype(np.float32))
             itk_spacing = [1/zoom,1/zoom,1]
             itkimg.SetSpacing(itk_spacing)
             if(abs(zoom-1.26262627)<0.1):
@@ -98,11 +104,13 @@ class ARGUS_preprocess_sonosite():
             resample.SetInterpolator("NearestNeighbor")
             resample.SetMatchImage(itkimgBase)
             resample.Update()
-            vid = itk.GetArrayFromImage(resample.GetOutput())
-        return vid
+            vid_res = itk.GetArrayFromImage(resample.GetOutput())
+            return vid_res
+        else:
+            return vid
     
     def process(self, vid_img):
-        vid = itk.GetArrayFromImage(vid_img)
+        vid = itk.GetArrayViewFromImage(vid_img)
         
         depth,zoom,offsetX,offsetY = self.get_depth_and_zoom(vid[0])
         filename = path.join(path.dirname(__file__), 'linearization_maps_sonosite', f'linear_map_depth{str(depth)}.npy')
@@ -116,7 +124,7 @@ class ARGUS_preprocess_sonosite():
         source_coords_list = source_coords[:,:,::-1].flatten().tolist()
         kernels_list = mapping[:,:,2:].flatten().astype(float).tolist()
     
-        self.unzoom_video(vid, zoom, offsetY)
+        vid = self.unzoom_video(vid, zoom, offsetY)
     
         spacing2D = [1, 1]
         ImageType = itk.Image[itk.F,2]

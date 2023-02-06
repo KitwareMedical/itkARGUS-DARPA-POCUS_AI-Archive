@@ -45,7 +45,9 @@ class ARGUS_preprocess_butterfly():
 
     def get_roi(self, img):
         y = self.get_ruler_points(img)
+
         assert len(y) > 5, "Could not find ruler in Butterfly format."
+        assert len(y) < 75, "Could not find ruler in Butterfly format."
         
         img_shape = img.shape
         
@@ -60,13 +62,22 @@ class ARGUS_preprocess_butterfly():
                 yCenters.append(avg)
                 avg = 0
                 count = 0
+
         avg += y[y.size-1]
         count += 1
         avg /= count
         yCenters.append(avg)
+
+        assert len(yCenters) > 5, "Could not find ruler in Butterfly format."
+        assert len(yCenters) < 75, "Could not find ruler in Butterfly format."
+
         avg = 0
         for j in range(len(yCenters)-1):
             avg += yCenters[j+1]-yCenters[j]
+
+        assert len(yCenters) > 5, "Could not find ruler in Butterfly format."
+        assert len(yCenters) < 75, "Could not find ruler in Butterfly format."
+
         avg /= len(yCenters)-1
     
         tic_num = len(yCenters)
@@ -85,7 +96,7 @@ class ARGUS_preprocess_butterfly():
             new_size = [320,320]
         
             
-        vid_array = itk.GetArrayFromImage(vid)
+        vid_array = itk.GetArrayViewFromImage(vid)
         tic_num,tic_min,tic_max,tic_diff = self.get_roi(vid_array)
 
         pixel_spacing = 2/tic_diff
@@ -112,16 +123,8 @@ class ARGUS_preprocess_butterfly():
             count = np.count_nonzero(vid_array[mid_z,:,max_x]//10)
         crop_min_x = min_x + 10
         crop_max_x = max_x - 10
-        #if vid_array.shape[2] < 1000:
-            #crop_min_x = 120
-            #crop_max_x = 780
-        #else:
-            #crop_min_x = 480
-            #crop_max_x = 1180
-        #center_x = int((crop_max_x-crop_min_x)/2+crop_min_x)
-        #offset_x = center_x-crop_min_x
         
-        Crop = tube.CropImage.New(vid)
+        Crop = tube.CropImage.New(Input=vid)
         Crop.SetMin([crop_min_x,crop_min_y,crop_min_z])
         Crop.SetMax([crop_max_x,crop_max_y,crop_max_z])
         Crop.Update()
@@ -135,13 +138,13 @@ class ARGUS_preprocess_butterfly():
         new_sp = [(sz[0]*sp[0])/new_size[0], (sz[1]*sp[1])/new_size[1], sp[2]]
         
         if new_sp[0]/sp[0] > 2:
-            ImMath = tube.ImageMath.New(tmp_new_img)
+            ImMath = tube.ImageMath.New(Input=tmp_new_img)
             ImMath.BlurOrder(new_sp[0]/3, 0, 0)
             ImMath.BlurOrder(new_sp[1]/3, 0, 1)
             tmp_new_img = ImMath.GetOutput()
         
         interpolator = itk.LinearInterpolateImageFunction.New(tmp_new_img)
-        Resample = itk.ResampleImageFilter.New(tmp_new_img)
+        Resample = itk.ResampleImageFilter.New(Input=tmp_new_img)
         Resample.SetInterpolator(interpolator)
         Resample.SetSize([new_size[0], new_size[1], sz[2]])
         Resample.SetOutputStartIndex([0,0,0])

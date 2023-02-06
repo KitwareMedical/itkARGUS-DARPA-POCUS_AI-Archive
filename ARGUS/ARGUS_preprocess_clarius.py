@@ -32,7 +32,7 @@ class ARGUS_preprocess_clarius():
 
     def get_roi(self, img):
         y = self.get_ruler_points(img)
-        assert len(y) > 5, "Could not find ruler in Clarius fromat."
+        assert len(y) > 10, "Could not find ruler in Clarius fromat."
         
         img_shape = img.shape
         
@@ -47,6 +47,9 @@ class ARGUS_preprocess_clarius():
                 yCenters.append(avg)
                 avg = 0
                 count = 0
+
+        assert len(y) > 5, "Could not find ruler in Clarius fromat."
+
         avg += y[y.size-1]
         count += 1
         avg /= count
@@ -54,6 +57,9 @@ class ARGUS_preprocess_clarius():
         avg = 0
         for j in range(len(yCenters)-1):
             avg += yCenters[j+1]-yCenters[j]
+
+        assert len(yCenters) > 5, "Could not find ruler in Clarius fromat."
+
         avg /= len(yCenters)-1
     
         tic_num = len(yCenters)
@@ -64,7 +70,7 @@ class ARGUS_preprocess_clarius():
 
     def process(self, vid):
         
-        vid_array = itk.GetArrayFromImage(vid)
+        vid_array = itk.GetArrayViewFromImage(vid)
         tic_num,tic_min,tic_max,tic_diff = self.get_roi(vid_array)
 
         pixel_spacing = 2/tic_diff

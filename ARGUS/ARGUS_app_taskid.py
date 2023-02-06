@@ -26,7 +26,7 @@ class ARGUS_app_taskid:
     def preprocess(self, vid_img):
         self.taskid.preprocess(
             vid_img,
-            lbl_img=None,
+            lbl=None,
             slice_num=None,
             scale_data=True,
             rotate_data=False)

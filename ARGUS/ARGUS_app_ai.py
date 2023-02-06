@@ -1,3 +1,5 @@
+import gc
+
 from traceback import print_exc
 
 from ARGUS_Timing import *
@@ -12,18 +14,16 @@ class ARGUS_app_ai:
     tasks = [ "PTX", "PNB", "ONSD", "ETT" ]
     sources = [ "Sonosite", "Butterfly", "Clarius" ]
         
-    def __init__(self, argus_dir=".", device_num=None, source=None):
+    def __init__(self, argus_dir="."):
         self.argus_dir = argus_dir
-        self.device_num = device_num
-        self.source = source
         
-        self.taskid = ARGUS_app_taskid(argus_dir, device_num, source)
-        self.ptx = ARGUS_app_ptx(argus_dir, device_num, source)
-        self.pnb = ARGUS_app_pnb(argus_dir, device_num, source)
-        self.onsd = ARGUS_app_onsd(argus_dir, device_num, source)
-        self.ett = ARGUS_app_ett(argus_dir, device_num, source)
-        
-    def predict(self, filename, debug=False, stats=None, task=None, source=None):
+    def predict(self,
+                filename,
+                source,
+                debug=False,
+                stats=None,
+                task=None,
+                device_num=None):
         time_this = ARGUS_time_this
         if stats:
             time_this = stats.time
@@ -33,16 +33,18 @@ class ARGUS_app_ai:
         decision = 0
         decision_confidence = [0, 0]
         
-        if self.source == None:
-            print(f"ERROR: Please specify ultrasound source: {self.sources}")
-            return None
+        taskid = ARGUS_app_taskid(self.argus_dir, device_num, source)
+        ptx = ARGUS_app_ptx(self.argus_dir, device_num, source)
+        pnb = ARGUS_app_pnb(self.argus_dir, device_num, source)
+        onsd = ARGUS_app_onsd(self.argus_dir, device_num, source)
+        ett = ARGUS_app_ett(self.argus_dir, device_num, source)
         
         print("File:", filename)
         with time_this("all"):
             with time_this("Read Video"):
                 with time_this("Read Video: Read from disk"):
                     try:
-                        us_video_img = ARGUS_load_video(filename)
+                        us_video_img = ARGUS_load_video(filename, frame_limit=275)
                     except:
                         print(f"ERROR: Could not load video {filename}")
                         print_exc(limit=0)
@@ -53,19 +55,19 @@ class ARGUS_app_ai:
                     )
                 if task == None:
                     with time_this("Read Video: Task Id"):
-                        try:
-                            self.taskid.preprocess(us_video_img)
-                            self.taskid.inference()
-                            taskid,task_confidence = self.taskid.decision()
-                            if taskid != None:
-                                task = self.tasks[taskid]
-                            else:
-                                print(f"ERROR: Could not identify task.")
-                                return None
-                        except:
-                            print(f"ERROR: task identification failed.")
-                            print_exc(limit=0)
+                        #try:
+                        taskid.preprocess(us_video_img)
+                        taskid.inference()
+                        taskid,task_confidence = taskid.decision()
+                        if taskid != None:
+                            task = self.tasks[taskid]
+                        else:
+                            print(f"ERROR: Could not identify task.")
                             return None
+                        #except:
+                            #print(f"ERROR: task identification failed.")
+                            #print_exc(limit=0)
+                            #return None
                 else:
                     if task in self.tasks:
                         taskid = self.tasks.index(task)
@@ -75,31 +77,35 @@ class ARGUS_app_ai:
 
             with time_this("Preprocess Video"):
                 with time_this("Preprocess for AR"):
-                    try:
-                        if task == "PTX":
-                            print("   Task: PTX")
-                            self.ptx.ar_preprocess(us_video_img)
-                        elif task == "PNB": 
-                            print("   Task: PNB")
-                            self.pnb.ar_preprocess(us_video_img)
-                        elif task == "ONSD":
-                            print("   Task: ONSD")
-                            self.onsd.ar_preprocess(us_video_img)
-                        elif task == "ETT":
-                            print("   Task: ETT")
-                    except:
-                        print(f"ERROR: Could not preprocess for anatomic reconstruction.")
-                        print_exc(limit=0)
-                        return None
+                    #try:
+                    if task == "PTX":
+                        print("   Task: PTX")
+                        ptx.ar_preprocess(us_video_img)
+                    elif task == "PNB": 
+                        print("   Task: PNB")
+                        pnb.ar_preprocess(us_video_img)
+                    elif task == "ONSD":
+                        print("   Task: ONSD")
+                        onsd.ar_preprocess(us_video_img)
+                    elif task == "ETT":
+                        print("   Task: ETT")
+                        ett.roi_preprocess(us_video_img)
+                    #except:
+                        #print(f"ERROR: Could not preprocess for anatomic reconstruction.")
+                        #print_exc()#limit=0)
+                        #return None
     
+                del us_video_img
+                gc.collect()
+            
                 with time_this("Preprocess AR Inference"):
                     try:
                         if task == "PTX":
-                            self.ptx.ar_inference()
+                            ptx.ar_inference()
                         elif task == "PNB":
-                            self.pnb.ar_inference()
+                            pnb.ar_inference()
                         elif task == "ONSD":
-                            self.onsd.ar_inference()
+                            onsd.ar_inference()
                         #elif task == "ETT":
                             # Nothing to do
                     except:
@@ -110,13 +116,13 @@ class ARGUS_app_ai:
                 with time_this("Preprocess for ROI"):
                     try:
                         if task == "PTX":
-                            self.ptx.roi_generate_roi()
+                            ptx.roi_generate_roi()
                         #elif task == "PNB":
                             # Nothing to do
                         #elif task == "ONSD":
                             # Nothing to do
-                        elif task == "ETT":
-                            self.ett.roi_preprocess(us_video_img)
+                        #elif task == "ETT":
+                            # Nothing to do
                     except:
                         print(f"ERROR: Could not preprocess for decision inference.")
                         print_exc(limit=0)
@@ -126,13 +132,13 @@ class ARGUS_app_ai:
                 with time_this("Process Video: ROI Inference"):
                     try:
                         if task == "PTX":
-                            self.ptx.roi_inference()
+                            ptx.roi_inference()
                         elif task == "PNB":
-                            self.pnb.roi_inference()
+                            pnb.roi_inference()
                         elif task == "ONSD":
-                            self.onsd.roi_inference()
+                            onsd.roi_inference()
                         elif task == "ETT":
-                            self.ett.roi_inference()
+                            ett.roi_inference()
                     except:
                         print(f"ERROR: Could not run decision inference.")
                         print_exc(limit=0)
@@ -141,13 +147,13 @@ class ARGUS_app_ai:
                 with time_this("Process Video: Decision"):
                     try:
                         if task == "PTX":
-                            decision,decision_confidence = self.ptx.decision()
+                            decision,decision_confidence = ptx.decision()
                         elif task == "PNB":
-                            decision,decision_confidence = self.pnb.decision()
+                            decision,decision_confidence = pnb.decision()
                         elif task == "ONSD":
-                            decision,decision_confidence = self.onsd.decision()
+                            decision,decision_confidence = onsd.decision()
                         elif task == "ETT":
-                             decision,decision_confidence = self.ett.decision()
+                             decision,decision_confidence = ett.decision()
                     except:
                         print(f"ERROR: Could not deliver decision.")
                         print_exc(limit=0)
@@ -160,6 +166,8 @@ class ARGUS_app_ai:
         return dict(
             decision = decision,
             task_name = task,
+            device_num = device_num,
+            source = source,
             task_confidence_PTX = task_confidence[0],
             task_confidence_PNB = task_confidence[1],
             task_confidence_ONSD = task_confidence[2],
