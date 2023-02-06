@@ -4,9 +4,9 @@ Kitware, Inc. and Duke University
 
 Installation
 ============
-1. Download the “argus-installer-v2.0.beta01.exe” installer to our evaluation machine (the Microsoft Surface Book 3).
+1. Download the “argus-installer-v2.1.exe” installer to our evaluation machine (the Microsoft Surface Book 3).
 
-2. Double-click “argus-installer-v2.0.beta01.exe” and follow the installation prompts. The defaults should work, so click “Next” to go through the installation. The installer will install our “AI” service and update the system path to include our executable.
+2. Double-click “argus-installer-v2.1.exe” and follow the installation prompts. The defaults should work, so click “Next” to go through the installation. The installer will install our “AI” service and update the system path to include our executable.
 
 
 
@@ -15,9 +15,9 @@ To Evaluate a File
 
 1. Open a windows command prompt (“cmd.exe”). You can accomplish this by pressing the “Windows + R” keys, and then typing “cmd.exe” and hitting Enter. This should open a new command prompt window located in “C:\Users\<YourUserName>”.
 
-2. Type the following command, where “<path\to\video.mp4>” should be replaced with a valid path to a video mp4/mov file.
+2. Type the following command, where “<path\to\video.mp4>” should be replaced with a valid path to a video mp4/mov file and where -s should be used to specify the source of that ultrasound video.
 
-      > argus-cli -f <path\to\video.mp4>
+      > argus-cli -f <path\to\video.mp4> -s <Sonosite|Butterfly|Clarius>
 
 After a moment, you should receive the following output, which indicates that the video was read and a sample inference was performed. (Note that for this initial deployment test, we are not yet running our actual inference engines.)
 
@@ -36,9 +36,9 @@ To Evaluate a Directory of Files
 
 1. Open a windows command prompt (“cmd.exe”). You can accomplish this by pressing the “Windows + R” keys, and then typing “cmd.exe” and hitting Enter. This should open a new command prompt window located in “C:\Users\<YourUserName>”.
 
-2. Type the following command, where “<path\to\directory>” should be replaced with a valid path to directory in which every video (*m??) file will be evaluated.
+2. Type the following command, where “<path\to\directory>” should be replaced with a valid path to directory in which every video (*m??) file will be evaluated.  The -s <source> option is required to specify the source (ultrasound probe) used to acquire the data.
 
-      > argus-cli -d <path\to\directory>
+      > argus-cli -d <path\to\directory> -s <Butterfly | Sonosite | Clarius>
 
 After a moment, the system will begin processing each video file in sequence.  The output displayed and the csv file generated for each video file will be the same as if they were processed individually
 
@@ -51,14 +51,14 @@ The ARGUS-AI system uses an image classification neural network to automatically
 
 Optionally, you can override the automatic task identifier and specify the task to be performed using the -t option:
 
-      > argus-cli -t <task_numeric_id> -[f|d] <file|directory>
+      > argus-cli -t <task_name> -[f|d] <file|directory>
 
-The tasks have been assigned the following numeric ids:
+The task_name must be one of:
 
-         0 = PTX
-         1 = PNB
-         2 = ONSD
-         3 = ETT
+         PTX
+         PNB
+         ONSD
+         ETT
 
 
  

@@ -11,7 +11,7 @@ def from_site(filename):
     for sitepath in alt_paths:
         if path.exists(path.join(sitepath, filename)):
             return path.join(sitepath, filename)
-    raise Exception(f'{filename} not found')
+    return None
 
 _, pkgpath = get_package_paths('itk')
 
@@ -22,9 +22,16 @@ datas = [
     (path.join(pkgpath, '*.pyd'), 'itk'),
 ]
 
-binaries = [
-    (path.join(from_site('itk_core.libs'), '*.dll'), 'itk_core.libs'),
-    (path.join(from_site('itk_tubetk.libs'), '*.dll'), 'itk_tubetk.libs'),
-    (path.join(from_site('itk_minimalpathextraction.libs'), '*.dll'), 'itk_minimalpathextraction.libs'),
-]
-    #(path.join(from_site('itk_meshtopolydata.libs'), '*.dll'), 'itk_meshtopolydata.libs'),
+binaries = []
+if from_site('itk_core.libs') != None:
+    binaries.append( (path.join(from_site('itk_core.libs'),'*.dll'),
+                      'itk_core.libs') )
+if from_site('itk_tubetk.libs') != None:
+    binaries.append( (path.join(from_site('itk_tubetk.libs'),'*.dll'),
+                      'itk_tubetk.libs') )
+if from_site('itk_minimalpathextraction.libs') != None:
+    binaries.append(
+            (path.join(from_site('itk_minimalpathextraction.libs'),'*.dll'),
+             'itk_minimalpathextraction.libs') )
+
+#(path.join(from_site('itk_meshtopolydata.libs'), '*.dll'), 'itk_meshtopolydata.libs'),

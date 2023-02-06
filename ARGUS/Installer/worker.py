@@ -36,12 +36,10 @@ sys.path.append(get_ARGUS_dir())
 from ARGUS_app_ai import ARGUS_app_ai
 
 class ArgusWorker:
-    def __init__(self, sock, log, device_num=None, source=None):
+    def __init__(self, sock, log):
         self.sock = sock
         self.log = log
-        self.device_num = device_num
-        self.source = source
-        self.app_ai = ARGUS_app_ai(argus_dir=get_ARGUS_dir(), device_num=device_num, source=source)
+        self.app_ai = ARGUS_app_ai(argus_dir=get_ARGUS_dir())
 
     def run(self):
         stats = Stats()
@@ -67,33 +65,38 @@ class ArgusWorker:
             raise WorkerError('failed to parse start frame')
         
         video_file = data['video_file']
+        source = data['source']
         task = data.get('task', None)
+        device_num = data.get('device_num', None)
+        if device_num != None and device_num.isdigit():
+            device_num = int(device_num)
 
         try:
             if not path.exists(video_file):
                 raise Exception(f'File {video_file} is not accessible!')
 
-            inf_result = self.app_ai.predict(video_file, stats=stats, task=task)
+            inf_result = self.app_ai.predict(video_file, stats=stats, task=task, source=source, device_num=device_num)
         except Exception as e:
             self.log.exception(e)
             error_msg = Message(Message.Type.ERROR, json.dumps(str(e)).encode('ascii'))
             self.sock.send(error_msg)
             return
 
-        result = dict(
-            filename=video_file,
-            task_name=inf_result['task_name'],
-            source=self.source,
-            device_num=self.device_num,
-            prediction=inf_result['decision'],
-            stats=stats.todict(),
-            video_length=inf_result['video_length'],
-            task_confidence_PTX=inf_result['task_confidence_PTX'],
-            task_confidence_PNB=inf_result['task_confidence_PNB'],
-            task_confidence_ONSD=inf_result['task_confidence_ONSD'],
-            task_confidence_ETT=inf_result['task_confidence_ETT'],
-            decision_confidence_0=inf_result['decision_confidence_0'],
-            decision_confidence_1=inf_result['decision_confidence_1'],
-        )
-        result_msg = Message(Message.Type.RESULT, json.dumps(result).encode('ascii'))
-        self.sock.send(result_msg)
+        if inf_result != None:
+            result = dict(
+                filename=video_file,
+                task_name=inf_result['task_name'],
+                source=source,
+                device_num=device_num,
+                prediction=inf_result['decision'],
+                stats=stats.todict(),
+                video_length=inf_result['video_length'],
+                task_confidence_PTX=inf_result['task_confidence_PTX'],
+                task_confidence_PNB=inf_result['task_confidence_PNB'],
+                task_confidence_ONSD=inf_result['task_confidence_ONSD'],
+                task_confidence_ETT=inf_result['task_confidence_ETT'],
+                decision_confidence_0=inf_result['decision_confidence_0'],
+                decision_confidence_1=inf_result['decision_confidence_1'],
+            )
+            result_msg = Message(Message.Type.RESULT, json.dumps(result).encode('ascii'))
+            self.sock.send(result_msg)

@@ -31,15 +31,13 @@ def setup_logger(name):
     return log
 
 class WinPipeServer:
-    def __init__(self, WorkerClass, logger, device_num=None, source=None):
+    def __init__(self, WorkerClass, logger):
         self._overlapped = pywintypes.OVERLAPPED()
         self._overlapped.hEvent = win32event.CreateEvent(None, 0, 0, None)
         self._hStop = win32event.CreateEvent(None, 0, 0, None)
         self._quit = False
         self._workerClass = WorkerClass
         self.log = logger
-        self.device_num = device_num
-        self.source = source
     
     def stop(self):
         self._quit = True
@@ -103,7 +101,7 @@ class WinPipeServer:
                 break
             elif index == 1: # data signal
                 sock = WinPipeSock(pipe)
-                worker = self._workerClass(sock, self.log, self.device_num, self.source)
+                worker = self._workerClass(sock, self.log)
                 try:
                     worker.run()
                 except WorkerError as e:
@@ -111,33 +109,15 @@ class WinPipeServer:
                     self.log.error(f'Worker error: {e}')
                 break
 
-def prepare_argparser():
-    parser = argparse.ArgumentParser(description='ARGUS server')
-    parser.add_argument('-d', '--device_num',
-                        help='Device_num = None or GPU number' )
-    parser.add_argument('-s', '--source', 
-                        help='Specify ultrasound probe type:'
-                             ' Butterfly, Sonosite, Clarius')
-    return parser
-
-def main(logger, device_num=None, source=None):
+def main(logger):
     print('Starting...')
     from worker import ArgusWorker
     
-    server = WinPipeServer(ArgusWorker, logger, device_num, source)
+    server = WinPipeServer(ArgusWorker, logger)
     
     server.start()
 
 if __name__ == '__main__':
-    parser = prepare_argparser()
-    args = parser.parse_args()
-    
-    if len(args.device_num) == 1:
-        device_num = int(args.device_num)
-    else:
-        device_num = None
-        
-    source = args.source
     
     log = setup_logger('server')
 
@@ -145,11 +125,10 @@ if __name__ == '__main__':
         log.error(f'lock file "{LOCK_FILE}" exists. If server is not running, delete the file.')
         sys.exit(EXIT_FAILURE)
 
-    
     try:
         # create lock file
         with open(LOCK_FILE, 'a'): pass
-        main(log, device_num, source)
+        main(log)
     except Exception as e:
         log.exception(f'Server failed with exception: {e}')
         sys.exit(EXIT_FAILURE)

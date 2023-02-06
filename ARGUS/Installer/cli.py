@@ -11,8 +11,8 @@ import win32file, win32pipe, pywintypes, winerror
 
 from common import WinPipeSock, Message, EXIT_FAILURE, PIPE_NAME, LOCK_FILE, LOG_FILE, EXIT_SUCCESS
 
-tasks = ["PTX", "PNB", "ONSD", "ETT"]
-sources = ["Butterfly", "Sonosite", "Clarius"]
+tasks = [ "PTX", "PNB", "ONSD", "ETT" ]
+sources = [ "Sonosite", "Butterfly", "Clarius" ]
 
 class Retry(Exception):
     pass
@@ -20,19 +20,19 @@ class Retry(Exception):
 def prepare_argparser():
     parser = argparse.ArgumentParser(description='ARGUS inference')
     parser.add_argument('-f', '--file',
-                        help='Video file to analyze.')
+                        help='Video file to analyze. REQUIRED: -f or -d')
     parser.add_argument('-d', '--directory',
                         help='Directory of video (*.mp4 and *.mov) files'
-                             ' to be analyzed.')
+                             ' to be analyzed. REQUIRED: -f or -d')
+    parser.add_argument('-s', '--source', 
+                        help='Specify ultrasound probe type:'
+                             ' Butterfly, Sonosite, Clarius.  REQUIRED')
     parser.add_argument('-g', '--gpu',
                         help='Accelerate using the specified GPU.')
     parser.add_argument('-t', '--task', 
                         help='Specify task: PTX, PNB, ONSD, ETT.'
                              ' This will override the automatic task'
                              ' determination AI.')
-    parser.add_argument('-s', '--source', 
-                        help='Specify ultrasound probe type:'
-                             ' Butterfly, Sonosite, Clarius')
     parser.add_argument('-D', '--Debug', action='store_true',
                         help='Enable debugging.')
     return parser
@@ -60,6 +60,8 @@ def write_result(video_file, result, debug=False):
     prediction = result['prediction']
 
     task_name = result['task_name']
+    source = result['source']
+    device_num = result['device_num']
 
     video_length = result['video_length']
 
@@ -91,6 +93,8 @@ def write_result(video_file, result, debug=False):
         task_confidence_PNB=task_confidence_PNB,
         task_confidence_ONSD=task_confidence_ONSD,
         task_confidence_ETT=task_confidence_ETT,
+        source=source,
+        device_num=device_num,
         decision_confidence_0=decision_confidence_0,
         decision_confidence_1=decision_confidence_1,
     )
@@ -113,7 +117,7 @@ def write_result(video_file, result, debug=False):
     print(f'      Confidence Measure 0: {decision_confidence_0}')
     print(f'      Confidence Measure 1: {decision_confidence_1}')
 
-def cli_send_video(video_file, sock, task=None, source=None, debug=False):
+def cli_send_video(video_file, sock, task=None, source=None, device_num=None, debug=False):
     if not path.exists(video_file):
         print(f'File {video_file} does not exist')
         return None
@@ -152,16 +156,35 @@ def main(args):
     debug = args.Debug
     
     task = None
-    if args.task != None and args.task in tasks:
-        task = args.task
+    if args.task != None:
+        if args.task in tasks:
+            task = args.task
+        else:
+            print(f"ERROR: Task {args.task} not defined.")
+            print(f"    -t {task}")
+            print(f"    Use the -h option for details.")
+            return
 
     source = None
-    if args.source != None and args.source in sources:
+    if args.source == None:
+        print(f"ERROR: Source required: -s {sources}")
+        return
+    if args.source in sources:
         source = args.source
+    else:
+        print(f"ERROR: Source {args.source} not defined.")
+        print(f"    -s {sources}")
+        print(f"    Use the -h option for details.")
+        return
     
     device_num = None
-    if args.gpu != None and args.gpu.isdigit():
-        device_num = int(args.gpu)
+    if args.gpu != None:
+        if args.gpu.isdigit():
+            device_num = int(args.gpu)
+        else:
+            print(f"ERROR: Device number {args.gpu} not defined.")
+            print(f"    Use the -h option for details.")
+            return
     
     handle = None
     try:

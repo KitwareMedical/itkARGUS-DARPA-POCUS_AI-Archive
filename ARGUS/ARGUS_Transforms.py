@@ -87,18 +87,25 @@ class ARGUS_RandSpatialCropSlices(RandomizableTransform, Transform):
             # if even num_slices, add a buffer so last slice can be used
             if self.boundary*2 == self.num_slices:
                 buffer = 1
-            while True:
-                self._roi_center_slice = self.R.randint(self.boundary,
-                        data.shape[self.axis]-self.boundary+buffer)
+            done = False
+            while not done:
+                min_slice = self.boundary
+                max_slice = data.shape[self.axis]-self.boundary+buffer
+                if(min_slice < max_slice):
+                    self._roi_center_slice = self.R.randint(self.boundary,
+                            data.shape[self.axis]-self.boundary+buffer)
+                else:
+                    self._roi_center_slice = data.shape[self.axis]//2
+                    done = True
                 if not self.require_labeled:
-                    break
+                    done = True
                 else:
                     slice_roi = [slice(0,data.shape[i])
                                  for i in range(len(data.shape))]
                     slice_roi[self.axis] = self._roi_center_slice
                     is_labeled = (data[tuple(slice_roi)]!=0).any()
                     if is_labeled:
-                        break
+                        done = True
         else:
             self._roi_center_slice = self.center_slice
 
@@ -114,11 +121,12 @@ class ARGUS_RandSpatialCropSlices(RandomizableTransform, Transform):
 
         def make_slices(smin, smax, _start, _end):
             tlist = list(_start)
-            tlist[self.axis] = smin
+            tlist[self.axis] = max(min(smin, _end[self.axis]-1),0)
             new_start = tuple(tlist)
         
             tlist = list(_end)
-            tlist[self.axis] = smax
+            tlist[self.axis] = max(min(smax, _end[self.axis]),
+                                   new_start[self.axis]+1)
             new_end = tuple(tlist)
 
             slices = [slice(int(s), int(e))
@@ -129,14 +137,12 @@ class ARGUS_RandSpatialCropSlices(RandomizableTransform, Transform):
         _start = np.zeros((len(_size)), dtype=np.int32)
         _end = _size
 
-        if self._roi_center_slice < 0:
-            self._roi_center_slice = ( 
-                img.shape[self.axis] + self._roi_center_slice )
+        self._roi_center_slice = max(min(self._roi_center_slice, _size[self.axis]-1),0)
         
+        min_slice = max(0, self._roi_center_slice - self.boundary)
+        max_slice = min(min_slice + self.num_slices, _size[self.axis])
         self._roi_start, self._roi_end, slices_all = make_slices(
-                self._roi_center_slice - self.boundary,
-                self._roi_center_slice - self.boundary + self.num_slices,
-                _start, _end )
+                min_slice, max_slice, _start, _end )
 
         arr = img[tuple(slices_all)]
 
