@@ -34,3 +34,23 @@ class ARGUS_app_ett:
         
     def decision(self):
         return self.result, self.confidence
+
+    def gradcam(self, runs=None, slice_num=None):
+        if slice_num != None:
+            if slice_num < 0:
+                slice_num = self.ett_roi.input_image.GetLargestPossibleRegion().GetSize()[2] + slice_num
+            self.ett_roi.volume_inference(slice_min=slice_num, slice_max=slice_num+1, step=1)
+        else:
+            self.result, self.confidence = self.ett_roi.volume_inference()
+        return self.ett_roi.gradcam(runs)
+    
+    def occlusion_sensitivity(self, runs=None, slice_num=None, mask_size=16):
+        if slice_num != None:
+            if slice_num < 0:
+                slice_num = self.ett_roi.input_image.GetLargestPossibleRegion().GetSize()[2] + slice_num
+            self.ett_roi.volume_inference(slice_min=slice_num, slice_max=slice_num+1, step=1)
+        else:
+            self.result, self.confidence = self.ett_roi.volume_inference()
+        return self.ett_roi.occlusion_sensitivity(runs, mask_size=mask_size)
+    
+    

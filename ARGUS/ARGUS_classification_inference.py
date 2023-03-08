@@ -23,6 +23,9 @@ from monai.transforms import (
     ToTensor,
 )
 
+from monai.visualize import GradCAMpp
+from monai.visualize import OcclusionSensitivity
+
 from ARGUS_Transforms import *
 
 class ARGUS_classification_inference:
@@ -50,6 +53,12 @@ class ARGUS_classification_inference:
         self.num_slices = int(config[network_name]['num_slices'])
         self.size_x = int(config[network_name]['size_x'])
         self.size_y = int(config[network_name]['size_y'])
+        
+        self.input_image = None
+        self.input_array = None
+        self.label_array = None
+        self.input_tensor = None
+        self.label_tensor = None
         
         self.testing_slice = int(config[network_name]['testing_slice'])
         
@@ -334,3 +343,38 @@ class ARGUS_classification_inference:
         prob = self.clean_probabilities(prob_total)
         classification = self.classify_probabilities(prob)
         return int(classification), prob
+
+    def gradcam(self, runs=None):
+        if runs == None:
+            runs = range(self.num_models)
+        target_layers = ["class_layers.relu"]
+        for i,run_num in enumerate(runs):
+            if i == 0:
+                cam = GradCAMpp(nn_module=self.model[run_num], target_layers=target_layers)
+                results = np.abs(cam(x=self.input_tensor[0].to(self.device), class_idx=1).cpu().detach().numpy())
+            else:
+                cam = GradCAMpp(nn_module=self.model[run_num], target_layers=target_layers)
+                results += np.abs(cam(x=self.input_tensor[0].to(self.device), class_idx=1).cpu().detach().numpy())
+        results /= len(runs)
+        return self.input_tensor[0], results
+    
+    def occlusion_sensitivity(self, runs=None, mask_size=16):
+        if runs == None:
+            runs = range(self.num_models)
+        target_layers = ["class_layers.relu"]
+        for i,run_num in enumerate(runs):
+            if i == 0:
+                occ_sens = OcclusionSensitivity(nn_module=self.model[run_num], mask_size=mask_size) #, mode='mean_patch')
+                tmp_occ_map, tmp_occ_class = occ_sens(x=self.input_tensor[0].to(self.device)) #,
+                                                        #b_box=[10, 240, 10, 240], mask_size=mask_size)
+                occ_map = tmp_occ_map.cpu().detach().numpy()
+                occ_class = tmp_occ_class.cpu().detach().numpy()
+            else:
+                occ_sens = OcclusionSensitivity(nn_module=self.model[run_num], mask_size=mask_size) #, mode='mean_patch')
+                tmp_occ_map, tmp_occ_class = occ_sens(x=self.input_tensor[0].to(self.device)) #,
+                                                        #b_box=[10, 240, 10, 240], mask_size=mask_size)
+                occ_map += tmp_occ_map.cpu().detach().numpy()
+                occ_class += tmp_occ_class.cpu().detach().numpy()
+        occ_map /= len(runs)
+        return self.input_tensor[0], occ_map,occ_class
+        
